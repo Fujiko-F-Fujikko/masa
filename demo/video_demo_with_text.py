@@ -90,6 +90,15 @@ def convert_instances_to_json(instances_list, video_path):
     """Convert tracking instances to JSON format"""
     import os
     
+    def xyxy2xywh(bbox):  
+        """Convert xyxy to xywh format"""  
+        return [  
+            bbox[0],  # x  
+            bbox[1],  # y    
+            bbox[2] - bbox[0],  # width  
+            bbox[3] - bbox[1]   # height  
+        ]  
+
     all_results = []
     video_name = os.path.basename(video_path)
     
@@ -100,11 +109,13 @@ def convert_instances_to_json(instances_list, video_path):
         pred_instances = instances[0].pred_track_instances
         
         for i in range(len(pred_instances.instances_id)):
+            bbox_xyxy = pred_instances.bboxes[i].cpu().numpy().tolist()  
+            bbox_xywh = xyxy2xywh(bbox_xyxy)  # 座標変換を追加
             data_dict = {
                 "frame_id": frame_idx,
                 "video_name": video_name,
                 "track_id": int(pred_instances.instances_id[i]),
-                "bbox": pred_instances.bboxes[i].cpu().numpy().tolist(),
+                "bbox": bbox_xywh,  # 変換後の座標を使用
                 "score": float(pred_instances.scores[i]),
                 "label": int(pred_instances.labels[i])
             }

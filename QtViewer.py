@@ -180,9 +180,7 @@ class VideoAnnotationViewer(QMainWindow):
             """Track IDに基づいて色を生成"""  
             np.random.seed(track_id)  
             return tuple(np.random.randint(0, 255, 3).tolist())  
-          
-        height, width = frame.shape[:2]  
-          
+
         for ann in annotations:  
             track_id = ann.get('track_id', 0)  
             bbox = ann.get('bbox', [])  
@@ -192,9 +190,11 @@ class VideoAnnotationViewer(QMainWindow):
             if len(bbox) != 4:  
                 continue  
                   
-            # xyxy形式として解釈（修正箇所）  
-            x1, y1, x2, y2 = bbox  
-            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+            # バウンディングボックス座標  
+            x, y, w, h = bbox  
+            x1, y1 = int(x), int(y)  
+            x2, y2 = int(x + w), int(y + h)
+
             # 色を取得  
             color = get_track_color(track_id)  
               
