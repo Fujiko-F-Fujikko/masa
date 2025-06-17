@@ -4,20 +4,23 @@ import cv2
 import numpy as np  
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,   
                             QWidget, QPushButton, QLabel, QSlider, QFileDialog,   
-                            QMessageBox, QComboBox, QSpinBox, QCheckBox)  
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal  
-from PyQt6.QtGui import QPixmap, QImage, QPainter, QPen, QColor, QFont  
+                            QMessageBox, QComboBox, QSpinBox, QCheckBox, QLineEdit,  
+                            QGroupBox, QFormLayout)  
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint  
+from PyQt6.QtGui import QPixmap, QImage, QPainter, QPen, QColor, QFont, QKeySequence, QShortcut  
 import os  
   
 class VideoAnnotationViewer(QMainWindow):  
     def __init__(self):  
         super().__init__()  
-        self.setWindowTitle("MASA Video Annotation Viewer")  
-        self.setGeometry(100, 100, 1200, 800)  
+        self.setWindowTitle("MASA Video Annotation Viewer with Editor")  
+        self.setGeometry(100, 100, 1400, 900)  
           
         # データ管理  
         self.video_path = None  
         self.json_data = []  
+        self.label_mapping = {}  
+        self.video_name = ""  
         self.current_frame = 0  
         self.total_frames = 0  
         self.cap = None  
@@ -31,98 +34,183 @@ class VideoAnnotationViewer(QMainWindow):
         self.score_threshold = 0.2  
         self.line_width = 3  
           
+        # 編集機能  
+        self.editing_mode = False  
+        self.selected_annotation = None  
+        self.drag_start = None  
+        self.resize_handle = None  
+        self.is_dragging = False  
+          
         self.init_ui()  
+        self.setup_shortcuts()  
           
     def init_ui(self):  
         central_widget = QWidget()  
         self.setCentralWidget(central_widget)  
           
         # メインレイアウト  
-        main_layout = QVBoxLayout(central_widget)  
+        main_layout = QHBoxLayout(central_widget)  
           
-        # コントロールパネル  
-        control_layout = QHBoxLayout()  
+        # 左側パネル（コントロール）  
+        left_panel = QWidget()  
+        left_panel.setMaximumWidth(350)  
+        left_layout = QVBoxLayout(left_panel)  
           
-        # ファイル読み込みボタン  
+        # ファイル読み込みグループ  
+        file_group = QGroupBox("ファイル読み込み")  
+        file_layout = QVBoxLayout(file_group)  
+          
         self.load_video_btn = QPushButton("動画を読み込み")  
         self.load_video_btn.clicked.connect(self.load_video)  
-        control_layout.addWidget(self.load_video_btn)  
+        file_layout.addWidget(self.load_video_btn)  
           
         self.load_json_btn = QPushButton("JSONを読み込み")  
         self.load_json_btn.clicked.connect(self.load_json)  
-        control_layout.addWidget(self.load_json_btn)  
+        file_layout.addWidget(self.load_json_btn)  
           
-        # 再生コントロール  
+        left_layout.addWidget(file_group)  
+          
+        # 再生コントロールグループ  
+        playback_group = QGroupBox("再生コントロール")  
+        playback_layout = QVBoxLayout(playback_group)  
+          
+        playback_controls = QHBoxLayout()  
         self.play_btn = QPushButton("再生")  
         self.play_btn.clicked.connect(self.toggle_play)  
         self.play_btn.setEnabled(False)  
-        control_layout.addWidget(self.play_btn)  
+        playback_controls.addWidget(self.play_btn)  
           
-        # フレーム情報  
         self.frame_label = QLabel("フレーム: 0/0")  
-        control_layout.addWidget(self.frame_label)  
+        playback_controls.addWidget(self.frame_label)  
+        playback_layout.addLayout(playback_controls)  
           
-        control_layout.addStretch()  
-        main_layout.addLayout(control_layout)  
+        left_layout.addWidget(playback_group)  
           
-        # 表示設定パネル  
-        settings_layout = QHBoxLayout()  
+        # 表示設定グループ  
+        display_group = QGroupBox("表示設定")  
+        display_layout = QFormLayout(display_group)  
           
-        # Track ID表示チェックボックス  
-        self.track_id_cb = QCheckBox("Track ID表示")  
+        self.track_id_cb = QCheckBox()  
         self.track_id_cb.setChecked(True)  
         self.track_id_cb.stateChanged.connect(self.update_display_settings)  
-        settings_layout.addWidget(self.track_id_cb)  
+        display_layout.addRow("Track ID表示:", self.track_id_cb)  
           
-        # スコア表示チェックボックス  
-        self.score_cb = QCheckBox("スコア表示")  
+        self.score_cb = QCheckBox()  
         self.score_cb.setChecked(True)  
         self.score_cb.stateChanged.connect(self.update_display_settings)  
-        settings_layout.addWidget(self.score_cb)  
+        display_layout.addRow("スコア表示:", self.score_cb)  
           
-        # スコア閾値設定  
-        settings_layout.addWidget(QLabel("スコア閾値:"))  
         self.score_threshold_spin = QSpinBox()  
         self.score_threshold_spin.setRange(0, 100)  
         self.score_threshold_spin.setValue(20)  
         self.score_threshold_spin.setSuffix("%")  
         self.score_threshold_spin.valueChanged.connect(self.update_display_settings)  
-        settings_layout.addWidget(self.score_threshold_spin)  
+        display_layout.addRow("スコア閾値:", self.score_threshold_spin)  
           
-        # 線の太さ設定  
-        settings_layout.addWidget(QLabel("線の太さ:"))  
         self.line_width_spin = QSpinBox()  
         self.line_width_spin.setRange(1, 10)  
         self.line_width_spin.setValue(3)  
         self.line_width_spin.valueChanged.connect(self.update_display_settings)  
-        settings_layout.addWidget(self.line_width_spin)  
+        display_layout.addRow("線の太さ:", self.line_width_spin)  
           
-        settings_layout.addStretch()  
-        main_layout.addLayout(settings_layout)  
+        left_layout.addWidget(display_group)  
+          
+        # 編集機能グループ  
+        edit_group = QGroupBox("編集機能")  
+        edit_layout = QFormLayout(edit_group)  
+          
+        self.edit_mode_cb = QCheckBox()  
+        self.edit_mode_cb.stateChanged.connect(self.toggle_edit_mode)  
+        edit_layout.addRow("編集モード:", self.edit_mode_cb)  
+          
+        self.label_combo = QComboBox()  
+        self.label_combo.setEnabled(False)  
+        self.label_combo.currentTextChanged.connect(self.change_selected_label)  
+        edit_layout.addRow("ラベル:", self.label_combo)  
+          
+        self.track_id_edit = QLineEdit()  
+        self.track_id_edit.setEnabled(False)  
+        self.track_id_edit.returnPressed.connect(self.change_track_id)  
+        edit_layout.addRow("Track ID:", self.track_id_edit)  
+          
+        # 編集ボタン  
+        edit_buttons = QVBoxLayout()  
+          
+        self.add_annotation_btn = QPushButton("アノテーション追加 (N)")  
+        self.add_annotation_btn.clicked.connect(self.add_new_annotation)  
+        self.add_annotation_btn.setEnabled(False)  
+        edit_buttons.addWidget(self.add_annotation_btn)  
+          
+        self.delete_annotation_btn = QPushButton("選択削除 (Del)")  
+        self.delete_annotation_btn.clicked.connect(self.delete_selected_annotation)  
+        self.delete_annotation_btn.setEnabled(False)  
+        edit_buttons.addWidget(self.delete_annotation_btn)  
+          
+        edit_layout.addRow("操作:", edit_buttons)  
+          
+        left_layout.addWidget(edit_group)  
+          
+        # 保存グループ  
+        save_group = QGroupBox("保存")  
+        save_layout = QVBoxLayout(save_group)  
+          
+        self.save_btn = QPushButton("修正結果を保存")  
+        self.save_btn.clicked.connect(self.save_modifications)  
+        self.save_btn.setEnabled(False)  
+        save_layout.addWidget(self.save_btn)  
+          
+        left_layout.addWidget(save_group)  
+          
+        left_layout.addStretch()  
+        main_layout.addWidget(left_panel)
+        # 右側パネル（動画表示）  
+        right_panel = QWidget()  
+        right_layout = QVBoxLayout(right_panel)  
           
         # 動画表示エリア  
         self.video_label = QLabel()  
         self.video_label.setMinimumSize(800, 600)  
-        self.video_label.setStyleSheet("border: 1px solid black")  
+        self.video_label.setStyleSheet("border: 2px solid black; background-color: #f0f0f0;")  
         self.video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  
         self.video_label.setText("動画とJSONファイルを読み込んでください")  
-        main_layout.addWidget(self.video_label)  
+        self.video_label.setScaledContents(False)  
+        right_layout.addWidget(self.video_label)  
           
         # フレームスライダー  
         self.frame_slider = QSlider(Qt.Orientation.Horizontal)  
         self.frame_slider.setEnabled(False)  
         self.frame_slider.valueChanged.connect(self.seek_frame)  
-        main_layout.addWidget(self.frame_slider)  
+        right_layout.addWidget(self.frame_slider)  
+          
+        # 選択情報表示  
+        self.selection_info = QLabel("選択: なし")  
+        self.selection_info.setStyleSheet("padding: 5px; background-color: #e0e0e0;")  
+        right_layout.addWidget(self.selection_info)  
+          
+        main_layout.addWidget(right_panel)  
+          
+    def setup_shortcuts(self):  
+        """キーボードショートカットを設定"""  
+        delete_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Delete), self)  
+        delete_shortcut.activated.connect(self.delete_selected_annotation)  
+          
+        add_shortcut = QShortcut(QKeySequence(Qt.Key.Key_N), self)  
+        add_shortcut.activated.connect(self.add_new_annotation)  
+          
+        play_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Space), self)  
+        play_shortcut.activated.connect(self.toggle_play)  
           
     def load_video(self):  
         """動画ファイルを読み込み"""  
         file_path, _ = QFileDialog.getOpenFileName(  
             self, "動画ファイルを選択", "",   
-            "Video Files (*.mp4 *.avi *.mov *.mkv)"  
+            "Video Files (*.mp4 *.avi *.mov *.mkv *.wmv)"  
         )  
           
         if file_path:  
             self.video_path = file_path  
+            if self.cap:  
+                self.cap.release()  
             self.cap = cv2.VideoCapture(file_path)  
               
             if not self.cap.isOpened():  
@@ -137,24 +225,33 @@ class VideoAnnotationViewer(QMainWindow):
             self.current_frame = 0  
             self.update_frame_display()  
               
-    def load_json(self):
-        """JSONファイルを読み込み"""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "JSONファイルを選択", "",
-            "JSON Files (*.json)"
-        )
-
-        if file_path:
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    self.json_data = data['annotations']
-                    self.label_mapping = data.get('label_mapping', {})
-
-                QMessageBox.information(self, "成功", f"{len(self.json_data)}件のアノテーションを読み込みました")
-                self.update_frame_display()
-            except Exception as e:
-                QMessageBox.warning(self, "エラー", f"JSONファイルの読み込みに失敗しました: {str(e)}")
+    def load_json(self):  
+        """JSONファイルを読み込み"""  
+        file_path, _ = QFileDialog.getOpenFileName(  
+            self, "JSONファイルを選択", "",   
+            "JSON Files (*.json)"  
+        )  
+          
+        if file_path:  
+            try:  
+                with open(file_path, 'r', encoding='utf-8') as f:  
+                    data = json.load(f)  
+                  
+                if isinstance(data, dict) and 'annotations' in data:  
+                    self.json_data = data['annotations']  
+                    self.label_mapping = data.get('label_mapping', {})  
+                    self.video_name = data.get('video_name', "")  
+                else:  
+                    self.json_data = data  
+                    self.label_mapping = {}  
+                    self.video_name = ""  
+                      
+                self.update_label_combo()  
+                self.save_btn.setEnabled(True)  
+                QMessageBox.information(self, "成功", f"{len(self.json_data)}件のアノテーションを読み込みました")  
+                self.update_frame_display()  
+            except Exception as e:  
+                QMessageBox.warning(self, "エラー", f"JSONファイルの読み込みに失敗しました: {str(e)}")  
       
     def update_display_settings(self):  
         """表示設定を更新"""  
@@ -164,6 +261,30 @@ class VideoAnnotationViewer(QMainWindow):
         self.line_width = self.line_width_spin.value()  
         self.update_frame_display()  
       
+    def toggle_edit_mode(self, state):  
+        """編集モードの切り替え"""  
+        self.editing_mode = state == Qt.CheckState.Checked.value  
+        self.label_combo.setEnabled(self.editing_mode)  
+        self.track_id_edit.setEnabled(self.editing_mode)  
+        self.add_annotation_btn.setEnabled(self.editing_mode)  
+        self.delete_annotation_btn.setEnabled(self.editing_mode and self.selected_annotation is not None)  
+          
+        if not self.editing_mode:  
+            self.selected_annotation = None  
+            self.update_selection_info()  
+            self.update_frame_display()  
+      
+    def update_label_combo(self):  
+        """ラベルコンボボックスを更新"""  
+        self.label_combo.clear()  
+        if self.label_mapping:  
+            for label_id, label_name in self.label_mapping.items():  
+                self.label_combo.addItem(label_name, int(label_id))  
+        else:  
+            default_labels = ["person", "car", "truck", "bus", "motorcycle", "bicycle"]  
+            for i, label in enumerate(default_labels):  
+                self.label_combo.addItem(label, i)  
+      
     def get_frame_annotations(self, frame_id):  
         """指定フレームのアノテーションを取得"""  
         annotations = []  
@@ -171,47 +292,56 @@ class VideoAnnotationViewer(QMainWindow):
             if item.get('frame_id') == frame_id:  
                 if item.get('score', 0) >= self.score_threshold:  
                     annotations.append(item)  
-        return annotations  
+          
+        # デバッグ用出力  
+        print(f"フレーム {frame_id} のアノテーション数: {len(annotations)}")  
+        for ann in annotations:  
+            print(f"  Track ID: {ann.get('track_id')}, bbox: {ann.get('bbox')}")  
+          
+        return annotations
       
     def draw_annotations(self, frame, annotations):  
         """フレームにアノテーションを描画"""  
         if not annotations:  
             return frame  
               
-        # MASAの可視化ロジックを参考にした色生成  
         def get_track_color(track_id):  
-            """Track IDに基づいて色を生成"""  
             np.random.seed(track_id)  
             return tuple(np.random.randint(0, 255, 3).tolist())  
-
+          
         for ann in annotations:  
             track_id = ann.get('track_id', 0)  
             bbox = ann.get('bbox', [])  
             score = ann.get('score', 0)  
             label_id = ann.get('label', 0)  
-            label_name = ann.get('label_name', None)  # ラベル名を取得
-
+            label_name = ann.get('label_name', None)  
+              
             if len(bbox) != 4:  
                 continue  
                   
-            # バウンディングボックス座標  
+            # xywh形式として解釈
             x, y, w, h = bbox  
             x1, y1 = int(x), int(y)  
-            x2, y2 = int(x + w), int(y + h)
-
-            # 色を取得  
+            x2, y2 = int(x + w), int(y + h)  
+            
             color = get_track_color(track_id)  
               
-            # バウンディングボックスを描画  
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, self.line_width)  
-              
-            # ラベルテキストを構築（文字列を使用）  
+            # 選択されたアノテーションは太い線で描画  
+            line_width = self.line_width * 2 if ann == self.selected_annotation else self.line_width  
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color, line_width)  
+            if ann == self.selected_annotation:
+                # 外側に太い枠線を追加  
+                offset = line_width * 2
+                cv2.rectangle(frame, (x1-offset, y1-offset), (x2+offset, y2+offset), (0, 255, 255), line_width * 2)  # 黄色の外枠  
+            
+            # ラベルテキストを構築  
             if label_name:  
                 label_text = label_name  
             elif hasattr(self, 'label_mapping') and str(label_id) in self.label_mapping:  
                 label_text = self.label_mapping[str(label_id)]  
             else:  
                 label_text = f"class {label_id}"  
+                  
             if self.show_track_ids:  
                 label_text += f" | {track_id}"  
             if self.show_scores:  
@@ -225,7 +355,6 @@ class VideoAnnotationViewer(QMainWindow):
                 label_text, font, font_scale, thickness  
             )  
               
-            # テキスト背景の矩形  
             text_x = x1  
             text_y = y1 - text_height - 5  
             if text_y < 0:  
@@ -239,14 +368,12 @@ class VideoAnnotationViewer(QMainWindow):
                 -1  
             )  
               
-            # テキストを描画  
             cv2.putText(  
                 frame, label_text, (text_x, text_y),   
                 font, font_scale, (0, 0, 0), thickness  
             )  
           
-        return frame  
-      
+        return frame
     def update_frame_display(self):  
         """現在のフレームを表示"""  
         if not self.cap:  
@@ -258,17 +385,14 @@ class VideoAnnotationViewer(QMainWindow):
         if not ret:  
             return  
               
-        # アノテーションを取得して描画  
         annotations = self.get_frame_annotations(self.current_frame)  
         frame_with_annotations = self.draw_annotations(frame.copy(), annotations)  
           
-        # フレームをQtで表示可能な形式に変換  
         rgb_frame = cv2.cvtColor(frame_with_annotations, cv2.COLOR_BGR2RGB)  
         h, w, ch = rgb_frame.shape  
         bytes_per_line = ch * w  
         qt_image = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)  
           
-        # ラベルサイズに合わせてスケール  
         label_size = self.video_label.size()  
         scaled_pixmap = QPixmap.fromImage(qt_image).scaled(  
             label_size, Qt.AspectRatioMode.KeepAspectRatio,   
@@ -277,7 +401,6 @@ class VideoAnnotationViewer(QMainWindow):
           
         self.video_label.setPixmap(scaled_pixmap)  
           
-        # フレーム情報を更新  
         self.frame_label.setText(f"フレーム: {self.current_frame + 1}/{self.total_frames}")  
         self.frame_slider.setValue(self.current_frame)  
       
@@ -304,6 +427,237 @@ class VideoAnnotationViewer(QMainWindow):
             self.update_frame_display()  
         else:  
             self.toggle_play()  # 最後のフレームで停止  
+      
+    def mousePressEvent(self, event):  
+        """マウスクリックイベントの処理"""  
+        if not self.editing_mode:  
+            return  
+              
+        pos = self.video_label.mapFromGlobal(event.globalPosition().toPoint())  
+        frame_annotations = self.get_frame_annotations(self.current_frame)  
+          
+        if not self.cap or not frame_annotations:  
+            return  
+          
+        # 実際のフレームサイズを取得  
+        frame_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))  
+        frame_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))  
+          
+        # 表示されているピクスマップのサイズを取得  
+        pixmap = self.video_label.pixmap()  
+        if not pixmap:  
+            return  
+              
+        pixmap_size = pixmap.size()  
+        label_size = self.video_label.size()  
+          
+        # スケール計算（アスペクト比を考慮）  
+        scale_x = frame_width / pixmap_size.width()  
+        scale_y = frame_height / pixmap_size.height()  
+          
+        # ラベル内でのピクスマップの位置を計算  
+        offset_x = (label_size.width() - pixmap_size.width()) // 2  
+        offset_y = (label_size.height() - pixmap_size.height()) // 2  
+          
+        # クリック位置をピクスマップ座標に変換  
+        pixmap_x = pos.x() - offset_x  
+        pixmap_y = pos.y() - offset_y  
+          
+        # 範囲チェック  
+        if pixmap_x < 0 or pixmap_y < 0 or pixmap_x >= pixmap_size.width() or pixmap_y >= pixmap_size.height():  
+            return  
+          
+        # 実際のフレーム座標に変換  
+        actual_x = pixmap_x * scale_x  
+        actual_y = pixmap_y * scale_y  
+          
+        print(f"実際の座標: {actual_x}, {actual_y}")  
+          
+        # クリックされたアノテーションを検索  
+        for ann in frame_annotations:  
+            bbox = ann.get('bbox', [])  
+            if len(bbox) != 4:  
+                continue  
+                  
+            # xywh形式として解釈（JSONで変換済み）  
+            x, y, w, h = bbox  
+            x1, y1 = x, y  
+            x2, y2 = x + w, y + h  
+              
+            print(f"チェック中のbbox: {x1}, {y1}, {x2}, {y2}")  
+              
+            if x1 <= actual_x <= x2 and y1 <= actual_y <= y2:  
+                self.selected_annotation = ann  
+                self.drag_start = QPoint(int(actual_x), int(actual_y))  
+                self.update_selection_info()  
+                self.update_frame_display()  
+                print(f"アノテーション選択: Track ID {ann.get('track_id')}")  
+                return  
+          
+        # 何も選択されなかった場合  
+        self.selected_annotation = None  
+        self.update_selection_info()  
+        self.update_frame_display()  
+        print("アノテーションが選択されませんでした")
+      
+    def mouseMoveEvent(self, event):  
+        """マウス移動イベントの処理"""  
+        if not self.editing_mode or not self.selected_annotation or not self.drag_start:  
+            return  
+              
+        pos = self.video_label.mapFromGlobal(event.globalPosition().toPoint())  
+          
+        if self.cap:  
+            frame_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))  
+            frame_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))  
+            label_size = self.video_label.size()  
+              
+            scale_x = frame_width / label_size.width()  
+            scale_y = frame_height / label_size.height()  
+              
+            actual_x = pos.x() * scale_x  
+            actual_y = pos.y() * scale_y  
+              
+            dx = actual_x - self.drag_start.x()  
+            dy = actual_y - self.drag_start.y()  
+              
+            bbox = self.selected_annotation['bbox']  
+            bbox[0] += dx  
+            bbox[1] += dy  
+            bbox[2] += dx  
+            bbox[3] += dy  
+              
+            self.drag_start = QPoint(int(actual_x), int(actual_y))  
+            self.update_frame_display()  
+      
+    def update_selection_info(self):  
+        """選択情報を更新"""  
+        if self.selected_annotation:  
+            track_id = self.selected_annotation.get('track_id', 0)  
+            label_name = self.selected_annotation.get('label_name', 'unknown')  
+            score = self.selected_annotation.get('score', 0)  
+            self.selection_info.setText(f"選択: Track ID {track_id}, {label_name}, Score: {score:.2f}")  
+              
+            # Track ID編集フィールドを更新  
+            self.track_id_edit.setText(str(track_id))  
+              
+            # ラベルコンボボックスを更新  
+            label_id = self.selected_annotation.get('label', 0)  
+            index = self.label_combo.findData(label_id)  
+            if index >= 0:  
+                self.label_combo.setCurrentIndex(index)  
+                  
+            self.delete_annotation_btn.setEnabled(True)  
+        else:  
+            self.selection_info.setText("選択: なし")  
+            self.track_id_edit.clear()  
+            self.delete_annotation_btn.setEnabled(False)  
+      
+    def change_selected_label(self):  
+        """選択されたアノテーションのラベルを変更"""  
+        if not self.selected_annotation:  
+            return  
+              
+        new_label_id = self.label_combo.currentData()  
+        new_label_name = self.label_combo.currentText()  
+          
+        self.selected_annotation['label'] = new_label_id  
+        self.selected_annotation['label_name'] = new_label_name  
+        self.update_selection_info()  
+        self.update_frame_display()  
+      
+    def change_track_id(self):  
+        """Track IDを変更"""  
+        if not self.selected_annotation:  
+            return  
+              
+        try:  
+            new_track_id = int(self.track_id_edit.text())  
+            self.selected_annotation['track_id'] = new_track_id  
+            self.update_selection_info()  
+            self.update_frame_display()  
+        except ValueError:  
+            QMessageBox.warning(self, "エラー", "有効な数値を入力してください")
+    def manage_track_ids(self):  
+        """Track IDの管理と一貫性保持"""  
+        all_track_ids = set()  
+        for ann in self.json_data:  
+            all_track_ids.add(ann.get('track_id', 0))  
+          
+        return max(all_track_ids) + 1 if all_track_ids else 1  
+      
+    def add_new_annotation(self):  
+        """新しいアノテーションを追加"""  
+        if not self.editing_mode:  
+            return  
+              
+        new_annotation = {  
+            "frame_id": self.current_frame,  
+            "track_id": self.manage_track_ids(),  
+            "bbox": [100, 100, 300, 300],  # デフォルトサイズ（xyxy形式）  
+            "score": 1.0,  
+            "label": 0,  
+            "label_name": "new_object"  
+        }  
+        self.json_data.append(new_annotation)  
+        self.selected_annotation = new_annotation  
+        self.update_selection_info()  
+        self.update_frame_display()  
+      
+    def delete_selected_annotation(self):  
+        """選択されたアノテーションを削除"""  
+        if not self.selected_annotation:  
+            return  
+              
+        if self.selected_annotation in self.json_data:  
+            self.json_data.remove(self.selected_annotation)  
+            self.selected_annotation = None  
+            self.update_selection_info()  
+            self.update_frame_display()  
+      
+    def save_modifications(self):  
+        """修正結果をJSONファイルに保存"""  
+        if not self.json_data:  
+            QMessageBox.warning(self, "エラー", "保存するデータがありません")  
+            return  
+          
+        file_path, _ = QFileDialog.getSaveFileName(  
+            self, "修正結果を保存", "", "JSON Files (*.json)"  
+        )  
+          
+        if file_path:  
+            try:  
+                # MASA形式との互換性を維持  
+                result_data = {  
+                    "annotations": self.json_data,  
+                    "label_mapping": self.label_mapping,  
+                    "video_name": self.video_name  
+                }  
+                  
+                with open(file_path, 'w', encoding='utf-8') as f:  
+                    json.dump(result_data, f, indent=2, ensure_ascii=False)  
+                      
+                QMessageBox.information(self, "成功", f"修正結果を保存しました: {file_path}")  
+            except Exception as e:  
+                QMessageBox.warning(self, "エラー", f"保存に失敗しました: {str(e)}")  
+      
+    def assign_new_track_id(self, annotation):  
+        """新しいtrack_idを割り当て"""  
+        new_id = self.manage_track_ids()  
+        annotation['track_id'] = new_id  
+        return new_id  
+      
+    def merge_track_ids(self, source_id, target_id):  
+        """Track IDをマージ"""  
+        for ann in self.json_data:  
+            if ann.get('track_id') == source_id:  
+                ann['track_id'] = target_id  
+      
+    def closeEvent(self, event):  
+        """アプリケーション終了時の処理"""  
+        if self.cap:  
+            self.cap.release()  
+        event.accept()  
   
 def main():  
     app = QApplication(sys.argv)  
