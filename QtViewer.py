@@ -2,6 +2,7 @@ import sys
 import json  
 import cv2  
 import numpy as np  
+import argparse  
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,   
                             QWidget, QPushButton, QLabel, QSlider, QFileDialog,   
                             QMessageBox, QComboBox, QSpinBox, QCheckBox, QLineEdit,  
@@ -200,58 +201,78 @@ class VideoAnnotationViewer(QMainWindow):
         play_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Space), self)  
         play_shortcut.activated.connect(self.toggle_play)  
           
-    def load_video(self):  
-        """動画ファイルを読み込み"""  
-        file_path, _ = QFileDialog.getOpenFileName(  
-            self, "動画ファイルを選択", "",   
-            "Video Files (*.mp4 *.avi *.mov *.mkv *.wmv)"  
-        )  
-          
-        if file_path:  
-            self.video_path = file_path  
-            if self.cap:  
-                self.cap.release()  
-            self.cap = cv2.VideoCapture(file_path)  
+    def load_video_file(self, file_path):
+        """指定されたパスの動画ファイルを読み込み"""
+        if not os.path.exists(file_path):
+            QMessageBox.warning(self, "エラー", f"動画ファイルが見つかりません: {file_path}")
+            return False
+
+        self.video_path = file_path
+        if self.cap:
+            self.cap.release()
+        self.cap = cv2.VideoCapture(file_path)
+
+        if not self.cap.isOpened():
+            QMessageBox.warning(self, "エラー", "動画ファイルを開けませんでした")
+            return False
+
+        self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        self.frame_slider.setMaximum(self.total_frames - 1)
+        self.frame_slider.setEnabled(True)
+        self.play_btn.setEnabled(True)
+
+        self.current_frame = 0
+        self.update_frame_display()
+        return True
+
+    def load_video(self):
+        """動画ファイルを読み込み"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "動画ファイルを選択", "",
+            "Video Files (*.mp4 *.avi *.mov *.mkv *.wmv)"
+        )
+
+        if file_path:
+            self.load_video_file(file_path)
               
-            if not self.cap.isOpened():  
-                QMessageBox.warning(self, "エラー", "動画ファイルを開けませんでした")  
-                return  
-                  
-            self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))  
-            self.frame_slider.setMaximum(self.total_frames - 1)  
-            self.frame_slider.setEnabled(True)  
-            self.play_btn.setEnabled(True)  
-              
-            self.current_frame = 0  
-            self.update_frame_display()  
-              
-    def load_json(self):  
-        """JSONファイルを読み込み"""  
-        file_path, _ = QFileDialog.getOpenFileName(  
-            self, "JSONファイルを選択", "",   
-            "JSON Files (*.json)"  
-        )  
-          
-        if file_path:  
-            try:  
-                with open(file_path, 'r', encoding='utf-8') as f:  
-                    data = json.load(f)  
-                  
-                if isinstance(data, dict) and 'annotations' in data:  
-                    self.json_data = data['annotations']  
-                    self.label_mapping = data.get('label_mapping', {})  
-                    self.video_name = data.get('video_name', "")  
-                else:  
-                    self.json_data = data  
-                    self.label_mapping = {}  
-                    self.video_name = ""  
-                      
-                self.update_label_combo()  
-                self.save_btn.setEnabled(True)  
-                QMessageBox.information(self, "成功", f"{len(self.json_data)}件のアノテーションを読み込みました")  
-                self.update_frame_display()  
-            except Exception as e:  
-                QMessageBox.warning(self, "エラー", f"JSONファイルの読み込みに失敗しました: {str(e)}")  
+    def load_json_file(self, file_path):
+        """指定されたパスのJSONファイルを読み込み"""
+        if not os.path.exists(file_path):
+            QMessageBox.warning(self, "エラー", f"JSONファイルが見つかりません: {file_path}")
+            return False
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            if isinstance(data, dict) and 'annotations' in data:
+                self.json_data = data['annotations']
+                self.label_mapping = data.get('label_mapping', {})
+                self.video_name = data.get('video_name', "")
+            else:
+                self.json_data = data
+                self.label_mapping = {}
+                self.video_name = ""
+
+            self.update_label_combo()
+            self.save_btn.setEnabled(True)
+            print(f"JSONファイルを読み込みました: {len(self.json_data)}件のアノテーション")
+            self.update_frame_display()
+            return True
+        except Exception as e:
+            QMessageBox.warning(self, "エラー", f"JSONファイルの読み込みに失敗しました: {str(e)}")
+            return False
+
+    def load_json(self):
+        """JSONファイルを読み込み"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "JSONファイルを選択", "",
+            "JSON Files (*.json)"
+        )
+
+        if file_path:
+            if self.load_json_file(file_path):
+                QMessageBox.information(self, "成功", f"{len(self.json_data)}件のアノテーションを読み込みました")
       
     def update_display_settings(self):  
         """表示設定を更新"""  
@@ -659,9 +680,28 @@ class VideoAnnotationViewer(QMainWindow):
             self.cap.release()  
         event.accept()  
   
+def parse_args():
+    """コマンドライン引数を解析"""
+    parser = argparse.ArgumentParser(description='MASA Video Annotation Viewer with Editor')
+    parser.add_argument('--video', type=str, help='Video file path')
+    parser.add_argument('--json', type=str, help='JSON annotation file path')
+    return parser.parse_args()
+
 def main():  
     app = QApplication(sys.argv)  
-    viewer = VideoAnnotationViewer()  
+    
+    # コマンド引数を解析
+    args = parse_args()
+    
+    viewer = VideoAnnotationViewer()
+    
+    # コマンド引数でファイルが指定されている場合は自動読み込み
+    if args.video:
+        viewer.load_video_file(args.video)
+    
+    if args.json:
+        viewer.load_json_file(args.json)
+    
     viewer.show()  
     sys.exit(app.exec())  
   
