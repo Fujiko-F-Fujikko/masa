@@ -27,7 +27,8 @@ class VideoAnnotationViewer(QMainWindow):
         self.cap = None  
         self.timer = QTimer()  
         self.timer.timeout.connect(self.update_frame)  
-        self.is_playing = False  
+        self.is_playing = False
+        self.original_bbox = None  # リサイズ時の元のbbox保存用
           
         # 表示設定  
         self.show_track_ids = True  
@@ -353,7 +354,28 @@ class VideoAnnotationViewer(QMainWindow):
             if ann == self.selected_annotation:
                 # 外側に太い枠線を追加  
                 offset = line_width * 2
-                cv2.rectangle(frame, (x1-offset, y1-offset), (x2+offset, y2+offset), (0, 255, 255), line_width * 2)  # 黄色の外枠  
+                cv2.rectangle(frame, (x1-offset, y1-offset), (x2+offset, y2+offset), (0, 255, 255), line_width * 2)  # 黄色の外枠
+                
+                # リサイズハンドルを描画
+                handle_size = 5
+                handles = [
+                    (x1, y1),      # top_left
+                    (x2, y1),      # top_right
+                    (x1, y2),      # bottom_left
+                    (x2, y2)       # bottom_right
+                ]
+                
+                for hx, hy in handles:
+                    # 白い四角を描画
+                    cv2.rectangle(frame, 
+                                (int(hx - handle_size), int(hy - handle_size)),
+                                (int(hx + handle_size), int(hy + handle_size)),
+                                (255, 255, 255), -1)
+                    # 黒い枠線を描画
+                    cv2.rectangle(frame,
+                                (int(hx - handle_size), int(hy - handle_size)),
+                                (int(hx + handle_size), int(hy + handle_size)),
+                                (0, 0, 0), 1)
             
             # ラベルテキストを構築  
             if label_name:  
@@ -449,6 +471,26 @@ class VideoAnnotationViewer(QMainWindow):
         else:  
             self.toggle_play()  # 最後のフレームで停止  
       
+    def get_resize_handle(self, bbox, click_x, click_y, handle_size=10):
+        """クリック位置がリサイズハンドルにあるかを判定"""
+        x, y, w, h = bbox
+        x1, y1 = x, y
+        x2, y2 = x + w, y + h
+        
+        handles = {
+            'top_left': (x1, y1),
+            'top_right': (x2, y1),
+            'bottom_left': (x1, y2),
+            'bottom_right': (x2, y2)
+        }
+        
+        for handle_name, (hx, hy) in handles.items():
+            if (hx - handle_size <= click_x <= hx + handle_size and 
+                hy - handle_size <= click_y <= hy + handle_size):
+                return handle_name
+        
+        return None
+
     def mousePressEvent(self, event):  
         """マウスクリックイベントの処理"""  
         if not self.editing_mode:  
@@ -508,8 +550,19 @@ class VideoAnnotationViewer(QMainWindow):
             print(f"チェック中のbbox: {x1}, {y1}, {x2}, {y2}")  
               
             if x1 <= actual_x <= x2 and y1 <= actual_y <= y2:  
-                self.selected_annotation = ann  
-                self.drag_start = QPoint(int(actual_x), int(actual_y))  
+                self.selected_annotation = ann
+                
+                # リサイズハンドルの判定
+                self.resize_handle = self.get_resize_handle(bbox, actual_x, actual_y)
+                
+                if self.resize_handle:
+                    # リサイズモード
+                    self.drag_start = QPoint(int(actual_x), int(actual_y))
+                    self.original_bbox = bbox.copy()  # 元のbboxを保存
+                else:
+                    # 移動モード
+                    self.drag_start = QPoint(int(actual_x), int(actual_y))
+                
                 self.update_selection_info()  
                 self.update_frame_display()  
                 print(f"アノテーション選択: Track ID {ann.get('track_id')}")  
@@ -521,6 +574,54 @@ class VideoAnnotationViewer(QMainWindow):
         self.update_frame_display()  
         print("アノテーションが選択されませんでした")
       
+    def resize_bbox(self, current_x, current_y):
+        """バウンディングボックスのリサイズ処理"""
+        if not self.resize_handle or not hasattr(self, 'original_bbox'):
+            return
+        
+        bbox = self.selected_annotation['bbox']
+        orig_x, orig_y, orig_w, orig_h = self.original_bbox
+        
+        if self.resize_handle == 'top_left':
+            # 左上角のリサイズ
+            dx = current_x - orig_x
+            dy = current_y - orig_y
+            new_w = orig_w - dx
+            new_h = orig_h - dy
+            if new_w > 10 and new_h > 10:  # 最小サイズ制限
+                bbox[0] = current_x
+                bbox[1] = current_y
+                bbox[2] = new_w
+                bbox[3] = new_h
+            
+        elif self.resize_handle == 'top_right':
+            # 右上角のリサイズ
+            dy = current_y - orig_y
+            new_w = current_x - orig_x
+            new_h = orig_h - dy
+            if new_w > 10 and new_h > 10:
+                bbox[1] = current_y
+                bbox[2] = new_w
+                bbox[3] = new_h
+            
+        elif self.resize_handle == 'bottom_left':
+            # 左下角のリサイズ
+            dx = current_x - orig_x
+            new_w = orig_w - dx
+            new_h = current_y - orig_y
+            if new_w > 10 and new_h > 10:
+                bbox[0] = current_x
+                bbox[2] = new_w
+                bbox[3] = new_h
+            
+        elif self.resize_handle == 'bottom_right':
+            # 右下角のリサイズ
+            new_w = current_x - orig_x
+            new_h = current_y - orig_y
+            if new_w > 10 and new_h > 10:
+                bbox[2] = new_w
+                bbox[3] = new_h
+
     def mouseMoveEvent(self, event):  
         """マウス移動イベントの処理"""  
         if not self.editing_mode or not self.selected_annotation or not self.drag_start:  
@@ -531,25 +632,43 @@ class VideoAnnotationViewer(QMainWindow):
         if self.cap:  
             frame_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))  
             frame_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))  
+            
+            pixmap = self.video_label.pixmap()
+            if not pixmap:
+                return
+                
+            pixmap_size = pixmap.size()
             label_size = self.video_label.size()  
               
-            scale_x = frame_width / label_size.width()  
-            scale_y = frame_height / label_size.height()  
+            scale_x = frame_width / pixmap_size.width()  
+            scale_y = frame_height / pixmap_size.height()  
+            
+            offset_x = (label_size.width() - pixmap_size.width()) // 2
+            offset_y = (label_size.height() - pixmap_size.height()) // 2
+            
+            pixmap_x = pos.x() - offset_x
+            pixmap_y = pos.y() - offset_y
+            
+            if pixmap_x < 0 or pixmap_y < 0 or pixmap_x >= pixmap_size.width() or pixmap_y >= pixmap_size.height():
+                return
+            
+            actual_x = pixmap_x * scale_x
+            actual_y = pixmap_y * scale_y
               
-            actual_x = pos.x() * scale_x  
-            actual_y = pos.y() * scale_y  
-              
-            dx = actual_x - self.drag_start.x()  
-            dy = actual_y - self.drag_start.y()  
-              
-            bbox = self.selected_annotation['bbox']  
-            bbox[0] += dx  
-            bbox[1] += dy  
-            bbox[2] += dx  
-            bbox[3] += dy  
+            if self.resize_handle:
+                # リサイズモード
+                self.resize_bbox(actual_x, actual_y)
+            else:
+                # 移動モード
+                dx = actual_x - self.drag_start.x()  
+                dy = actual_y - self.drag_start.y()  
+                  
+                bbox = self.selected_annotation['bbox']  
+                bbox[0] += dx  
+                bbox[1] += dy  
               
             self.drag_start = QPoint(int(actual_x), int(actual_y))  
-            self.update_frame_display()  
+            self.update_frame_display()
       
     def update_selection_info(self):  
         """選択情報を更新"""  
@@ -677,6 +796,15 @@ class VideoAnnotationViewer(QMainWindow):
         annotation['track_id'] = new_id  
         return new_id  
       
+    def mouseReleaseEvent(self, event):
+        """マウスボタンリリースイベントの処理"""
+        if self.editing_mode and self.resize_handle:
+            # リサイズ完了時の処理
+            self.resize_handle = None
+            if hasattr(self, 'original_bbox'):
+                delattr(self, 'original_bbox')
+            self.update_frame_display()
+
     def merge_track_ids(self, source_id, target_id):  
         """Track IDをマージ"""  
         for ann in self.json_data:  
