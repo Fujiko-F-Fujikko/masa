@@ -6,7 +6,7 @@ import argparse
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,   
                             QWidget, QPushButton, QLabel, QSlider, QFileDialog,   
                             QMessageBox, QComboBox, QSpinBox, QCheckBox, QLineEdit,  
-                            QGroupBox, QFormLayout)  
+                            QGroupBox, QFormLayout, QSizePolicy)  
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint  
 from PyQt6.QtGui import QPixmap, QImage, QPainter, QPen, QColor, QFont, QKeySequence, QShortcut  
 import os  
@@ -56,7 +56,7 @@ class VideoAnnotationViewer(QMainWindow):
           
         # 左側パネル（コントロール）  
         left_panel = QWidget()  
-        left_panel.setMaximumWidth(350)  
+        left_panel.setMaximumWidth(300)  
         left_layout = QVBoxLayout(left_panel)  
           
         # ファイル読み込みグループ  
@@ -179,7 +179,8 @@ class VideoAnnotationViewer(QMainWindow):
           
         # 動画表示エリア  
         self.video_label = QLabel()  
-        self.video_label.setMinimumSize(800, 600)  
+        self.video_label.setMinimumSize(1200, 800)  
+        self.video_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.video_label.setStyleSheet("border: 2px solid black; background-color: #f0f0f0;")  
         self.video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  
         self.video_label.setText("動画とJSONファイルを読み込んでください")  
