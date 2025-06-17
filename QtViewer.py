@@ -34,7 +34,8 @@ class VideoAnnotationViewer(QMainWindow):
         self.show_track_ids = True  
         self.show_scores = True  
         self.score_threshold = 0.2  
-        self.line_width = 3  
+        self.line_width = 3
+        self.resize_handle_size = 10  # リサイズハンドルの大きさ
           
         # 編集機能  
         self.editing_mode = False  
@@ -114,6 +115,13 @@ class VideoAnnotationViewer(QMainWindow):
         self.line_width_spin.setValue(3)  
         self.line_width_spin.valueChanged.connect(self.update_display_settings)  
         display_layout.addRow("線の太さ:", self.line_width_spin)  
+        
+        self.resize_handle_size_spin = QSpinBox()
+        self.resize_handle_size_spin.setRange(5, 20)
+        self.resize_handle_size_spin.setValue(10)
+        self.resize_handle_size_spin.setSuffix("px")
+        self.resize_handle_size_spin.valueChanged.connect(self.update_display_settings)
+        display_layout.addRow("ハンドルサイズ:", self.resize_handle_size_spin)
           
         left_layout.addWidget(display_group)  
           
@@ -280,7 +288,8 @@ class VideoAnnotationViewer(QMainWindow):
         self.show_track_ids = self.track_id_cb.isChecked()  
         self.show_scores = self.score_cb.isChecked()  
         self.score_threshold = self.score_threshold_spin.value() / 100.0  
-        self.line_width = self.line_width_spin.value()  
+        self.line_width = self.line_width_spin.value()
+        self.resize_handle_size = self.resize_handle_size_spin.value()
         self.update_frame_display()  
       
     def toggle_edit_mode(self, state):  
@@ -357,7 +366,6 @@ class VideoAnnotationViewer(QMainWindow):
                 cv2.rectangle(frame, (x1-offset, y1-offset), (x2+offset, y2+offset), (0, 255, 255), line_width * 2)  # 黄色の外枠
                 
                 # リサイズハンドルを描画
-                handle_size = 5
                 handles = [
                     (x1, y1),      # top_left
                     (x2, y1),      # top_right
@@ -368,13 +376,13 @@ class VideoAnnotationViewer(QMainWindow):
                 for hx, hy in handles:
                     # 白い四角を描画
                     cv2.rectangle(frame, 
-                                (int(hx - handle_size), int(hy - handle_size)),
-                                (int(hx + handle_size), int(hy + handle_size)),
+                                (int(hx - self.resize_handle_size), int(hy - self.resize_handle_size)),
+                                (int(hx + self.resize_handle_size), int(hy + self.resize_handle_size)),
                                 (255, 255, 255), -1)
                     # 黒い枠線を描画
                     cv2.rectangle(frame,
-                                (int(hx - handle_size), int(hy - handle_size)),
-                                (int(hx + handle_size), int(hy + handle_size)),
+                                (int(hx - self.resize_handle_size), int(hy - self.resize_handle_size)),
+                                (int(hx + self.resize_handle_size), int(hy + self.resize_handle_size)),
                                 (0, 0, 0), 1)
             
             # ラベルテキストを構築  
@@ -471,7 +479,7 @@ class VideoAnnotationViewer(QMainWindow):
         else:  
             self.toggle_play()  # 最後のフレームで停止  
       
-    def get_resize_handle(self, bbox, click_x, click_y, handle_size=10):
+    def get_resize_handle(self, bbox, click_x, click_y):
         """クリック位置がリサイズハンドルにあるかを判定"""
         x, y, w, h = bbox
         x1, y1 = x, y
@@ -485,8 +493,8 @@ class VideoAnnotationViewer(QMainWindow):
         }
         
         for handle_name, (hx, hy) in handles.items():
-            if (hx - handle_size <= click_x <= hx + handle_size and 
-                hy - handle_size <= click_y <= hy + handle_size):
+            if (hx - self.resize_handle_size <= click_x <= hx + self.resize_handle_size and 
+                hy - self.resize_handle_size <= click_y <= hy + self.resize_handle_size):
                 return handle_name
         
         return None
