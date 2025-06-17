@@ -5,7 +5,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, project_root)
 
 import gc
-import resource
+#import resource
 import argparse
 import cv2
 import tqdm
@@ -34,12 +34,12 @@ try:
 except RuntimeError:
     pass
 
-def set_file_descriptor_limit(limit):
-    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-    resource.setrlimit(resource.RLIMIT_NOFILE, (limit, hard))
+#def set_file_descriptor_limit(limit):
+#    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+#    resource.setrlimit(resource.RLIMIT_NOFILE, (limit, hard))
 
 # Set the file descriptor limit to 65536
-set_file_descriptor_limit(65536)
+#set_file_descriptor_limit(65536)
 
 def visualize_frame(args, visualizer, frame, track_result, frame_idx, fps=None):
     visualizer.add_datasample(
@@ -77,6 +77,7 @@ def parse_args():
     parser.add_argument('--sam_mask', action='store_true', help='Use SAM to generate mask for segmentation tracking')
     parser.add_argument('--sam_path',  type=str, default='saved_models/pretrain_weights/sam_vit_h_4b8939.pth', help='Default path for SAM models')
     parser.add_argument('--sam_type', type=str, default='vit_h', help='Default type for SAM models')
+    parser.add_argument('--json_out', type=str, help='Output JSON file for tracking results')
     parser.add_argument(
         '--wait-time',
         type=float,
@@ -84,6 +85,39 @@ def parse_args():
         help='The interval of show (s), 0 is block')
     args = parser.parse_args()
     return args
+
+def convert_instances_to_json(instances_list, video_path):
+    """Convert tracking instances to JSON format"""
+    import os
+    
+    all_results = []
+    video_name = os.path.basename(video_path)
+    
+    for frame_idx, instances in enumerate(instances_list):
+        if len(instances) == 0:
+            continue
+            
+        pred_instances = instances[0].pred_track_instances
+        
+        for i in range(len(pred_instances.instances_id)):
+            data_dict = {
+                "frame_id": frame_idx,
+                "video_name": video_name,
+                "track_id": int(pred_instances.instances_id[i]),
+                "bbox": pred_instances.bboxes[i].cpu().numpy().tolist(),
+                "score": float(pred_instances.scores[i]),
+                "label": int(pred_instances.labels[i])
+            }
+            
+            # マスクがある場合は追加
+            if hasattr(pred_instances, 'masks') and pred_instances.masks is not None:
+                if i < len(pred_instances.masks):
+                    # マスクデータの処理（必要に応じて）
+                    data_dict["has_mask"] = True
+            
+            all_results.append(data_dict)
+    
+    return all_results
 
 def main():
     args = parse_args()
@@ -223,6 +257,16 @@ def main():
             instances_list[idx] = track_result
 
 
+
+    # JSON出力処理を追加
+    if args.json_out:
+        print('Saving tracking results to JSON...')
+        json_results = convert_instances_to_json(instances_list, args.video)
+        
+        # mmengineを使用してJSONファイルを保存
+        import mmengine
+        mmengine.dump(json_results, args.json_out)
+        print(f'Results saved to {args.json_out}')
 
     if args.out:
         print('Start to visualize the results...')
