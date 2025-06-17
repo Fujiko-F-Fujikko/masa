@@ -485,6 +485,9 @@ class VideoAnnotationViewer(QMainWindow):
         x1, y1 = x, y
         x2, y2 = x + w, y + h
         
+        # ハンドル判定のための少し大きめの範囲を設定
+        handle_size = self.resize_handle_size * 1.5  # 判定範囲を1.5倍に拡大
+        
         handles = {
             'top_left': (x1, y1),
             'top_right': (x2, y1),
@@ -492,94 +495,92 @@ class VideoAnnotationViewer(QMainWindow):
             'bottom_right': (x2, y2)
         }
         
+        # 各ハンドルの判定範囲を確認（少し余裕を持たせる）
         for handle_name, (hx, hy) in handles.items():
-            if (hx - self.resize_handle_size <= click_x <= hx + self.resize_handle_size and 
-                hy - self.resize_handle_size <= click_y <= hy + self.resize_handle_size):
+            # 判定範囲を楕円形に近い形状で計算
+            dx = abs(click_x - hx) / handle_size
+            dy = abs(click_y - hy) / handle_size
+            if (dx * dx + dy * dy) <= 1.5:  # 1.5は判定の緩さを調整する係数
                 return handle_name
         
         return None
 
-    def mousePressEvent(self, event):  
-        """マウスクリックイベントの処理"""  
-        if not self.editing_mode:  
-            return  
-              
-        pos = self.video_label.mapFromGlobal(event.globalPosition().toPoint())  
-        frame_annotations = self.get_frame_annotations(self.current_frame)  
-          
-        if not self.cap or not frame_annotations:  
-            return  
-          
-        # 実際のフレームサイズを取得  
-        frame_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))  
-        frame_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))  
-          
-        # 表示されているピクスマップのサイズを取得  
-        pixmap = self.video_label.pixmap()  
-        if not pixmap:  
-            return  
-              
-        pixmap_size = pixmap.size()  
-        label_size = self.video_label.size()  
-          
-        # スケール計算（アスペクト比を考慮）  
-        scale_x = frame_width / pixmap_size.width()  
-        scale_y = frame_height / pixmap_size.height()  
-          
-        # ラベル内でのピクスマップの位置を計算  
-        offset_x = (label_size.width() - pixmap_size.width()) // 2  
-        offset_y = (label_size.height() - pixmap_size.height()) // 2  
-          
-        # クリック位置をピクスマップ座標に変換  
-        pixmap_x = pos.x() - offset_x  
-        pixmap_y = pos.y() - offset_y  
-          
-        # 範囲チェック  
-        if pixmap_x < 0 or pixmap_y < 0 or pixmap_x >= pixmap_size.width() or pixmap_y >= pixmap_size.height():  
-            return  
-          
-        # 実際のフレーム座標に変換  
-        actual_x = pixmap_x * scale_x  
-        actual_y = pixmap_y * scale_y  
-          
-        print(f"実際の座標: {actual_x}, {actual_y}")  
-          
-        # クリックされたアノテーションを検索  
-        for ann in frame_annotations:  
-            bbox = ann.get('bbox', [])  
-            if len(bbox) != 4:  
-                continue  
-                  
-            # xywh形式として解釈（JSONで変換済み）  
-            x, y, w, h = bbox  
-            x1, y1 = x, y  
-            x2, y2 = x + w, y + h  
-              
-            print(f"チェック中のbbox: {x1}, {y1}, {x2}, {y2}")  
-              
-            if x1 <= actual_x <= x2 and y1 <= actual_y <= y2:  
+    def mousePressEvent(self, event):
+        """マウスクリックイベントの処理"""
+        if not self.editing_mode:
+            return
+            
+        pos = self.video_label.mapFromGlobal(event.globalPosition().toPoint())
+        frame_annotations = self.get_frame_annotations(self.current_frame)
+        
+        if not self.cap or not frame_annotations:
+            return
+        
+        # 座標変換処理
+        frame_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        
+        pixmap = self.video_label.pixmap()
+        if not pixmap:
+            return
+            
+        pixmap_size = pixmap.size()
+        label_size = self.video_label.size()
+        
+        scale_x = frame_width / pixmap_size.width()
+        scale_y = frame_height / pixmap_size.height()
+        
+        offset_x = (label_size.width() - pixmap_size.width()) // 2
+        offset_y = (label_size.height() - pixmap_size.height()) // 2
+        
+        pixmap_x = pos.x() - offset_x
+        pixmap_y = pos.y() - offset_y
+        
+        if pixmap_x < 0 or pixmap_y < 0 or pixmap_x >= pixmap_size.width() or pixmap_y >= pixmap_size.height():
+            return
+        
+        actual_x = pixmap_x * scale_x
+        actual_y = pixmap_y * scale_y
+        
+        # アノテーション選択とリサイズハンドル判定を改善
+        for ann in frame_annotations:
+            bbox = ann.get('bbox', [])
+            if len(bbox) != 4:
+                continue
+                
+            # まずリサイズハンドルの判定を行う
+            resize_handle = self.get_resize_handle(bbox, actual_x, actual_y)
+            
+            # リサイズハンドルがクリックされた場合
+            if resize_handle:
                 self.selected_annotation = ann
-                
-                # リサイズハンドルの判定
-                self.resize_handle = self.get_resize_handle(bbox, actual_x, actual_y)
-                
-                if self.resize_handle:
-                    # リサイズモード
-                    self.drag_start = QPoint(int(actual_x), int(actual_y))
-                    self.original_bbox = bbox.copy()  # 元のbboxを保存
-                else:
-                    # 移動モード
-                    self.drag_start = QPoint(int(actual_x), int(actual_y))
-                
-                self.update_selection_info()  
-                self.update_frame_display()  
-                print(f"アノテーション選択: Track ID {ann.get('track_id')}")  
-                return  
-          
-        # 何も選択されなかった場合  
-        self.selected_annotation = None  
-        self.update_selection_info()  
-        self.update_frame_display()  
+                self.resize_handle = resize_handle
+                self.drag_start = QPoint(int(actual_x), int(actual_y))
+                self.original_bbox = bbox.copy()  # 元のbboxを保存
+                self.update_selection_info()
+                self.update_frame_display()
+                print(f"リサイズハンドル選択: {resize_handle}, Track ID {ann.get('track_id')}")
+                return
+            
+            # リサイズハンドルでない場合、バウンディングボックス内部かチェック
+            x, y, w, h = bbox
+            x1, y1 = x, y
+            x2, y2 = x + w, y + h
+            
+            if x1 <= actual_x <= x2 and y1 <= actual_y <= y2:
+                self.selected_annotation = ann
+                self.resize_handle = None
+                self.drag_start = QPoint(int(actual_x), int(actual_y))
+                self.update_selection_info()
+                self.update_frame_display()
+                print(f"アノテーション選択: Track ID {ann.get('track_id')}")
+                return
+        
+        # 何も選択されなかった場合
+        self.selected_annotation = None
+        self.resize_handle = None
+        self.update_selection_info()
+        self.update_frame_display()
         print("アノテーションが選択されませんでした")
       
     def resize_bbox(self, current_x, current_y):
