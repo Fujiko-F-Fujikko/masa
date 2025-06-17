@@ -86,21 +86,42 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def convert_instances_to_json(instances_list, video_path):
+def convert_instances_to_json(instances_list, video_path, model=None, custom_texts=None):
     """Convert tracking instances to JSON format"""
     import os
     
-    def xyxy2xywh(bbox):  
-        """Convert xyxy to xywh format"""  
-        return [  
-            bbox[0],  # x  
-            bbox[1],  # y    
-            bbox[2] - bbox[0],  # width  
-            bbox[3] - bbox[1]   # height  
-        ]  
+    def xyxy2xywh(bbox):
+        """Convert xyxy to xywh format"""
+        return [
+            bbox[0],  # x
+            bbox[1],  # y
+            bbox[2] - bbox[0],  # width
+            bbox[3] - bbox[1]   # height
+        ]
 
     all_results = []
     video_name = os.path.basename(video_path)
+    
+    # カスタムテキストが指定されている場合はそれを優先
+    if custom_texts:
+        if isinstance(custom_texts, str):
+            if not custom_texts.endswith("."):
+                custom_texts = custom_texts + " . "
+            class_names = custom_texts.split(" . ")
+            class_names = list(filter(lambda x: len(x) > 0, class_names))
+        else:
+            class_names = list(custom_texts)
+    else:
+        # モデルのdataset_metaから取得
+        class_names = None
+        if model and hasattr(model, 'dataset_meta'):
+            class_names = model.dataset_meta.get('classes', None)
+    
+    # ラベルマッピング情報を作成
+    label_mapping = {}
+    if class_names:
+        for i, name in enumerate(class_names):
+            label_mapping[i] = name
     
     for frame_idx, instances in enumerate(instances_list):
         if len(instances) == 0:
@@ -109,15 +130,19 @@ def convert_instances_to_json(instances_list, video_path):
         pred_instances = instances[0].pred_track_instances
         
         for i in range(len(pred_instances.instances_id)):
-            bbox_xyxy = pred_instances.bboxes[i].cpu().numpy().tolist()  
-            bbox_xywh = xyxy2xywh(bbox_xyxy)  # 座標変換を追加
+            bbox_xyxy = pred_instances.bboxes[i].cpu().numpy().tolist()
+            bbox_xywh = xyxy2xywh(bbox_xyxy)
+
+            label_id = int(pred_instances.labels[i])
+            label_name = label_mapping.get(label_id, f"class_{label_id}")
+            
             data_dict = {
                 "frame_id": frame_idx,
-                "video_name": video_name,
                 "track_id": int(pred_instances.instances_id[i]),
-                "bbox": bbox_xywh,  # 変換後の座標を使用
+                "bbox": bbox_xywh,
                 "score": float(pred_instances.scores[i]),
-                "label": int(pred_instances.labels[i])
+                "label": label_id,
+                "label_name": label_name
             }
             
             # マスクがある場合は追加
@@ -128,7 +153,13 @@ def convert_instances_to_json(instances_list, video_path):
             
             all_results.append(data_dict)
     
-    return all_results
+    result_with_meta = {
+        "video_name": video_name,
+        "label_mapping": label_mapping,
+        "annotations": all_results
+    }
+    
+    return result_with_meta
 
 def main():
     args = parse_args()
@@ -272,7 +303,7 @@ def main():
     # JSON出力処理を追加
     if args.json_out:
         print('Saving tracking results to JSON...')
-        json_results = convert_instances_to_json(instances_list, args.video)
+        json_results = convert_instances_to_json(instances_list, args.video, masa_model, args.texts)
         
         # mmengineを使用してJSONファイルを保存
         import mmengine

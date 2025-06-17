@@ -137,21 +137,24 @@ class VideoAnnotationViewer(QMainWindow):
             self.current_frame = 0  
             self.update_frame_display()  
               
-    def load_json(self):  
-        """JSONファイルを読み込み"""  
-        file_path, _ = QFileDialog.getOpenFileName(  
-            self, "JSONファイルを選択", "",   
-            "JSON Files (*.json)"  
-        )  
-          
-        if file_path:  
-            try:  
-                with open(file_path, 'r', encoding='utf-8') as f:  
-                    self.json_data = json.load(f)  
-                QMessageBox.information(self, "成功", f"{len(self.json_data)}件のアノテーションを読み込みました")  
-                self.update_frame_display()  
-            except Exception as e:  
-                QMessageBox.warning(self, "エラー", f"JSONファイルの読み込みに失敗しました: {str(e)}")  
+    def load_json(self):
+        """JSONファイルを読み込み"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "JSONファイルを選択", "",
+            "JSON Files (*.json)"
+        )
+
+        if file_path:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    self.json_data = data['annotations']
+                    self.label_mapping = data.get('label_mapping', {})
+
+                QMessageBox.information(self, "成功", f"{len(self.json_data)}件のアノテーションを読み込みました")
+                self.update_frame_display()
+            except Exception as e:
+                QMessageBox.warning(self, "エラー", f"JSONファイルの読み込みに失敗しました: {str(e)}")
       
     def update_display_settings(self):  
         """表示設定を更新"""  
@@ -185,8 +188,9 @@ class VideoAnnotationViewer(QMainWindow):
             track_id = ann.get('track_id', 0)  
             bbox = ann.get('bbox', [])  
             score = ann.get('score', 0)  
-            label = ann.get('label', 0)  
-              
+            label_id = ann.get('label', 0)  
+            label_name = ann.get('label_name', None)  # ラベル名を取得
+
             if len(bbox) != 4:  
                 continue  
                   
@@ -201,8 +205,13 @@ class VideoAnnotationViewer(QMainWindow):
             # バウンディングボックスを描画  
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, self.line_width)  
               
-            # ラベルテキストを構築  
-            label_text = f"class {label}"  
+            # ラベルテキストを構築（文字列を使用）  
+            if label_name:  
+                label_text = label_name  
+            elif hasattr(self, 'label_mapping') and str(label_id) in self.label_mapping:  
+                label_text = self.label_mapping[str(label_id)]  
+            else:  
+                label_text = f"class {label_id}"  
             if self.show_track_ids:  
                 label_text += f" | {track_id}"  
             if self.show_scores:  
