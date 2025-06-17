@@ -582,10 +582,15 @@ class VideoAnnotationViewer(QMainWindow):
         new_label_id = self.label_combo.currentData()  
         new_label_name = self.label_combo.currentText()  
           
-        self.selected_annotation['label'] = new_label_id  
-        self.selected_annotation['label_name'] = new_label_name  
-        self.update_selection_info()  
-        self.update_frame_display()  
+        # デバッグ用出力  
+        print(f"ラベル変更: ID={new_label_id}, Name={new_label_name}")  
+          
+        # アノテーションのラベルを更新  
+        if new_label_id is not None:  
+            self.selected_annotation['label'] = new_label_id  
+            self.selected_annotation['label_name'] = new_label_name  
+            self.update_selection_info()  
+            self.update_frame_display()  
       
     def change_track_id(self):  
         """Track IDを変更"""  
@@ -612,13 +617,17 @@ class VideoAnnotationViewer(QMainWindow):
         if not self.editing_mode:  
             return  
               
+        # 現在選択されているラベルを取得
+        current_label_id = self.label_combo.currentData() if self.label_combo.currentData() is not None else 0
+        current_label_name = self.label_combo.currentText() if self.label_combo.currentText() else "new_object"
+        
         new_annotation = {  
             "frame_id": self.current_frame,  
             "track_id": self.manage_track_ids(),  
             "bbox": [100, 100, 300, 300],  # デフォルトサイズ（xyxy形式）  
             "score": 1.0,  
-            "label": 0,  
-            "label_name": "new_object"  
+            "label": current_label_id,  # 現在選択されているラベルを使用
+            "label_name": current_label_name  # 現在選択されているラベル名を使用
         }  
         self.json_data.append(new_annotation)  
         self.selected_annotation = new_annotation  
