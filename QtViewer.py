@@ -159,7 +159,41 @@ class VideoAnnotationViewer(QMainWindow):
         edit_layout.addRow("操作:", edit_buttons)  
           
         left_layout.addWidget(edit_group)  
+
+        # 一括編集グループ  
+        batch_edit_group = QGroupBox("一括編集")  
+        batch_edit_layout = QFormLayout(batch_edit_group)  
           
+        # フレーム範囲指定  
+        range_layout = QHBoxLayout()  
+        self.start_frame_spin = QSpinBox()  
+        self.start_frame_spin.setMinimum(0)  
+        range_layout.addWidget(QLabel("開始:"))  
+        range_layout.addWidget(self.start_frame_spin)  
+          
+        self.end_frame_spin = QSpinBox()  
+        self.end_frame_spin.setMinimum(0)  
+        range_layout.addWidget(QLabel("終了:"))  
+        range_layout.addWidget(self.end_frame_spin)  
+          
+        batch_edit_layout.addRow("フレーム範囲:", range_layout)  
+          
+        # 一括操作ボタン  
+        batch_buttons = QVBoxLayout()  
+          
+        self.delete_track_btn = QPushButton("選択Track全削除")  
+        self.delete_track_btn.clicked.connect(self.delete_track_globally)  
+        self.delete_track_btn.setEnabled(False)  
+        batch_buttons.addWidget(self.delete_track_btn)  
+          
+        self.propagate_label_btn = QPushButton("ラベル変更を伝播")  
+        self.propagate_label_btn.clicked.connect(self.propagate_label_change)  
+        self.propagate_label_btn.setEnabled(False)  
+        batch_buttons.addWidget(self.propagate_label_btn)  
+          
+        batch_edit_layout.addRow("操作:", batch_buttons)  
+        left_layout.addWidget(batch_edit_group)
+        
         # 保存グループ  
         save_group = QGroupBox("保存")  
         save_layout = QVBoxLayout(save_group)  
@@ -698,10 +732,24 @@ class VideoAnnotationViewer(QMainWindow):
                 self.label_combo.setCurrentIndex(index)  
                   
             self.delete_annotation_btn.setEnabled(True)  
+
+            self.delete_annotation_btn.setEnabled(True)  
+            # 一括編集ボタンを有効化  
+            if hasattr(self, 'delete_track_btn'):  
+                self.delete_track_btn.setEnabled(True)  
+            if hasattr(self, 'propagate_label_btn'):  
+                self.propagate_label_btn.setEnabled(True)  
         else:  
             self.selection_info.setText("選択: なし")  
             self.track_id_edit.clear()  
             self.delete_annotation_btn.setEnabled(False)  
+
+            self.delete_annotation_btn.setEnabled(False)  
+            # 一括編集ボタンを無効化  
+            if hasattr(self, 'delete_track_btn'):  
+                self.delete_track_btn.setEnabled(False)  
+            if hasattr(self, 'propagate_label_btn'):  
+                self.propagate_label_btn.setEnabled(False)
       
     def change_selected_label(self):  
         """選択されたアノテーションのラベルを変更"""  
@@ -826,7 +874,110 @@ class VideoAnnotationViewer(QMainWindow):
         if self.cap:  
             self.cap.release()  
         event.accept()  
-  
+
+    def edit_track_across_frames(self, track_id, operation, **kwargs):  
+        """指定されたtrack_idのアノテーションを全フレームで編集"""  
+        modified_count = 0  
+          
+        for ann in self.json_data:  
+            if ann.get('track_id') == track_id:  
+                if operation == 'delete':  
+                    self.json_data.remove(ann)  
+                    modified_count += 1  
+                elif operation == 'change_label':  
+                    ann['label'] = kwargs.get('new_label_id')  
+                    ann['label_name'] = kwargs.get('new_label_name')  
+                    modified_count += 1  
+          
+        return modified_count  
+
+    def delete_track_globally(self):  
+        """選択されたtrack_idを全フレームから削除"""  
+        if not self.selected_annotation:  
+            return  
+              
+        track_id = self.selected_annotation.get('track_id')  
+        reply = QMessageBox.question(  
+            self, "確認",   
+            f"Track ID {track_id} を全フレームから削除しますか？",  
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+        )  
+          
+        if reply == QMessageBox.StandardButton.Yes:  
+            count = self.edit_track_across_frames(track_id, 'delete')  
+            QMessageBox.information(self, "完了", f"{count}個のアノテーションを削除しました")  
+            self.selected_annotation = None  
+            self.update_frame_display()
+
+    def interpolate_missing_frames(self, track_id):  
+        """指定されたtrack_idの欠損フレームを補間"""  
+        track_annotations = [ann for ann in self.json_data if ann.get('track_id') == track_id]  
+        track_annotations.sort(key=lambda x: x.get('frame_id'))  
+          
+        if len(track_annotations) < 2:  
+            return  
+          
+        # フレーム間の補間処理  
+        for i in range(len(track_annotations) - 1):  
+            current_frame = track_annotations[i]['frame_id']  
+            next_frame = track_annotations[i + 1]['frame_id']  
+              
+            # 間に欠損フレームがある場合  
+            if next_frame - current_frame > 1:  
+                self.interpolate_between_frames(track_annotations[i], track_annotations[i + 1])  
+      
+    def interpolate_between_frames(self, start_ann, end_ann):  
+        """2つのアノテーション間を線形補間"""  
+        start_frame = start_ann['frame_id']  
+        end_frame = end_ann['frame_id']  
+        start_bbox = start_ann['bbox']  
+        end_bbox = end_ann['bbox']  
+          
+        for frame_id in range(start_frame + 1, end_frame):  
+            # 線形補間でbboxを計算  
+            ratio = (frame_id - start_frame) / (end_frame - start_frame)  
+            interpolated_bbox = [  
+                start_bbox[i] + (end_bbox[i] - start_bbox[i]) * ratio  
+                for i in range(4)  
+            ]  
+              
+            # 補間されたアノテーションを追加  
+            interpolated_ann = {  
+                "frame_id": frame_id,  
+                "track_id": start_ann['track_id'],  
+                "bbox": interpolated_bbox,  
+                "score": start_ann['score'],  # スコアは開始フレームのものを使用  
+                "label": start_ann['label'],  
+                "label_name": start_ann['label_name']  
+            }  
+              
+            self.json_data.append(interpolated_ann)
+
+    def propagate_label_change(self):  
+        """選択されたアノテーションのラベル変更を同一track_idの全フレームに伝播"""  
+        if not self.selected_annotation:  
+            QMessageBox.warning(self, "エラー", "アノテーションが選択されていません")  
+            return  
+              
+        track_id = self.selected_annotation.get('track_id')  
+        new_label_id = self.selected_annotation.get('label')  
+        new_label_name = self.selected_annotation.get('label_name')  
+          
+        reply = QMessageBox.question(  
+            self, "確認",   
+            f"Track ID {track_id} のラベルを '{new_label_name}' に全フレームで変更しますか？",  
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+        )  
+          
+        if reply == QMessageBox.StandardButton.Yes:  
+            count = self.edit_track_across_frames(  
+                track_id, 'change_label',  
+                new_label_id=new_label_id,  
+                new_label_name=new_label_name  
+            )  
+            QMessageBox.information(self, "完了", f"{count}個のアノテーションのラベルを変更しました")  
+            self.update_frame_display()
+
 def parse_args():
     """コマンドライン引数を解析"""
     parser = argparse.ArgumentParser(description='MASA Video Annotation Viewer with Editor')
