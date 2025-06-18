@@ -6,7 +6,7 @@ import argparse
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,   
                             QWidget, QPushButton, QLabel, QSlider, QFileDialog,   
                             QMessageBox, QComboBox, QSpinBox, QCheckBox, QLineEdit,  
-                            QGroupBox, QFormLayout, QSizePolicy)  
+                            QGroupBox, QFormLayout, QSizePolicy, QListWidget, QDoubleSpinBox)  
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint  
 from PyQt6.QtGui import QPixmap, QImage, QPainter, QPen, QColor, QFont, QKeySequence, QShortcut  
 import os  
@@ -43,7 +43,16 @@ class VideoAnnotationViewer(QMainWindow):
         self.drag_start = None  
         self.resize_handle = None  
         self.is_dragging = False  
-          
+
+        
+        # カルマンフィルタパラメータ（新規追加）  
+        self.kalman_process_noise_pos = 1.0  # 位置のプロセスノイズ  
+        self.kalman_process_noise_vel = 5.0  # 速度のプロセスノイズ  
+        self.kalman_observation_noise = 2.0  # 観測ノイズ  
+        self.kalman_velocity_factor = 1.2    # 速度係数  
+        self.kalman_pos_uncertainty = 5.0    # 位置の初期不確実性  
+        self.kalman_vel_uncertainty = 10.0   # 速度の初期不確実性
+
         self.init_ui()  
         self.setup_shortcuts()  
           
@@ -207,6 +216,93 @@ class VideoAnnotationViewer(QMainWindow):
           
         left_layout.addStretch()  
         main_layout.addWidget(left_panel)
+
+        # 高度な補間グループ  
+        advanced_group = QGroupBox("高度な補間")  
+        advanced_layout = QFormLayout(advanced_group)  
+          
+        # 制御点管理  
+        self.control_points = []  
+        self.control_points_list = QListWidget()  
+        advanced_layout.addRow("制御点:", self.control_points_list)  
+          
+        control_buttons = QHBoxLayout()  
+        self.add_control_point_btn = QPushButton("現在位置を追加")  
+        self.add_control_point_btn.clicked.connect(self.add_control_point)  
+        control_buttons.addWidget(self.add_control_point_btn)  
+          
+        self.clear_control_points_btn = QPushButton("クリア")  
+        self.clear_control_points_btn.clicked.connect(self.clear_control_points)  
+        control_buttons.addWidget(self.clear_control_points_btn)  
+          
+        advanced_layout.addRow("操作:", control_buttons)  
+          
+        # 高度な補間ボタン  
+        self.kalman_interpolate_btn = QPushButton("カルマンフィルター補間Track追加")  
+        self.kalman_interpolate_btn.clicked.connect(self.create_kalman_track)  
+        advanced_layout.addRow("カルマンフィルター:", self.kalman_interpolate_btn)
+        
+        left_layout.addWidget(advanced_group) 
+
+        # カルマンフィルタパラメータグループ  
+        kalman_group = QGroupBox("カルマンフィルタパラメータ")  
+        kalman_layout = QFormLayout(kalman_group)  
+          
+        # プロセスノイズ（位置）  
+        self.process_noise_pos_spin = QDoubleSpinBox()  
+        self.process_noise_pos_spin.setRange(0.1, 10.0)  
+        self.process_noise_pos_spin.setValue(1.0)  
+        self.process_noise_pos_spin.setSingleStep(0.1)  
+        self.process_noise_pos_spin.valueChanged.connect(self.update_kalman_params)  
+        kalman_layout.addRow("位置プロセスノイズ:", self.process_noise_pos_spin)  
+          
+        # プロセスノイズ（速度）  
+        self.process_noise_vel_spin = QDoubleSpinBox()  
+        self.process_noise_vel_spin.setRange(0.1, 20.0)  
+        self.process_noise_vel_spin.setValue(5.0)  
+        self.process_noise_vel_spin.setSingleStep(0.1)  
+        self.process_noise_vel_spin.valueChanged.connect(self.update_kalman_params)  
+        kalman_layout.addRow("速度プロセスノイズ:", self.process_noise_vel_spin)  
+          
+        # 観測ノイズ  
+        self.observation_noise_spin = QDoubleSpinBox()  
+        self.observation_noise_spin.setRange(0.1, 10.0)  
+        self.observation_noise_spin.setValue(2.0)  
+        self.observation_noise_spin.setSingleStep(0.1)  
+        self.observation_noise_spin.valueChanged.connect(self.update_kalman_params)  
+        kalman_layout.addRow("観測ノイズ:", self.observation_noise_spin)  
+          
+        # 速度係数  
+        self.velocity_factor_spin = QDoubleSpinBox()  
+        self.velocity_factor_spin.setRange(0.5, 3.0)  
+        self.velocity_factor_spin.setValue(1.2)  
+        self.velocity_factor_spin.setSingleStep(0.1)  
+        self.velocity_factor_spin.valueChanged.connect(self.update_kalman_params)  
+        kalman_layout.addRow("速度係数:", self.velocity_factor_spin)  
+          
+        # 位置不確実性  
+        self.pos_uncertainty_spin = QDoubleSpinBox()  
+        self.pos_uncertainty_spin.setRange(1.0, 20.0)  
+        self.pos_uncertainty_spin.setValue(5.0)  
+        self.pos_uncertainty_spin.setSingleStep(0.5)  
+        self.pos_uncertainty_spin.valueChanged.connect(self.update_kalman_params)  
+        kalman_layout.addRow("位置不確実性:", self.pos_uncertainty_spin)  
+          
+        # 速度不確実性  
+        self.vel_uncertainty_spin = QDoubleSpinBox()  
+        self.vel_uncertainty_spin.setRange(1.0, 30.0)  
+        self.vel_uncertainty_spin.setValue(10.0)  
+        self.vel_uncertainty_spin.setSingleStep(0.5)  
+        self.vel_uncertainty_spin.valueChanged.connect(self.update_kalman_params)  
+        kalman_layout.addRow("速度不確実性:", self.vel_uncertainty_spin)  
+          
+        # リセットボタン  
+        self.reset_kalman_btn = QPushButton("デフォルトに戻す")  
+        self.reset_kalman_btn.clicked.connect(self.reset_kalman_params)  
+        kalman_layout.addRow("リセット:", self.reset_kalman_btn)  
+          
+        left_layout.addWidget(kalman_group)
+
         # 右側パネル（動画表示）  
         right_panel = QWidget()  
         right_layout = QVBoxLayout(right_panel)  
@@ -998,6 +1094,193 @@ class VideoAnnotationViewer(QMainWindow):
             )  
             QMessageBox.information(self, "完了", f"{count}個のアノテーションのラベルを変更しました")  
             self.update_frame_display()
+
+    def add_control_point(self):  
+        """現在のアノテーションを制御点として追加"""  
+        if not self.selected_annotation:  
+            QMessageBox.warning(self, "エラー", "アノテーションを選択してください")  
+            return  
+          
+        control_point = {  
+            'frame': self.current_frame,  
+            'bbox': self.selected_annotation['bbox'].copy()  
+        }  
+        self.control_points.append(control_point)  
+          
+        # リストに表示  
+        self.control_points_list.addItem(f"フレーム {self.current_frame}: {control_point['bbox']}")  
+      
+    def clear_control_points(self):  
+        """制御点をクリア"""  
+        self.control_points.clear()  
+        self.control_points_list.clear()  
+      
+    def create_spline_track(self):  
+        """制御点を使用してスプライン補間trackを作成"""  
+        if len(self.control_points) < 2:  
+            QMessageBox.warning(self, "エラー", "最低2つの制御点が必要です")  
+            return  
+          
+        if not self.selected_annotation:  
+            QMessageBox.warning(self, "エラー", "ラベル情報のためにアノテーションを選択してください")  
+            return  
+          
+        label_id = self.selected_annotation['label']  
+        label_name = self.selected_annotation['label_name']  
+          
+        track_id, count = self.spline_interpolate_track(self.control_points, label_id, label_name)  
+        if track_id:  
+            QMessageBox.information(self, "完了", f"Track ID {track_id} で {count}個の補間アノテーションを追加しました")  
+            self.update_frame_display()
+
+    def kalman_filter_interpolation(self, control_points, label_id, label_name):  
+        """カルマンフィルターを使用した軌跡予測（修正版）"""  
+        import numpy as np  
+        from scipy.linalg import inv  
+          
+        if len(control_points) < 2:  
+            return None, 0  
+          
+        # 制御点をソート  
+        control_points.sort(key=lambda x: x['frame'])  
+          
+        # システムモデル（等速度モデル）  
+        dt = 1.0  
+        F = np.array([[1, 0, dt, 0],  
+                      [0, 1, 0, dt],  
+                      [0, 0, 1, 0],  
+                      [0, 0, 0, 1]])  
+          
+        H = np.array([[1, 0, 0, 0],  
+                      [0, 1, 0, 0]])  
+          
+        # UIで設定されたパラメータを使用  
+        Q = np.diag([self.kalman_process_noise_pos, self.kalman_process_noise_pos,   
+                    self.kalman_process_noise_vel, self.kalman_process_noise_vel])  
+        R = np.diag([self.kalman_observation_noise, self.kalman_observation_noise])  
+          
+        # 初期状態の推定  
+        first_point = control_points[0]  
+        initial_pos = [(first_point['bbox'][0] + first_point['bbox'][2])/2,   
+                      (first_point['bbox'][1] + first_point['bbox'][3])/2]  
+          
+        if len(control_points) > 1:  
+            second_point = control_points[1]  
+            frame_diff = second_point['frame'] - first_point['frame']  
+            second_pos = [(second_point['bbox'][0] + second_point['bbox'][2])/2,  
+                          (second_point['bbox'][1] + second_point['bbox'][3])/2]  
+              
+            # UIで設定された速度係数を使用  
+            initial_vel = [  
+                (second_pos[0] - initial_pos[0]) / frame_diff * self.kalman_velocity_factor,  
+                (second_pos[1] - initial_pos[1]) / frame_diff * self.kalman_velocity_factor  
+            ]  
+        else:  
+            initial_vel = [0, 0]  
+          
+        # 初期状態ベクトル  
+        x = np.array([initial_pos[0], initial_pos[1], initial_vel[0], initial_vel[1]])  
+          
+        # UIで設定された不確実性を使用  
+        P = np.diag([self.kalman_pos_uncertainty, self.kalman_pos_uncertainty,   
+                    self.kalman_vel_uncertainty, self.kalman_vel_uncertainty])            
+
+        new_track_id = self.manage_track_ids()  
+        added_count = 0  
+          
+        start_frame = control_points[0]['frame']  
+        end_frame = control_points[-1]['frame']  
+          
+        for frame_id in range(start_frame, end_frame + 1):  
+            # 予測ステップ  
+            x_pred = F @ x  
+            P_pred = F @ P @ F.T + Q  
+              
+            # 観測データがある場合は更新  
+            observation = None  
+            for cp in control_points:  
+                if cp['frame'] == frame_id:  
+                    observation = np.array([(cp['bbox'][0] + cp['bbox'][2])/2,   
+                                          (cp['bbox'][1] + cp['bbox'][3])/2])  
+                    break  
+              
+            if observation is not None:  
+                # 更新ステップ  
+                y = observation - H @ x_pred  
+                S = H @ P_pred @ H.T + R  
+                K = P_pred @ H.T @ inv(S)  
+                x = x_pred + K @ y  
+                P = (np.eye(4) - K @ H) @ P_pred  
+            else:  
+                x = x_pred  
+                P = P_pred  
+              
+            # 元のbboxサイズを維持  
+            ref_bbox = control_points[0]['bbox']  
+            w, h = ref_bbox[2] - ref_bbox[0], ref_bbox[3] - ref_bbox[1]  
+              
+            # 異常値チェック  
+            if abs(x[0]) > 10000 or abs(x[1]) > 10000:  
+                print(f"Warning: Abnormal position detected at frame {frame_id}: ({x[0]}, {x[1]})")  
+                # 最後の有効な観測値を使用  
+                for cp in reversed(control_points):  
+                    if cp['frame'] <= frame_id:  
+                        x[0] = (cp['bbox'][0] + cp['bbox'][2])/2  
+                        x[1] = (cp['bbox'][1] + cp['bbox'][3])/2  
+                        break  
+              
+            interpolated_bbox = [  
+                x[0] - w/2, x[1] - h/2,  
+                x[0] + w/2, x[1] + h/2  
+            ]  
+              
+            new_annotation = {  
+                "frame_id": frame_id,  
+                "track_id": new_track_id,  
+                "bbox": interpolated_bbox,  
+                "score": 0.9,  
+                "label": label_id,  
+                "label_name": label_name  
+            }  
+            self.json_data.append(new_annotation)  
+            added_count += 1  
+          
+        return new_track_id, added_count
+      
+    def create_kalman_track(self):  
+        """カルマンフィルター補間trackを作成"""  
+        if len(self.control_points) < 2:  
+            QMessageBox.warning(self, "エラー", "カルマンフィルター補間には最低2つの制御点が必要です")  
+            return  
+          
+        if not self.selected_annotation:  
+            return  
+          
+        label_id = self.selected_annotation['label']  
+        label_name = self.selected_annotation['label_name']  
+          
+        track_id, count = self.kalman_filter_interpolation(self.control_points, label_id, label_name)  
+        if track_id:  
+            QMessageBox.information(self, "完了", f"カルマンフィルター補間でTrack ID {track_id}、{count}個のアノテーションを追加しました")  
+            self.update_frame_display()
+
+    def update_kalman_params(self):  
+        """カルマンフィルタパラメータを更新"""  
+        self.kalman_process_noise_pos = self.process_noise_pos_spin.value()  
+        self.kalman_process_noise_vel = self.process_noise_vel_spin.value()  
+        self.kalman_observation_noise = self.observation_noise_spin.value()  
+        self.kalman_velocity_factor = self.velocity_factor_spin.value()  
+        self.kalman_pos_uncertainty = self.pos_uncertainty_spin.value()  
+        self.kalman_vel_uncertainty = self.vel_uncertainty_spin.value()  
+      
+    def reset_kalman_params(self):  
+        """カルマンフィルタパラメータをデフォルト値にリセット"""  
+        self.process_noise_pos_spin.setValue(1.0)  
+        self.process_noise_vel_spin.setValue(5.0)  
+        self.observation_noise_spin.setValue(2.0)  
+        self.velocity_factor_spin.setValue(1.2)  
+        self.pos_uncertainty_spin.setValue(5.0)  
+        self.vel_uncertainty_spin.setValue(10.0)
 
 def parse_args():
     """コマンドライン引数を解析"""
