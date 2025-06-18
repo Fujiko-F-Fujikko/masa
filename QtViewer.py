@@ -6,7 +6,7 @@ import argparse
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,   
                             QWidget, QPushButton, QLabel, QSlider, QFileDialog,   
                             QMessageBox, QComboBox, QSpinBox, QCheckBox, QLineEdit,  
-                            QGroupBox, QFormLayout, QSizePolicy, QListWidget, QDoubleSpinBox)  
+                            QGroupBox, QFormLayout, QSizePolicy, QListWidget, QDoubleSpinBox, QTabWidget)  
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint  
 from PyQt6.QtGui import QPixmap, QImage, QPainter, QPen, QColor, QFont, QKeySequence, QShortcut  
 import os  
@@ -15,7 +15,7 @@ class VideoAnnotationViewer(QMainWindow):
     def __init__(self):  
         super().__init__()  
         self.setWindowTitle("MASA Video Annotation Viewer with Editor")  
-        self.setGeometry(100, 100, 1400, 900)  
+        self.setGeometry(100, 100, 2000, 1200) # ウィンドウサイズを拡張  
           
         # データ管理  
         self.video_path = None  
@@ -27,15 +27,14 @@ class VideoAnnotationViewer(QMainWindow):
         self.cap = None  
         self.timer = QTimer()  
         self.timer.timeout.connect(self.update_frame)  
-        self.is_playing = False
-        self.original_bbox = None  # リサイズ時の元のbbox保存用
+        self.is_playing = False  
           
         # 表示設定  
         self.show_track_ids = True  
         self.show_scores = True  
         self.score_threshold = 0.2  
-        self.line_width = 3
-        self.resize_handle_size = 10  # リサイズハンドルの大きさ
+        self.line_width = 3  
+        self.resize_handle_size = 10  
           
         # 編集機能  
         self.editing_mode = False  
@@ -43,16 +42,18 @@ class VideoAnnotationViewer(QMainWindow):
         self.drag_start = None  
         self.resize_handle = None  
         self.is_dragging = False  
-
-        
-        # カルマンフィルタパラメータ（新規追加）  
-        self.kalman_process_noise_pos = 1.0  # 位置のプロセスノイズ  
-        self.kalman_process_noise_vel = 5.0  # 速度のプロセスノイズ  
-        self.kalman_observation_noise = 2.0  # 観測ノイズ  
-        self.kalman_velocity_factor = 1.2    # 速度係数  
-        self.kalman_pos_uncertainty = 5.0    # 位置の初期不確実性  
-        self.kalman_vel_uncertainty = 10.0   # 速度の初期不確実性
-
+  
+        # カルマンフィルタパラメータ  
+        self.kalman_process_noise_pos = 1.0  
+        self.kalman_process_noise_vel = 5.0  
+        self.kalman_observation_noise = 2.0  
+        self.kalman_velocity_factor = 1.2  
+        self.kalman_pos_uncertainty = 5.0  
+        self.kalman_vel_uncertainty = 10.0  
+          
+        # 制御点管理  
+        self.control_points = []  
+          
         self.init_ui()  
         self.setup_shortcuts()  
           
@@ -65,252 +66,239 @@ class VideoAnnotationViewer(QMainWindow):
           
         # 左側パネル（コントロール）  
         left_panel = QWidget()  
-        left_panel.setMaximumWidth(300)  
+        left_panel.setMaximumWidth(600) # 幅を拡張  
         left_layout = QVBoxLayout(left_panel)  
+          
+        # タブウィジェットを作成  
+        tab_widget = QTabWidget()  
+          
+        # --- 1. 基本設定タブ ---  
+        basic_settings_tab = QWidget()  
+        basic_settings_layout = QVBoxLayout(basic_settings_tab)  
           
         # ファイル読み込みグループ  
         file_group = QGroupBox("ファイル読み込み")  
         file_layout = QVBoxLayout(file_group)  
-          
         self.load_video_btn = QPushButton("動画を読み込み")  
         self.load_video_btn.clicked.connect(self.load_video)  
         file_layout.addWidget(self.load_video_btn)  
-          
         self.load_json_btn = QPushButton("JSONを読み込み")  
         self.load_json_btn.clicked.connect(self.load_json)  
         file_layout.addWidget(self.load_json_btn)  
-          
-        left_layout.addWidget(file_group)  
+        basic_settings_layout.addWidget(file_group)  
           
         # 再生コントロールグループ  
         playback_group = QGroupBox("再生コントロール")  
         playback_layout = QVBoxLayout(playback_group)  
-          
         playback_controls = QHBoxLayout()  
         self.play_btn = QPushButton("再生")  
         self.play_btn.clicked.connect(self.toggle_play)  
         self.play_btn.setEnabled(False)  
         playback_controls.addWidget(self.play_btn)  
-          
         self.frame_label = QLabel("フレーム: 0/0")  
         playback_controls.addWidget(self.frame_label)  
         playback_layout.addLayout(playback_controls)  
-          
-        left_layout.addWidget(playback_group)  
+        basic_settings_layout.addWidget(playback_group)  
           
         # 表示設定グループ  
         display_group = QGroupBox("表示設定")  
         display_layout = QFormLayout(display_group)  
-          
         self.track_id_cb = QCheckBox()  
         self.track_id_cb.setChecked(True)  
         self.track_id_cb.stateChanged.connect(self.update_display_settings)  
         display_layout.addRow("Track ID表示:", self.track_id_cb)  
-          
         self.score_cb = QCheckBox()  
         self.score_cb.setChecked(True)  
         self.score_cb.stateChanged.connect(self.update_display_settings)  
         display_layout.addRow("スコア表示:", self.score_cb)  
-          
         self.score_threshold_spin = QSpinBox()  
         self.score_threshold_spin.setRange(0, 100)  
         self.score_threshold_spin.setValue(20)  
         self.score_threshold_spin.setSuffix("%")  
         self.score_threshold_spin.valueChanged.connect(self.update_display_settings)  
         display_layout.addRow("スコア閾値:", self.score_threshold_spin)  
-          
         self.line_width_spin = QSpinBox()  
         self.line_width_spin.setRange(1, 10)  
         self.line_width_spin.setValue(3)  
         self.line_width_spin.valueChanged.connect(self.update_display_settings)  
         display_layout.addRow("線の太さ:", self.line_width_spin)  
-        
-        self.resize_handle_size_spin = QSpinBox()
-        self.resize_handle_size_spin.setRange(5, 20)
-        self.resize_handle_size_spin.setValue(10)
-        self.resize_handle_size_spin.setSuffix("px")
-        self.resize_handle_size_spin.valueChanged.connect(self.update_display_settings)
-        display_layout.addRow("ハンドルサイズ:", self.resize_handle_size_spin)
+        self.resize_handle_size_spin = QSpinBox()  
+        self.resize_handle_size_spin.setRange(5, 20)  
+        self.resize_handle_size_spin.setValue(10)  
+        self.resize_handle_size_spin.setSuffix("px")  
+        self.resize_handle_size_spin.valueChanged.connect(self.update_display_settings)  
+        display_layout.addRow("ハンドルサイズ:", self.resize_handle_size_spin)  
+        basic_settings_layout.addWidget(display_group)  
           
-        left_layout.addWidget(display_group)  
+        # 保存グループ  
+        save_group = QGroupBox("保存")  
+        save_layout = QVBoxLayout(save_group)  
+        self.save_btn = QPushButton("修正結果を保存")  
+        self.save_btn.clicked.connect(self.save_modifications)  
+        self.save_btn.setEnabled(False)  
+        save_layout.addWidget(self.save_btn)  
+        basic_settings_layout.addWidget(save_group)  
+          
+        basic_settings_layout.addStretch()  
+        tab_widget.addTab(basic_settings_tab, "基本設定")  
+          
+        # --- 2. 編集機能タブ ---  
+        edit_features_tab = QWidget()  
+        edit_features_layout = QVBoxLayout(edit_features_tab)  
           
         # 編集機能グループ  
         edit_group = QGroupBox("編集機能")  
         edit_layout = QFormLayout(edit_group)  
-          
         self.edit_mode_cb = QCheckBox()  
         self.edit_mode_cb.stateChanged.connect(self.toggle_edit_mode)  
         edit_layout.addRow("編集モード:", self.edit_mode_cb)  
-          
         self.label_combo = QComboBox()  
         self.label_combo.setEnabled(False)  
-        self.label_combo.currentTextChanged.connect(self.change_selected_label)  
+        self.label_combo.currentIndexChanged.connect(self.change_selected_label) # currentIndexChangedを使用  
         edit_layout.addRow("ラベル:", self.label_combo)  
-          
         self.track_id_edit = QLineEdit()  
         self.track_id_edit.setEnabled(False)  
         self.track_id_edit.returnPressed.connect(self.change_track_id)  
         edit_layout.addRow("Track ID:", self.track_id_edit)  
-          
-        # 編集ボタン  
         edit_buttons = QVBoxLayout()  
-          
         self.add_annotation_btn = QPushButton("アノテーション追加 (N)")  
         self.add_annotation_btn.clicked.connect(self.add_new_annotation)  
         self.add_annotation_btn.setEnabled(False)  
         edit_buttons.addWidget(self.add_annotation_btn)  
-          
         self.delete_annotation_btn = QPushButton("選択削除 (Del)")  
         self.delete_annotation_btn.clicked.connect(self.delete_selected_annotation)  
         self.delete_annotation_btn.setEnabled(False)  
         edit_buttons.addWidget(self.delete_annotation_btn)  
-          
         edit_layout.addRow("操作:", edit_buttons)  
+        edit_features_layout.addWidget(edit_group)  
           
-        left_layout.addWidget(edit_group)  
-
         # 一括編集グループ  
         batch_edit_group = QGroupBox("一括編集")  
         batch_edit_layout = QFormLayout(batch_edit_group)  
-          
-        # フレーム範囲指定  
         range_layout = QHBoxLayout()  
         self.start_frame_spin = QSpinBox()  
         self.start_frame_spin.setMinimum(0)  
         range_layout.addWidget(QLabel("開始:"))  
         range_layout.addWidget(self.start_frame_spin)  
-          
         self.end_frame_spin = QSpinBox()  
         self.end_frame_spin.setMinimum(0)  
         range_layout.addWidget(QLabel("終了:"))  
         range_layout.addWidget(self.end_frame_spin)  
-          
         batch_edit_layout.addRow("フレーム範囲:", range_layout)  
-          
-        # 一括操作ボタン  
         batch_buttons = QVBoxLayout()  
-          
         self.delete_track_btn = QPushButton("選択Track全削除")  
         self.delete_track_btn.clicked.connect(self.delete_track_globally)  
         self.delete_track_btn.setEnabled(False)  
         batch_buttons.addWidget(self.delete_track_btn)  
-          
         self.propagate_label_btn = QPushButton("ラベル変更を伝播")  
         self.propagate_label_btn.clicked.connect(self.propagate_label_change)  
         self.propagate_label_btn.setEnabled(False)  
         batch_buttons.addWidget(self.propagate_label_btn)  
-          
+        self.add_track_range_btn = QPushButton("範囲内Track追加")  
+        self.add_track_range_btn.clicked.connect(self.add_track_in_range)  
+        self.add_track_range_btn.setEnabled(False)  
+        batch_buttons.addWidget(self.add_track_range_btn)  
+        self.interpolate_track_btn = QPushButton("補間Track追加")  
+        self.interpolate_track_btn.clicked.connect(self.interpolate_track_in_range)  
+        self.interpolate_track_btn.setEnabled(False)  
+        batch_buttons.addWidget(self.interpolate_track_btn)  
         batch_edit_layout.addRow("操作:", batch_buttons)  
-        left_layout.addWidget(batch_edit_group)
-        
-        # 保存グループ  
-        save_group = QGroupBox("保存")  
-        save_layout = QVBoxLayout(save_group)  
+        edit_features_layout.addWidget(batch_edit_group)  
           
-        self.save_btn = QPushButton("修正結果を保存")  
-        self.save_btn.clicked.connect(self.save_modifications)  
-        self.save_btn.setEnabled(False)  
-        save_layout.addWidget(self.save_btn)  
+        edit_features_layout.addStretch()  
+        tab_widget.addTab(edit_features_tab, "編集機能")  
           
-        left_layout.addWidget(save_group)  
+        # --- 3. 高度な補間タブ ---  
+        advanced_interpolation_tab = QWidget()  
+        advanced_interpolation_layout = QVBoxLayout(advanced_interpolation_tab)  
           
-        left_layout.addStretch()  
-        main_layout.addWidget(left_panel)
-
         # 高度な補間グループ  
         advanced_group = QGroupBox("高度な補間")  
         advanced_layout = QFormLayout(advanced_group)  
-          
-        # 制御点管理  
-        self.control_points = []  
         self.control_points_list = QListWidget()  
         advanced_layout.addRow("制御点:", self.control_points_list)  
-          
         control_buttons = QHBoxLayout()  
         self.add_control_point_btn = QPushButton("現在位置を追加")  
         self.add_control_point_btn.clicked.connect(self.add_control_point)  
         control_buttons.addWidget(self.add_control_point_btn)  
-          
         self.clear_control_points_btn = QPushButton("クリア")  
         self.clear_control_points_btn.clicked.connect(self.clear_control_points)  
         control_buttons.addWidget(self.clear_control_points_btn)  
-          
         advanced_layout.addRow("操作:", control_buttons)  
-          
-        # 高度な補間ボタン  
         self.kalman_interpolate_btn = QPushButton("カルマンフィルター補間Track追加")  
         self.kalman_interpolate_btn.clicked.connect(self.create_kalman_track)  
-        advanced_layout.addRow("カルマンフィルター:", self.kalman_interpolate_btn)
-        
-        left_layout.addWidget(advanced_group) 
-
+        advanced_layout.addRow("カルマンフィルター:", self.kalman_interpolate_btn)  
+        advanced_interpolation_layout.addWidget(advanced_group)  
+          
         # カルマンフィルタパラメータグループ  
         kalman_group = QGroupBox("カルマンフィルタパラメータ")  
         kalman_layout = QFormLayout(kalman_group)  
-          
-        # プロセスノイズ（位置）  
         self.process_noise_pos_spin = QDoubleSpinBox()  
         self.process_noise_pos_spin.setRange(0.1, 10.0)  
         self.process_noise_pos_spin.setValue(1.0)  
         self.process_noise_pos_spin.setSingleStep(0.1)  
         self.process_noise_pos_spin.valueChanged.connect(self.update_kalman_params)  
+        self.process_noise_pos_spin.setToolTip("位置の予測における不確実性の度合い。値を大きくすると、予測が観測に強く影響され、動きがよりダイナミックになります。範囲: 0.1 - 10.0") # 説明を追加
         kalman_layout.addRow("位置プロセスノイズ:", self.process_noise_pos_spin)  
-          
-        # プロセスノイズ（速度）  
         self.process_noise_vel_spin = QDoubleSpinBox()  
         self.process_noise_vel_spin.setRange(0.1, 20.0)  
         self.process_noise_vel_spin.setValue(5.0)  
         self.process_noise_vel_spin.setSingleStep(0.1)  
         self.process_noise_vel_spin.valueChanged.connect(self.update_kalman_params)  
+        self.process_noise_vel_spin.setToolTip("速度の予測における不確実性の度合い。値を大きくすると、オブジェクトの速度変化がより自由に予測されます。範囲: 0.1 - 20.0") # 説明を追加
         kalman_layout.addRow("速度プロセスノイズ:", self.process_noise_vel_spin)  
-          
-        # 観測ノイズ  
         self.observation_noise_spin = QDoubleSpinBox()  
         self.observation_noise_spin.setRange(0.1, 10.0)  
         self.observation_noise_spin.setValue(2.0)  
         self.observation_noise_spin.setSingleStep(0.1)  
         self.observation_noise_spin.valueChanged.connect(self.update_kalman_params)  
+        self.observation_noise_spin.setToolTip("観測データの信頼性。値を小さくすると、観測データがより信頼され、予測が観測に近づきます。範囲: 0.1 - 10.0") # 説明を追加
         kalman_layout.addRow("観測ノイズ:", self.observation_noise_spin)  
-          
-        # 速度係数  
         self.velocity_factor_spin = QDoubleSpinBox()  
         self.velocity_factor_spin.setRange(0.5, 3.0)  
         self.velocity_factor_spin.setValue(1.2)  
         self.velocity_factor_spin.setSingleStep(0.1)  
         self.velocity_factor_spin.valueChanged.connect(self.update_kalman_params)  
+        self.velocity_factor_spin.setToolTip("初期速度の計算に適用される係数。値を大きくすると、初期速度が強調され、より速い動きが予測されます。範囲: 0.5 - 3.0") # 説明を追加
         kalman_layout.addRow("速度係数:", self.velocity_factor_spin)  
-          
-        # 位置不確実性  
         self.pos_uncertainty_spin = QDoubleSpinBox()  
         self.pos_uncertainty_spin.setRange(1.0, 20.0)  
         self.pos_uncertainty_spin.setValue(5.0)  
         self.pos_uncertainty_spin.setSingleStep(0.5)  
         self.pos_uncertainty_spin.valueChanged.connect(self.update_kalman_params)  
+        self.pos_uncertainty_spin.setToolTip("カルマンフィルタの初期状態における位置の不確実性。値を大きくすると、初期位置の信頼度が低いと見なされます。範囲: 1.0 - 20.0") # 説明を追加
         kalman_layout.addRow("位置不確実性:", self.pos_uncertainty_spin)  
-          
-        # 速度不確実性  
         self.vel_uncertainty_spin = QDoubleSpinBox()  
         self.vel_uncertainty_spin.setRange(1.0, 30.0)  
         self.vel_uncertainty_spin.setValue(10.0)  
         self.vel_uncertainty_spin.setSingleStep(0.5)  
         self.vel_uncertainty_spin.valueChanged.connect(self.update_kalman_params)  
+        self.vel_uncertainty_spin.setToolTip("カルマンフィルタの初期状態における速度の不確実性。値を大きくすると、初期速度の信頼度が低いと見なされます。範囲: 1.0 - 30.0") # 説明を追加  
         kalman_layout.addRow("速度不確実性:", self.vel_uncertainty_spin)  
-          
-        # リセットボタン  
         self.reset_kalman_btn = QPushButton("デフォルトに戻す")  
         self.reset_kalman_btn.clicked.connect(self.reset_kalman_params)  
         kalman_layout.addRow("リセット:", self.reset_kalman_btn)  
+        advanced_interpolation_layout.addWidget(kalman_group)  
           
-        left_layout.addWidget(kalman_group)
-
+        advanced_interpolation_layout.addStretch()  
+        tab_widget.addTab(advanced_interpolation_tab, "高度な補間") # ここでタブを閉じる  
+  
+        left_layout.addWidget(tab_widget) # タブウィジェットを左側パネルに追加  
+          
+        left_layout.addStretch()  
+        main_layout.addWidget(left_panel)  
+  
         # 右側パネル（動画表示）  
         right_panel = QWidget()  
         right_layout = QVBoxLayout(right_panel)  
           
         # 動画表示エリア  
         self.video_label = QLabel()  
-        self.video_label.setMinimumSize(1200, 800)  
-        self.video_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.video_label.setMinimumSize(1000, 700) # 最小サイズを調整  
+        self.video_label.setSizePolicy(  
+            QSizePolicy.Policy.Expanding,   
+            QSizePolicy.Policy.Expanding  
+        ) # 拡張可能に設定  
         self.video_label.setStyleSheet("border: 2px solid black; background-color: #f0f0f0;")  
         self.video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  
         self.video_label.setText("動画とJSONファイルを読み込んでください")  
@@ -328,8 +316,8 @@ class VideoAnnotationViewer(QMainWindow):
         self.selection_info.setStyleSheet("padding: 5px; background-color: #e0e0e0;")  
         right_layout.addWidget(self.selection_info)  
           
-        main_layout.addWidget(right_panel)  
-          
+        main_layout.addWidget(right_panel)
+    
     def setup_shortcuts(self):  
         """キーボードショートカットを設定"""  
         delete_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Delete), self)  
@@ -1281,6 +1269,126 @@ class VideoAnnotationViewer(QMainWindow):
         self.velocity_factor_spin.setValue(1.2)  
         self.pos_uncertainty_spin.setValue(5.0)  
         self.vel_uncertainty_spin.setValue(10.0)
+
+    def add_track_in_range(self):  
+        """フレーム範囲内に同じbboxでtrack追加"""  
+        if not self.selected_annotation:  
+            QMessageBox.warning(self, "エラー", "テンプレートとなるアノテーションを選択してください")  
+            return  
+          
+        start_frame = self.start_frame_spin.value()  
+        end_frame = self.end_frame_spin.value()  
+          
+        if start_frame > end_frame:  
+            QMessageBox.warning(self, "エラー", "開始フレームは終了フレーム以下にしてください")  
+            return  
+          
+        template_bbox = self.selected_annotation['bbox'].copy()  
+        label_id = self.selected_annotation['label']  
+        label_name = self.selected_annotation['label_name']  
+          
+        reply = QMessageBox.question(  
+            self, "確認",   
+            f"フレーム {start_frame} から {end_frame} まで '{label_name}' のtrackを追加しますか？",  
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+        )  
+          
+        if reply == QMessageBox.StandardButton.Yes:  
+            track_id, count = self.add_track_across_frames(  
+                start_frame, end_frame, template_bbox, label_id, label_name  
+            )  
+            QMessageBox.information(self, "完了", f"Track ID {track_id} で {count}個のアノテーションを追加しました")  
+            self.update_frame_display()
+
+    def add_track_across_frames(self, start_frame, end_frame, bbox_template, label_id, label_name):  
+        """指定されたフレーム範囲に新しいtrack_idでアノテーションを一括追加"""  
+        new_track_id = self.manage_track_ids()  
+        added_count = 0  
+          
+        for frame_id in range(start_frame, end_frame + 1):  
+            # 既に同じフレームに同じtrack_idのアノテーションがないかチェック  
+            existing = any(ann.get('track_id') == new_track_id and ann.get('frame_id') == frame_id   
+                          for ann in self.json_data)  
+              
+            if not existing:  
+                new_annotation = {  
+                    "frame_id": frame_id,  
+                    "track_id": new_track_id,  
+                    "bbox": bbox_template.copy(),  # テンプレートbboxをコピー  
+                    "score": 1.0,  
+                    "label": label_id,  
+                    "label_name": label_name  
+                }  
+                self.json_data.append(new_annotation)  
+                added_count += 1  
+          
+        return new_track_id, added_count
+
+    def interpolate_track_in_range(self):  
+        """フレーム範囲内に補間trackを追加"""  
+        if not self.selected_annotation:  
+            QMessageBox.warning(self, "エラー", "開始位置となるアノテーションを選択してください")  
+            return  
+          
+        start_frame = self.start_frame_spin.value()  
+        end_frame = self.end_frame_spin.value()  
+          
+        if start_frame > end_frame:  
+            QMessageBox.warning(self, "エラー", "開始フレームは終了フレーム以下にしてください")  
+            return  
+          
+        # 終了位置のbboxを入力で取得（簡易実装）  
+        start_bbox = self.selected_annotation['bbox'].copy()  
+          
+        # 終了位置のbboxを現在のbboxから少しずらした位置として設定（実際の実装では別途入力UI必要）  
+        end_bbox = start_bbox.copy()  
+        end_bbox[0] += 50  # x座標を50ピクセル移動  
+        end_bbox[2] += 50  # x2座標も移動  
+          
+        label_id = self.selected_annotation['label']  
+        label_name = self.selected_annotation['label_name']  
+          
+        reply = QMessageBox.question(  
+            self, "確認",   
+            f"フレーム {start_frame} から {end_frame} まで補間 '{label_name}' trackを追加しますか？",  
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+        )  
+          
+        if reply == QMessageBox.StandardButton.Yes:  
+            track_id, count = self.interpolate_track_across_frames(  
+                start_frame, end_frame, start_bbox, end_bbox, label_id, label_name  
+            )  
+            QMessageBox.information(self, "完了", f"Track ID {track_id} で {count}個の補間アノテーションを追加しました")  
+            self.update_frame_display()
+
+    def interpolate_track_across_frames(self, start_frame, end_frame, start_bbox, end_bbox, label_id, label_name):  
+        """指定されたフレーム範囲に補間されたアノテーションを一括追加"""  
+        new_track_id = self.manage_track_ids()  
+        added_count = 0  
+          
+        for frame_id in range(start_frame, end_frame + 1):  
+            # 線形補間でbboxを計算  
+            if end_frame > start_frame:  
+                ratio = (frame_id - start_frame) / (end_frame - start_frame)  
+                interpolated_bbox = [  
+                    start_bbox[i] + (end_bbox[i] - start_bbox[i]) * ratio  
+                    for i in range(4)  
+                ]  
+            else:  
+                interpolated_bbox = start_bbox.copy()  
+              
+            new_annotation = {  
+                "frame_id": frame_id,  
+                "track_id": new_track_id,  
+                "bbox": interpolated_bbox,  
+                "score": 1.0,  
+                "label": label_id,  
+                "label_name": label_name  
+            }  
+            self.json_data.append(new_annotation)  
+            added_count += 1  
+          
+        return new_track_id, added_count
 
 def parse_args():
     """コマンドライン引数を解析"""
