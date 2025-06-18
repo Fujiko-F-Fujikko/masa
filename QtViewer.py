@@ -66,7 +66,7 @@ class VideoAnnotationViewer(QMainWindow):
           
         # 左側パネル（コントロール）  
         left_panel = QWidget()  
-        left_panel.setMaximumWidth(600) # 幅を拡張  
+        left_panel.setMaximumWidth(300) # 幅を拡張  
         left_layout = QVBoxLayout(left_panel)  
           
         # タブウィジェットを作成  
@@ -294,7 +294,7 @@ class VideoAnnotationViewer(QMainWindow):
           
         # 動画表示エリア  
         self.video_label = QLabel()  
-        self.video_label.setMinimumSize(1000, 700) # 最小サイズを調整  
+        self.video_label.setMinimumSize(1300, 700) # 最小サイズを調整  
         self.video_label.setSizePolicy(  
             QSizePolicy.Policy.Expanding,   
             QSizePolicy.Policy.Expanding  
