@@ -879,17 +879,26 @@ class VideoAnnotationViewer(QMainWindow):
         """指定されたtrack_idのアノテーションを全フレームで編集"""  
         modified_count = 0  
           
-        for ann in self.json_data:  
-            if ann.get('track_id') == track_id:  
-                if operation == 'delete':  
-                    self.json_data.remove(ann)  
-                    modified_count += 1  
-                elif operation == 'change_label':  
+        if operation == 'delete':  
+            # 削除の場合は逆順でイテレートするか、リストコピーを使用  
+            annotations_to_remove = []  
+            for ann in self.json_data:  
+                if ann.get('track_id') == track_id:  
+                    annotations_to_remove.append(ann)  
+              
+            # 収集したアノテーションを削除  
+            for ann in annotations_to_remove:  
+                self.json_data.remove(ann)  
+                modified_count += 1  
+                  
+        elif operation == 'change_label':  
+            for ann in self.json_data:  
+                if ann.get('track_id') == track_id:  
                     ann['label'] = kwargs.get('new_label_id')  
                     ann['label_name'] = kwargs.get('new_label_name')  
                     modified_count += 1  
           
-        return modified_count  
+        return modified_count
 
     def delete_track_globally(self):  
         """選択されたtrack_idを全フレームから削除"""  
@@ -897,15 +906,27 @@ class VideoAnnotationViewer(QMainWindow):
             return  
               
         track_id = self.selected_annotation.get('track_id')  
+          
+        # 削除前の件数を確認  
+        before_count = sum(1 for ann in self.json_data if ann.get('track_id') == track_id)  
+          
         reply = QMessageBox.question(  
             self, "確認",   
-            f"Track ID {track_id} を全フレームから削除しますか？",  
+            f"Track ID {track_id} を全フレーム（{before_count}件）から削除しますか？",  
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
         )  
           
         if reply == QMessageBox.StandardButton.Yes:  
             count = self.edit_track_across_frames(track_id, 'delete')  
-            QMessageBox.information(self, "完了", f"{count}個のアノテーションを削除しました")  
+              
+            # 削除後の確認  
+            remaining_count = sum(1 for ann in self.json_data if ann.get('track_id') == track_id)  
+              
+            if remaining_count == 0:  
+                QMessageBox.information(self, "完了", f"{count}個のアノテーションを削除しました")  
+            else:  
+                QMessageBox.warning(self, "警告", f"{count}個削除しましたが、{remaining_count}個が残っています")  
+              
             self.selected_annotation = None  
             self.update_frame_display()
 
