@@ -1,6 +1,6 @@
 ## テストコマンド
 
-python demo/video_demo_with_text.py stt/H1125060570339_2025-06-05_10-52-51_2.mp4 --out stt_outputs/H1125060570339_2025-06-05_10-52-51_2_outputs.mp4 --masa_config configs/masa-gdino/masa_gdino_swinb_inference.py --masa_checkpoint saved_models/masa_models/gdino_masa.pth --score-thr 0.2 --unified --show_fps --texts "camera rear casing . cotton swab . tweesers . bottle . rubber gloves . barcode label" --json_out stt_json_outputs/H1125060570339_2025-06-05_10-52-51_2_outputs.json
+python demo/video_demo_with_text.py stt/H1125060570339_2025-06-05_10-52-51_2.mp4 --out stt_outputs/H1125060570339_2025-06-05_10-52-51_2_outputs.mp4 --masa_config configs/masa-gdino/masa_gdino_swinb_inference.py --masa_checkpoint saved_models/masa_models/gdino_masa.pth --score-thr 0.2 --unified --show_fps --texts "camera rear casing . cotton swab . tweesers . bottle . rubber gloves . barcode label sticker" --json_out stt_json_outputs/H1125060570339_2025-06-05_10-52-51_2_outputs.json
 
 ### yolo版(ボツ)
 python demo/video_demo_with_text.py stt/H1125060570339_2025-06-05_10-52-51_2.mp4 --out stt_outputs/H1125060570339_2025-06-05_10-52-51_2_outputs_yolox.mp4 --det_config projects/mmdet_configs/yolox/yolox_x_8xb8-300e_coco.py --det_checkpoint saved_models/pretrain_weights/yolox_x_8x8_300e_coco_20211126_140254-1ef88d67.pth --masa_config configs/masa-one/masa_r50_plug_and_play.py --masa_checkpoint saved_models/masa_models/gdino_masa.pth --score-thr 0.3 --show_fps
