@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (QMainWindow, QVBoxLayout, QHBoxLayout,
 from PyQt6.QtCore import Qt, QTimer, QPoint  
 from PyQt6.QtGui import QPixmap, QImage, QKeySequence, QShortcut  
 
-class VideoAnnotationViewer(QMainWindow):  
+class VideoAnnotationViewerWindow(QMainWindow):  
     def __init__(self):  
         super().__init__()  
         self.setWindowTitle("MASA Video Annotation Viewer with Editor")  

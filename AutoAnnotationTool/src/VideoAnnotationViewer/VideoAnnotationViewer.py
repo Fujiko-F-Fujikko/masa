@@ -2,7 +2,7 @@ import sys
 import argparse  
 from PyQt6.QtWidgets import QApplication
 
-from VideoAnnotationViewer import VideoAnnotationViewer
+from VideoAnnotationViewerWindow import VideoAnnotationViewerWindow
 
 
 def parse_args():
@@ -18,7 +18,7 @@ def main():
     # コマンド引数を解析
     args = parse_args()
     
-    viewer = VideoAnnotationViewer()
+    viewer = VideoAnnotationViewerWindow()
     
     # コマンド引数でファイルが指定されている場合は自動読み込み
     if args.video:
