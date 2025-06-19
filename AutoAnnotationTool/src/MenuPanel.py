@@ -9,7 +9,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 
 class MenuPanel(QWidget):  
-    """左側のメニューパネル"""  
+    """左側のメニューパネル（マルチフレーム機能付き）"""  
       
     # シグナル定義  
     load_video_requested = pyqtSignal()  
@@ -18,6 +18,7 @@ class MenuPanel(QWidget):
     result_view_requested = pyqtSignal(bool)  
     tracking_requested = pyqtSignal()  
     export_requested = pyqtSignal(str)  # format  
+    multi_frame_mode_requested = pyqtSignal(bool, str)  # enabled, label  
       
     def __init__(self, parent=None):  
         super().__init__(parent)  
@@ -65,6 +66,25 @@ class MenuPanel(QWidget):
         self.annotation_count_label = QLabel("Annotations: 0")  
         self.annotation_count_label.setStyleSheet("color: #666; font-size: 10px;")  
         annotation_layout.addWidget(self.annotation_count_label)  
+          
+        # マルチフレーム関連のUIを追加  
+        self.multi_frame_btn = QPushButton("Multi-Frame Mode")  
+        self.multi_frame_btn.setCheckable(True)  
+        self.multi_frame_btn.clicked.connect(self._on_multi_frame_clicked)  
+        self.multi_frame_btn.setEnabled(False)  
+        annotation_layout.addWidget(self.multi_frame_btn)  
+          
+        # ラベル入力フィールド  
+        self.multi_frame_label_input = QLineEdit()  
+        self.multi_frame_label_input.setPlaceholderText("Object label")  
+        self.multi_frame_label_input.setEnabled(False)  
+        annotation_layout.addWidget(self.multi_frame_label_input)  
+          
+        # 完了ボタン  
+        self.complete_multi_frame_btn = QPushButton("Complete Multi-Frame")  
+        self.complete_multi_frame_btn.clicked.connect(self._on_complete_multi_frame)  
+        self.complete_multi_frame_btn.setEnabled(False)  
+        annotation_layout.addWidget(self.complete_multi_frame_btn)  
           
         self.annotation_group.setLayout(annotation_layout)  
         layout.addWidget(self.annotation_group)  
@@ -213,6 +233,8 @@ class MenuPanel(QWidget):
         # ボタンを有効化  
         self.annotation_mode_btn.setEnabled(True)  
         self.range_selection_btn.setEnabled(True)  
+        self.multi_frame_btn.setEnabled(True)  
+        self.multi_frame_label_input.setEnabled(True)  
       
     def update_annotation_count(self, count: int):  
         """アノテーション数を更新"""  
@@ -241,36 +263,6 @@ class MenuPanel(QWidget):
             'show_ids': self.show_ids_cb.isChecked(),  
             'show_confidence': self.show_confidence_cb.isChecked()  
         }  
-
-class EnhancedMenuPanel(MenuPanel):  
-    """複数フレーム機能付きメニューパネル"""  
-      
-    multi_frame_mode_requested = pyqtSignal(bool, str)  # enabled, label  
-      
-    def setup_ui(self):  
-        super().setup_ui()  
-          
-        # 親クラスで定義されたannotation_groupを使用  
-        if hasattr(self, 'annotation_group'):  
-            layout = self.annotation_group.layout()  
-              
-            self.multi_frame_btn = QPushButton("Multi-Frame Mode")  
-            self.multi_frame_btn.setCheckable(True)  
-            self.multi_frame_btn.clicked.connect(self._on_multi_frame_clicked)  
-            self.multi_frame_btn.setEnabled(False)  
-            layout.addWidget(self.multi_frame_btn)  
-              
-            # ラベル入力フィールド  
-            self.multi_frame_label_input = QLineEdit()  
-            self.multi_frame_label_input.setPlaceholderText("Object label")  
-            self.multi_frame_label_input.setEnabled(False)  
-            layout.addWidget(self.multi_frame_label_input)  
-              
-            # 完了ボタン  
-            self.complete_multi_frame_btn = QPushButton("Complete Multi-Frame")  
-            self.complete_multi_frame_btn.clicked.connect(self._on_complete_multi_frame)  
-            self.complete_multi_frame_btn.setEnabled(False)  
-            layout.addWidget(self.complete_multi_frame_btn)  
       
     def _on_multi_frame_clicked(self, checked):  
         if checked:  
@@ -297,14 +289,3 @@ class EnhancedMenuPanel(MenuPanel):
         # 複数フレームアノテーション完了シグナルを発行  
         self.multi_frame_btn.setChecked(False)  
         self._on_multi_frame_clicked(False)
-
-    def update_video_info(self, video_path: str, total_frames: int):  
-        """動画情報を更新（Multi-Frame Modeボタンも有効化）"""  
-        # 親クラスのメソッドを呼び出し  
-        super().update_video_info(video_path, total_frames)  
-          
-        # Multi-Frame Modeボタンを有効化  
-        if hasattr(self, 'multi_frame_btn'):  
-            self.multi_frame_btn.setEnabled(True)  
-        if hasattr(self, 'multi_frame_label_input'):  
-            self.multi_frame_label_input.setEnabled(True)

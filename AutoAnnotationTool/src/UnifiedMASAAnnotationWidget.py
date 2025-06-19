@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
 )
 
 from DataClass import BoundingBox, MASAConfig
-from MenuPanel import MenuPanel, EnhancedMenuPanel
+from MenuPanel import MenuPanel
 from EnhancedVideoControlPanel import EnhancedVideoControlPanel
 from PreviewWidget import UnifiedVideoPreviewWidget
 from VideoAnnotationManager import VideoAnnotationManager
@@ -381,7 +381,7 @@ class FinalEnhancedMASAAnnotationWidget(EnhancedUnifiedMASAAnnotationWidget):
         main_layout = QHBoxLayout()  
           
         # 拡張メニューパネル  
-        self.menu_panel = EnhancedMenuPanel()  
+        self.menu_panel = MenuPanel()  
         main_layout.addWidget(self.menu_panel)  
           
         # 右側は既存と同じ  
