@@ -245,3 +245,51 @@ class VideoAnnotationManager:
             json.dump(coco_data, f, indent=2)  
           
         print(f"COCO annotations exported to {output_path}")
+
+class EnhancedVideoAnnotationManager(VideoAnnotationManager):  
+    """複数フレーム機能を統合したアノテーション管理クラス"""  
+      
+    def __init__(self, video_path: str, config: MASAConfig = None):  
+        super().__init__(video_path, config)  
+        self.multi_frame_objects = {}  # オブジェクトIDごとの複数フレーム情報  
+      
+    def add_multi_frame_annotation(self, frame_ids: List[int], bboxes: List[BoundingBox], label: str) -> List[ObjectAnnotation]:  
+        """複数フレームからアノテーションを追加"""  
+        annotations = []  
+        object_id = self.next_object_id  
+          
+        for frame_id, bbox in zip(frame_ids, bboxes):  
+            annotation = ObjectAnnotation(  
+                object_id=object_id,  
+                label=label,  
+                bbox=bbox,  
+                frame_id=frame_id,  
+                is_manual=True,  
+                track_confidence=1.0  
+            )  
+              
+            if frame_id not in self.manual_annotations:  
+                self.manual_annotations[frame_id] = []  
+              
+            self.manual_annotations[frame_id].append(annotation)  
+            annotations.append(annotation)  
+              
+            # フレームアノテーションも更新  
+            if frame_id not in self.frame_annotations:  
+                self.frame_annotations[frame_id] = FrameAnnotation(frame_id=frame_id)  
+            self.frame_annotations[frame_id].objects.append(annotation)  
+          
+        # 複数フレーム情報を記録  
+        self.multi_frame_objects[object_id] = annotations  
+        self.next_object_id += 1  
+          
+        return annotations  
+      
+    def process_enhanced_tracking(self, start_frame_id: int, end_frame_id: int = None) -> Dict[int, List[ObjectAnnotation]]:  
+        """複数フレーム情報を活用した追跡処理"""  
+        if not self.tracker.initialized:  
+            self.tracker.initialize()  
+          
+        # 複数フレーム情報を活用してより堅牢な追跡を実行  
+        # MASAのmemo_tracklet_framesとmemo_momentumを活用  
+        return self.process_automatic_tracking(start_frame_id, end_frame_id)

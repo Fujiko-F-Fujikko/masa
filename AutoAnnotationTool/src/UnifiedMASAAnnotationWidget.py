@@ -8,7 +8,7 @@ from DataClass import BoundingBox, MASAConfig
 from MenuPanel import MenuPanel, EnhancedMenuPanel
 from EnhancedVideoControlPanel import EnhancedVideoControlPanel
 from PreviewWidget import UnifiedVideoPreviewWidget
-from VideoAnnotationManager import VideoAnnotationManager
+from VideoAnnotationManager import VideoAnnotationManager, EnhancedVideoAnnotationManager
 from TrackingWorker import TrackingWorker
 from Dialog import AnnotationInputDialog, TrackingSettingsDialog
 
