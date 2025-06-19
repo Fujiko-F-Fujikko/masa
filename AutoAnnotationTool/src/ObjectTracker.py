@@ -8,9 +8,12 @@ from mmcv.transforms import Compose
 from mmdet.apis import init_detector  
 from mmcv.ops.nms import batched_nms  
 
-# MASAの機能をインポート（デモコードを参考）  
-import masa  
-from masa.apis import inference_masa, init_masa, init_detector, inference_detector, build_test_pipeline  
+# MASAの機能をインポート（デモコードを参考）
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+import masa
+from masa.apis import inference_masa, init_masa, inference_detector, build_test_pipeline  
 from masa.models.sam import SamPredictor, sam_model_registry  
 
 

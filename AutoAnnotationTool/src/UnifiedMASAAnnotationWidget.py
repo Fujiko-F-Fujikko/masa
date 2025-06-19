@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
 )
 
 from DataClass import BoundingBox, MASAConfig
-from MenuPanel import MenuPanel
+from MenuPanel import MenuPanel, EnhancedMenuPanel
 from EnhancedVideoControlPanel import EnhancedVideoControlPanel
 from PreviewWidget import UnifiedVideoPreviewWidget
 from VideoAnnotationManager import VideoAnnotationManager
