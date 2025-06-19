@@ -1,3 +1,10 @@
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QPushButton, QSlider
+)
+from PyQt6.QtCore import Qt, pyqtSignal
+from RangeSlider import RangeSlider
+
 class EnhancedVideoControlPanel(QWidget):  
     """改善された動画制御パネル"""  
       
@@ -118,4 +125,4 @@ class EnhancedVideoControlPanel(QWidget):
         if self.range_selection_mode:  
             return self.range_slider.get_values()  
         else:  
-            return (0, self.total_frames - 1)  
+            return (0, self.total_frames - 1)

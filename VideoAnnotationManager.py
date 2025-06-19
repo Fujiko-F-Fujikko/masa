@@ -1,3 +1,10 @@
+import json
+import cv2
+import numpy as np
+from typing import Dict, List, Optional
+from DataClass import MASAConfig, ObjectAnnotation, FrameAnnotation, BoundingBox
+from ObjectTracker import ObjectTracker
+
 class VideoAnnotationManager:  
     """動画アノテーション管理クラス"""  
       
@@ -237,4 +244,4 @@ class VideoAnnotationManager:
         with open(output_path, 'w', encoding='utf-8') as f:  
             json.dump(coco_data, f, indent=2)  
           
-        print(f"COCO annotations exported to {output_path}")  
+        print(f"COCO annotations exported to {output_path}")

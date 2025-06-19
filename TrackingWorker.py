@@ -1,3 +1,6 @@
+from PyQt6.QtCore import QThread, pyqtSignal
+from DataClass import FrameAnnotation
+
 class TrackingWorker(QThread):  
     """自動追跡処理用ワーカースレッド"""  
       
@@ -64,4 +67,4 @@ class TrackingWorker(QThread):
                 print(f"Error tracking frame {frame_id}: {e}")  
                 continue  
           
-        return results  
+        return results

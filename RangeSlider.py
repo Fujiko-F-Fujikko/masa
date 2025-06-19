@@ -1,3 +1,8 @@
+from PyQt6.QtWidgets import QWidget
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QPainter, QPen, QBrush, QColor
+from PyQt6.QtCore import QRect
+
 class RangeSlider(QWidget):  
     """範囲選択可能なスライダーウィジェット"""  
       
@@ -200,4 +205,4 @@ class RangeSlider(QWidget):
         # 値を表示  
         painter.setPen(QPen(QColor(0, 0, 0)))  
         painter.drawText(10, self.height() - 5, f"Start: {self.start_value}")  
-        painter.drawText(self.width() - 80, self.height() - 5, f"End: {self.end_value}") 
+        painter.drawText(self.width() - 80, self.height() - 5, f"End: {self.end_value}")

@@ -1,3 +1,10 @@
+from PyQt6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel,
+    QLineEdit, QComboBox, QDialogButtonBox,
+    QFormLayout, QSpinBox
+)
+from DataClass import BoundingBox
+
 class AnnotationInputDialog(QDialog):  
     """アノテーション入力ダイアログ"""  
       
@@ -117,4 +124,4 @@ class TrackingSettingsDialog(QDialog):
         self.time_estimate_label.setText(time_text)  
       
     def get_end_frame(self):  
-        return self.end_frame_spin.value()  
+        return self.end_frame_spin.value()

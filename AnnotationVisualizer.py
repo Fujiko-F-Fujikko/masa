@@ -1,3 +1,10 @@
+import cv2
+import numpy as np
+import colorsys
+from typing import List, Tuple
+from DataClass import ObjectAnnotation
+from VideoAnnotationManager import VideoAnnotationManager
+
 class AnnotationVisualizer:  
     """アノテーション可視化クラス"""  
       
@@ -13,7 +20,6 @@ class AnnotationVisualizer:
             value = 0.9  
               
             # HSVからRGBに変換  
-            import colorsys  
             r, g, b = colorsys.hsv_to_rgb(hue/360, saturation, value)  
             colors.append((int(r*255), int(g*255), int(b*255)))  
           
