@@ -8,7 +8,7 @@ from DataClass import BoundingBox, MASAConfig
 from MenuPanel import MenuPanel, EnhancedMenuPanel
 from EnhancedVideoControlPanel import EnhancedVideoControlPanel
 from PreviewWidget import UnifiedVideoPreviewWidget
-from VideoAnnotationManager import VideoAnnotationManager, EnhancedVideoAnnotationManager
+from VideoAnnotationManager import VideoAnnotationManager
 from TrackingWorker import TrackingWorker
 from Dialog import AnnotationInputDialog, TrackingSettingsDialog
 
@@ -412,7 +412,7 @@ class FinalEnhancedMASAAnnotationWidget(EnhancedUnifiedMASAAnnotationWidget):
         if file_path:  
             config = MASAConfig()  
             # 拡張版マネージャーを使用  
-            self.video_manager = EnhancedVideoAnnotationManager(file_path, config)  
+            self.video_manager = VideoAnnotationManager(file_path, config)  
               
             if self.video_manager.load_video():  
                 self.video_preview.set_video_manager(self.video_manager)  
