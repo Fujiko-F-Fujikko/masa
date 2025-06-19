@@ -7,7 +7,7 @@ from PyQt6.QtGui import QPixmap, QImage, QPainter, QPen, QColor
 from AnnotationVisualizer import AnnotationVisualizer
 from VideoAnnotationManager import VideoAnnotationManager
 
-class UnifiedVideoPreviewWidget(QLabel):  
+class VideoPreviewWidget(QLabel):  
     """統合された動画プレビューウィジェット"""  
       
     # シグナル定義  

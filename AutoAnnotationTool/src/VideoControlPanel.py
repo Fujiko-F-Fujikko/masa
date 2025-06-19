@@ -5,8 +5,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from RangeSlider import RangeSlider
 
-class EnhancedVideoControlPanel(QWidget):  
-    """改善された動画制御パネル"""  
+class VideoControlPanel(QWidget):  
+    """動画制御パネル"""  
       
     frame_changed = pyqtSignal(int)  
     range_changed = pyqtSignal(int, int)  

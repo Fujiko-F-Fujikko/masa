@@ -1,19 +1,19 @@
 from PyQt6.QtWidgets import QApplication
 import sys
-from UnifiedMASAAnnotationWidget import FinalEnhancedMASAAnnotationWidget
+from MASAAnnotationWidget import MASAAnnotationWidget
 
-# メインアプリケーション実行用のクラス（改善版）  
-class EnhancedMASAAnnotationApp(QApplication):  
+# メインアプリケーション実行用のクラス
+class MASAAnnotationApp(QApplication):  
     """改善されたMASAアノテーションアプリケーション"""  
       
     def __init__(self, argv):  
         super().__init__(argv)  
-        self.main_widget = FinalEnhancedMASAAnnotationWidget()  
+        self.main_widget = MASAAnnotationWidget()  
         self.main_widget.show()  
   
 def run_enhanced_gui_application():  
     """改善されたGUI版のアプリケーションを実行"""  
-    app = EnhancedMASAAnnotationApp(sys.argv)  
+    app = MASAAnnotationApp(sys.argv)  
     sys.exit(app.exec())  
   
 if __name__ == "__main__":  
