@@ -148,7 +148,7 @@ class MenuPanel(QWidget):
         mode_layout.addWidget(self.multi_frame_label_input)
 
         # 完了ボタン
-        self.complete_multi_frame_btn = QPushButton("マルチフレーム完了")
+        self.complete_multi_frame_btn = QPushButton("マルチフレームアノテーション設定完了")
         self.complete_multi_frame_btn.clicked.connect(self._on_complete_multi_frame)
         self.complete_multi_frame_btn.setEnabled(False)
         mode_layout.addWidget(self.complete_multi_frame_btn)
