@@ -3,29 +3,30 @@ from typing import Dict
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QGroupBox, QCheckBox, QLineEdit,
-    QMessageBox
+    QMessageBox, QTabWidget, QComboBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 
 class MenuPanel(QWidget):  
-    """左側のメニューパネル（マルチフレーム機能付き）"""  
+    """タブベースの左側メニューパネル"""  
       
     # シグナル定義  
     load_video_requested = pyqtSignal()  
     annotation_mode_requested = pyqtSignal(bool)  
     range_selection_requested = pyqtSignal(bool)  
-    result_view_requested = pyqtSignal(bool)  
+    edit_mode_requested = pyqtSignal(bool)  
     tracking_requested = pyqtSignal()  
     export_requested = pyqtSignal(str)  # format  
     multi_frame_mode_requested = pyqtSignal(bool, str)  # enabled, label  
+    result_view_requested = pyqtSignal(bool)  # 互換性のために残す（非推奨）
       
     def __init__(self, parent=None):  
         super().__init__(parent)  
-        self.setFixedWidth(250)  
+        self.setFixedWidth(300)  
         self.setStyleSheet("background-color: #f0f0f0; border-right: 1px solid #ccc;")  
         self.setup_ui()  
-          
+
     def setup_ui(self):  
         layout = QVBoxLayout()  
         layout.setSpacing(10)  
@@ -36,194 +37,228 @@ class MenuPanel(QWidget):
         title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))  
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  
         layout.addWidget(title_label)  
-          
-        # 動画読み込みセクション  
-        video_group = QGroupBox("Video")  
-        video_layout = QVBoxLayout()  
-          
-        self.load_video_btn = QPushButton("Load Video")  
-        self.load_video_btn.clicked.connect(self.load_video_requested.emit)  
-        video_layout.addWidget(self.load_video_btn)  
-          
-        self.video_info_label = QLabel("No video loaded")  
-        self.video_info_label.setWordWrap(True)  
-        self.video_info_label.setStyleSheet("color: #666; font-size: 10px;")  
-        video_layout.addWidget(self.video_info_label)  
-          
-        video_group.setLayout(video_layout)  
-        layout.addWidget(video_group)  
-          
-        # アノテーションセクション  
-        self.annotation_group = QGroupBox("Annotation")  
-        annotation_layout = QVBoxLayout()  
-          
-        self.annotation_mode_btn = QPushButton("Manual Annotation Mode")  
-        self.annotation_mode_btn.setCheckable(True)  
-        self.annotation_mode_btn.clicked.connect(self._on_annotation_mode_clicked)  
-        self.annotation_mode_btn.setEnabled(False)  
-        annotation_layout.addWidget(self.annotation_mode_btn)  
-          
-        self.annotation_count_label = QLabel("Annotations: 0")  
-        self.annotation_count_label.setStyleSheet("color: #666; font-size: 10px;")  
-        annotation_layout.addWidget(self.annotation_count_label)  
-          
-        # マルチフレーム関連のUIを追加  
-        self.multi_frame_btn = QPushButton("Multi-Frame Mode")  
-        self.multi_frame_btn.setCheckable(True)  
-        self.multi_frame_btn.clicked.connect(self._on_multi_frame_clicked)  
-        self.multi_frame_btn.setEnabled(False)  
-        annotation_layout.addWidget(self.multi_frame_btn)  
-          
-        # ラベル入力フィールド  
-        self.multi_frame_label_input = QLineEdit()  
-        self.multi_frame_label_input.setPlaceholderText("Object label")  
-        self.multi_frame_label_input.setEnabled(False)  
-        annotation_layout.addWidget(self.multi_frame_label_input)  
-          
-        # 完了ボタン  
-        self.complete_multi_frame_btn = QPushButton("Complete Multi-Frame")  
-        self.complete_multi_frame_btn.clicked.connect(self._on_complete_multi_frame)  
-        self.complete_multi_frame_btn.setEnabled(False)  
-        annotation_layout.addWidget(self.complete_multi_frame_btn)  
-          
-        self.annotation_group.setLayout(annotation_layout)  
-        layout.addWidget(self.annotation_group)  
-          
-        # 範囲選択セクション  
-        range_group = QGroupBox("Frame Range")  
-        range_layout = QVBoxLayout()  
-          
-        self.range_selection_btn = QPushButton("Select Range Mode")  
-        self.range_selection_btn.setCheckable(True)  
-        self.range_selection_btn.clicked.connect(self._on_range_selection_clicked)  
-        self.range_selection_btn.setEnabled(False)  
-        range_layout.addWidget(self.range_selection_btn)  
-          
-        self.range_info_label = QLabel("Range: Not selected")  
-        self.range_info_label.setStyleSheet("color: #666; font-size: 10px;")  
-        range_layout.addWidget(self.range_info_label)  
-          
-        range_group.setLayout(range_layout)  
-        layout.addWidget(range_group)  
-          
-        # 自動追跡セクション  
-        tracking_group = QGroupBox("Auto Tracking")  
-        tracking_layout = QVBoxLayout()  
-          
-        self.tracking_btn = QPushButton("Start Auto Tracking")  
-        self.tracking_btn.clicked.connect(self.tracking_requested.emit)  
-        self.tracking_btn.setEnabled(False)  
-        tracking_layout.addWidget(self.tracking_btn)  
-          
-        self.tracking_progress_label = QLabel("")  
-        self.tracking_progress_label.setStyleSheet("color: #666; font-size: 10px;")  
-        tracking_layout.addWidget(self.tracking_progress_label)  
-          
-        tracking_group.setLayout(tracking_layout)  
-        layout.addWidget(tracking_group)  
-          
-        # 結果確認セクション  
-        result_group = QGroupBox("Results")  
-        result_layout = QVBoxLayout()  
-          
-        self.result_view_btn = QPushButton("View Results Mode")  
-        self.result_view_btn.setCheckable(True)  
-        self.result_view_btn.clicked.connect(self._on_result_view_clicked)  
-        self.result_view_btn.setEnabled(False)  
-        result_layout.addWidget(self.result_view_btn)  
-          
-        # 表示オプション  
-        self.show_manual_cb = QCheckBox("Show Manual")  
-        self.show_manual_cb.setChecked(True)  
-        result_layout.addWidget(self.show_manual_cb)  
-          
-        self.show_auto_cb = QCheckBox("Show Auto")  
-        self.show_auto_cb.setChecked(True)  
-        result_layout.addWidget(self.show_auto_cb)  
-          
-        self.show_ids_cb = QCheckBox("Show IDs")  
-        self.show_ids_cb.setChecked(True)  
-        result_layout.addWidget(self.show_ids_cb)  
-          
-        self.show_confidence_cb = QCheckBox("Show Confidence")  
-        self.show_confidence_cb.setChecked(True)  
-        result_layout.addWidget(self.show_confidence_cb)  
+
+        # タブウィジェットを作成
+        self.tab_widget = QTabWidget()
+        self.setup_basic_tab()      # 基本設定タブ
+        self.setup_annotation_tab() # アノテーションタブ
         
-        checkbox_style = """  
-        QCheckBox {  
-            color: #333333;  
-            font-weight: bold;  
-        }  
-        QCheckBox::indicator {  
-            width: 18px;  
-            height: 18px;  
-        }  
-        QCheckBox::indicator:unchecked {  
-            background-color: #ffffff;  
-            border: 2px solid #cccccc;  
-            border-radius: 3px;  
-        }  
-        QCheckBox::indicator:checked {  
-            background-color: #4CAF50;  
-            border: 2px solid #45a049;  
-            border-radius: 3px;  
-        }  
-        QCheckBox::indicator:checked:hover {  
-            background-color: #45a049;  
-        }  
-        QCheckBox::indicator:unchecked:hover {  
-            border: 2px solid #999999;  
-        }  
-        """  
-          
-        # 各チェックボックスにスタイルを適用  
-        self.show_manual_cb.setStyleSheet(checkbox_style)  
-        self.show_auto_cb.setStyleSheet(checkbox_style)  
-        self.show_ids_cb.setStyleSheet(checkbox_style)  
-        self.show_confidence_cb.setStyleSheet(checkbox_style)
-          
-        result_group.setLayout(result_layout)  
-        layout.addWidget(result_group)  
-          
-        # エクスポートセクション  
-        export_group = QGroupBox("Export")  
-        export_layout = QVBoxLayout()  
-          
-        self.export_json_btn = QPushButton("Export JSON")  
-        self.export_json_btn.clicked.connect(lambda: self.export_requested.emit("json"))  
-        self.export_json_btn.setEnabled(False)  
-        export_layout.addWidget(self.export_json_btn)  
-          
-        self.export_coco_btn = QPushButton("Export COCO")  
-        self.export_coco_btn.clicked.connect(lambda: self.export_requested.emit("coco"))  
-        self.export_coco_btn.setEnabled(False)  
-        export_layout.addWidget(self.export_coco_btn)  
-          
-        export_group.setLayout(export_layout)  
-        layout.addWidget(export_group)  
-          
-        # スペーサー  
-        layout.addStretch()  
-          
-        self.setLayout(layout)  
-      
+        layout.addWidget(self.tab_widget)
+        self.setLayout(layout)
+
+    def setup_basic_tab(self):
+        """基本設定タブの設定"""
+        basic_tab = QWidget()
+        layout = QVBoxLayout()
+
+        # ファイル操作グループ
+        file_group = QGroupBox("ファイル操作")
+        file_layout = QVBoxLayout()
+
+        # 動画ファイル
+        video_layout = QVBoxLayout()
+        self.load_video_btn = QPushButton("動画を読み込み")
+        self.load_video_btn.clicked.connect(self.load_video_requested.emit)
+        video_layout.addWidget(self.load_video_btn)
+        self.video_info_label = QLabel("動画が読み込まれていません")
+        self.video_info_label.setWordWrap(True)
+        video_layout.addWidget(self.video_info_label)
+        file_layout.addLayout(video_layout)
+
+        # JSONファイル
+        json_layout = QVBoxLayout()
+        self.load_json_btn = QPushButton("JSONを読み込み")
+        self.load_json_btn.clicked.connect(self._on_load_json_clicked)
+        json_layout.addWidget(self.load_json_btn)
+        self.save_json_btn = QPushButton("JSONを保存")
+        self.save_json_btn.clicked.connect(lambda: self.export_requested.emit("json"))
+        self.save_json_btn.setEnabled(False)
+        json_layout.addWidget(self.save_json_btn)
+        self.json_info_label = QLabel("JSONが読み込まれていません")
+        self.json_info_label.setWordWrap(True)
+        json_layout.addWidget(self.json_info_label)
+        file_layout.addLayout(json_layout)
+
+        file_group.setLayout(file_layout)
+        layout.addWidget(file_group)
+
+        # 再生コントロールグループ
+        playback_group = QGroupBox("再生コントロール")
+        playback_layout = QVBoxLayout()
+        self.play_btn = QPushButton("再生")
+        self.play_btn.setEnabled(False)
+        playback_layout.addWidget(self.play_btn)
+        self.frame_label = QLabel("フレーム: 0/0")
+        playback_layout.addWidget(self.frame_label)
+        playback_group.setLayout(playback_layout)
+        layout.addWidget(playback_group)
+
+        # 表示設定グループ
+        display_group = QGroupBox("表示設定")
+        display_layout = QVBoxLayout()
+
+        self.show_manual_cb = QCheckBox("手動アノテーション結果表示")
+        self.show_manual_cb.setChecked(True)
+        display_layout.addWidget(self.show_manual_cb)
+
+        self.show_auto_cb = QCheckBox("自動アノテーション結果表示")
+        self.show_auto_cb.setChecked(True)
+        display_layout.addWidget(self.show_auto_cb)
+
+        self.show_ids_cb = QCheckBox("Track ID表示")
+        self.show_ids_cb.setChecked(True)
+        display_layout.addWidget(self.show_ids_cb)
+
+        self.show_confidence_cb = QCheckBox("スコア表示")
+        self.show_confidence_cb.setChecked(True)
+        display_layout.addWidget(self.show_confidence_cb)
+
+        display_group.setLayout(display_layout)
+        layout.addWidget(display_group)
+
+        layout.addStretch()
+        basic_tab.setLayout(layout)
+        self.tab_widget.addTab(basic_tab, "基本設定")
+
+    def setup_annotation_tab(self):
+        """アノテーションタブの設定"""
+        annotation_tab = QWidget()
+        layout = QVBoxLayout()
+
+        # アノテーションモードグループ
+        mode_group = QGroupBox("操作モード")
+        mode_layout = QVBoxLayout()
+
+        self.annotation_mode_btn = QPushButton("シングルフレームアノテーションモード")
+        self.annotation_mode_btn.setCheckable(True)
+        self.annotation_mode_btn.clicked.connect(self._on_annotation_mode_clicked)
+        self.annotation_mode_btn.setEnabled(False)
+        mode_layout.addWidget(self.annotation_mode_btn)
+
+        self.multi_frame_btn = QPushButton("マルチフレームアノテーションモード")
+        self.multi_frame_btn.setCheckable(True)
+        self.multi_frame_btn.clicked.connect(self._on_multi_frame_clicked)
+        self.multi_frame_btn.setEnabled(False)
+        mode_layout.addWidget(self.multi_frame_btn)
+
+        # ラベル入力
+        self.multi_frame_label_input = QLineEdit()
+        self.multi_frame_label_input.setPlaceholderText("オブジェクトラベル")
+        self.multi_frame_label_input.setEnabled(False)
+        mode_layout.addWidget(self.multi_frame_label_input)
+
+        # 完了ボタン
+        self.complete_multi_frame_btn = QPushButton("マルチフレーム完了")
+        self.complete_multi_frame_btn.clicked.connect(self._on_complete_multi_frame)
+        self.complete_multi_frame_btn.setEnabled(False)
+        mode_layout.addWidget(self.complete_multi_frame_btn)
+
+        self.edit_mode_btn = QPushButton("編集モード")
+        self.edit_mode_btn.setCheckable(True)
+        self.edit_mode_btn.clicked.connect(self._on_edit_mode_clicked)
+        self.edit_mode_btn.setEnabled(False)
+        mode_layout.addWidget(self.edit_mode_btn)
+
+        mode_group.setLayout(mode_layout)
+        layout.addWidget(mode_group)
+
+        # アノテーション情報グループ
+        info_group = QGroupBox("アノテーション情報")
+        info_layout = QVBoxLayout()
+        self.annotation_count_label = QLabel("アノテーション数: 0")
+        info_layout.addWidget(self.annotation_count_label)
+        info_group.setLayout(info_layout)
+        layout.addWidget(info_group)
+
+        # アノテーション編集グループ
+        edit_group = QGroupBox("アノテーション編集")
+        edit_layout = QVBoxLayout()
+
+        self.label_combo = QComboBox()
+        self.label_combo.setEnabled(False)
+        edit_layout.addWidget(QLabel("ラベル:"))
+        edit_layout.addWidget(self.label_combo)
+
+        self.track_id_edit = QLineEdit()
+        self.track_id_edit.setEnabled(False)
+        edit_layout.addWidget(QLabel("Track ID:"))
+        edit_layout.addWidget(self.track_id_edit)
+
+        # 一括編集ボタン
+        self.delete_track_btn = QPushButton("選択Track全削除")
+        self.delete_track_btn.setEnabled(False)
+        edit_layout.addWidget(self.delete_track_btn)
+
+        self.propagate_label_btn = QPushButton("ラベル変更を伝播")
+        self.propagate_label_btn.setEnabled(False)
+        edit_layout.addWidget(self.propagate_label_btn)
+
+        edit_group.setLayout(edit_layout)
+        layout.addWidget(edit_group)
+
+        # 自動追跡グループ
+        tracking_group = QGroupBox("自動追跡")
+        tracking_layout = QVBoxLayout()
+
+        self.range_selection_btn = QPushButton("範囲選択モード")
+        self.range_selection_btn.setCheckable(True)
+        self.range_selection_btn.clicked.connect(self._on_range_selection_clicked)
+        self.range_selection_btn.setEnabled(False)
+        tracking_layout.addWidget(self.range_selection_btn)
+
+        self.range_info_label = QLabel("範囲: 未選択")
+        tracking_layout.addWidget(self.range_info_label)
+
+        self.tracking_btn = QPushButton("追跡開始")
+        self.tracking_btn.clicked.connect(self.tracking_requested.emit)
+        self.tracking_btn.setEnabled(False)
+        tracking_layout.addWidget(self.tracking_btn)
+
+        self.tracking_progress_label = QLabel("")
+        tracking_layout.addWidget(self.tracking_progress_label)
+
+        tracking_group.setLayout(tracking_layout)
+        layout.addWidget(tracking_group)
+
+        layout.addStretch()
+        annotation_tab.setLayout(layout)
+        self.tab_widget.addTab(annotation_tab, "アノテーション")
+
+    def _on_load_json_clicked(self):
+        """JSONファイル読み込みボタンのクリックハンドラ"""
+        self.load_video_requested.emit()
+
     def _on_annotation_mode_clicked(self, checked):  
         if checked:  
             self.range_selection_btn.setChecked(False)  
-            self.result_view_btn.setChecked(False)  
+            self.multi_frame_btn.setChecked(False)
+            self.edit_mode_btn.setChecked(False)
         self.annotation_mode_requested.emit(checked)  
       
     def _on_range_selection_clicked(self, checked):  
         if checked:  
             self.annotation_mode_btn.setChecked(False)  
-            self.result_view_btn.setChecked(False)  
+            self.multi_frame_btn.setChecked(False)
+            self.edit_mode_btn.setChecked(False)
         self.range_selection_requested.emit(checked)  
       
-    def _on_result_view_clicked(self, checked):  
+    def _on_edit_mode_clicked(self, checked):  
         if checked:  
             self.annotation_mode_btn.setChecked(False)  
-            self.range_selection_btn.setChecked(False)  
-        self.result_view_requested.emit(checked)  
+            self.range_selection_btn.setChecked(False)
+            self.multi_frame_btn.setChecked(False)
+            # 編集用コントロールを有効化
+            self.label_combo.setEnabled(True)
+            self.track_id_edit.setEnabled(True)
+            self.delete_track_btn.setEnabled(True)
+            self.propagate_label_btn.setEnabled(True)
+        else:
+            # 編集用コントロールを無効化
+            self.label_combo.setEnabled(False)
+            self.track_id_edit.setEnabled(False)
+            self.delete_track_btn.setEnabled(False)
+            self.propagate_label_btn.setEnabled(False)
+        self.edit_mode_requested.emit(checked)  
       
     def update_video_info(self, video_path: str, total_frames: int):  
         """動画情報を更新"""  
@@ -234,7 +269,8 @@ class MenuPanel(QWidget):
         self.annotation_mode_btn.setEnabled(True)  
         self.range_selection_btn.setEnabled(True)  
         self.multi_frame_btn.setEnabled(True)  
-        self.multi_frame_label_input.setEnabled(True)  
+        self.multi_frame_label_input.setEnabled(True)
+        self.edit_mode_btn.setEnabled(True)
       
     def update_annotation_count(self, count: int):  
         """アノテーション数を更新"""  
@@ -251,9 +287,7 @@ class MenuPanel(QWidget):
       
     def enable_result_view(self, enabled: bool):  
         """結果確認モードを有効化"""  
-        self.result_view_btn.setEnabled(enabled)  
-        self.export_json_btn.setEnabled(enabled)  
-        self.export_coco_btn.setEnabled(enabled)  
+        self.save_json_btn.setEnabled(enabled)  
       
     def get_display_options(self) -> Dict[str, bool]:  
         """表示オプションを取得"""  
@@ -268,14 +302,15 @@ class MenuPanel(QWidget):
         if checked:  
             label = self.multi_frame_label_input.text().strip()  
             if not label:  
-                QMessageBox.warning(self, "Warning", "Please enter an object label first")  
+                QMessageBox.warning(self, "Warning", "オブジェクトラベルを入力してください")  
                 self.multi_frame_btn.setChecked(False)  
                 return  
               
             # 他のモードを無効化  
             self.annotation_mode_btn.setChecked(False)  
             self.range_selection_btn.setChecked(False)  
-            self.result_view_btn.setChecked(False)  
+            self.edit_mode_btn.setChecked(False)
+            self.result_view_requested.emit(False)  # 結果表示モードをOFF
               
             self.multi_frame_label_input.setEnabled(False)  
             self.complete_multi_frame_btn.setEnabled(True)  
