@@ -89,6 +89,8 @@ class MASAAnnotationWidget(QWidget):
         for checkbox in [self.menu_panel.show_manual_cb, self.menu_panel.show_auto_cb,
                         self.menu_panel.show_ids_cb, self.menu_panel.show_confidence_cb]:
             checkbox.stateChanged.connect(self.update_display_options)
+        # スコア閾値変更のシグナル接続を追加  
+        self.menu_panel.score_threshold_changed.connect(self.on_score_threshold_changed)
 
     def load_video(self):
         """動画ファイルを読み込み"""
@@ -186,7 +188,8 @@ class MASAAnnotationWidget(QWidget):
             options['show_manual'],
             options['show_auto'],
             options['show_ids'],
-            options['show_confidence']
+            options['show_confidence'],
+            options['score_threshold']
         )
 
     def update_annotation_count(self):
@@ -381,3 +384,7 @@ class MASAAnnotationWidget(QWidget):
             )  
         else:  
             QMessageBox.critical(self, "Error", "Failed to load JSON annotation file")
+
+    def on_score_threshold_changed(self, threshold: float):  
+        """スコア閾値変更時の処理"""  
+        self.update_display_options()  

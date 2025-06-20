@@ -54,6 +54,7 @@ class VideoPreviewWidget(QLabel):
         self.show_auto_annotations = True  
         self.show_ids = True  
         self.show_confidence = True  
+        self.score_threshold = 0.2
         
         # 新しいモード追加 
         self.multi_frame_mode = False  # 複数フレームアノテーションモード  
@@ -109,12 +110,13 @@ class VideoPreviewWidget(QLabel):
         self.update_frame_display()  
       
     def set_display_options(self, show_manual: bool, show_auto: bool,   
-                           show_ids: bool, show_confidence: bool):  
+                           show_ids: bool, show_confidence: bool, score_threshold: float = 0.2):
         """表示オプションの設定"""  
         self.show_manual_annotations = show_manual  
         self.show_auto_annotations = show_auto  
         self.show_ids = show_ids  
         self.show_confidence = show_confidence  
+        self.score_threshold = score_threshold
         self.update_frame_display()  
       
     def set_frame(self, frame_id: int):  
@@ -149,24 +151,28 @@ class VideoPreviewWidget(QLabel):
         if self.multi_frame_mode and self.multi_frame_annotations:  
             frame = self._draw_multi_frame_annotations(frame)  
           
-        # 結果確認モードの場合、アノテーションを描画  
-        if self.result_view_mode:  
-            frame_annotation = self.video_manager.get_frame_annotations(self.current_frame_id)  
-            if frame_annotation and frame_annotation.objects:  
-                annotations_to_show = []  
-                  
+        # 結果確認モードの場合、アノテーションを描画    
+        if self.result_view_mode:    
+            frame_annotation = self.video_manager.get_frame_annotations(self.current_frame_id)    
+            if frame_annotation and frame_annotation.objects:    
+                annotations_to_show = []    
+                    
                 for annotation in frame_annotation.objects:  
-                    if annotation.is_manual and self.show_manual_annotations:  
-                        annotations_to_show.append(annotation)  
-                    elif not annotation.is_manual and self.show_auto_annotations:  
-                        annotations_to_show.append(annotation)  
-                  
-                if annotations_to_show:  
-                    frame = self.visualizer.draw_annotations(  
-                        frame, annotations_to_show,  
-                        show_ids=self.show_ids,  
-                        show_confidence=self.show_confidence  
-                    )  
+                    # スコア閾値によるフィルタリングを追加  
+                    if annotation.bbox.confidence < self.score_threshold:  
+                        continue  
+                          
+                    if annotation.is_manual and self.show_manual_annotations:    
+                        annotations_to_show.append(annotation)    
+                    elif not annotation.is_manual and self.show_auto_annotations:    
+                        annotations_to_show.append(annotation)    
+                    
+                if annotations_to_show:    
+                    frame = self.visualizer.draw_annotations(    
+                        frame, annotations_to_show,    
+                        show_ids=self.show_ids,    
+                        show_confidence=self.show_confidence    
+                    )
           
         # 範囲選択モードの場合、範囲を視覚的に表示  
         if self.range_selection_mode:  

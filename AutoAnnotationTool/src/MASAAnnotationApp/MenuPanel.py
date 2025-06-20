@@ -3,7 +3,8 @@ from typing import Dict
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QGroupBox, QCheckBox, QLineEdit,
-    QMessageBox, QTabWidget, QComboBox, QFileDialog
+    QMessageBox, QTabWidget, QComboBox, QFileDialog,
+    QDoubleSpinBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
@@ -21,7 +22,8 @@ class MenuPanel(QWidget):
     multi_frame_mode_requested = pyqtSignal(bool, str)  # enabled, label  
     result_view_requested = pyqtSignal(bool)  # 互換性のために残す（非推奨）
     load_json_requested = pyqtSignal(str)  # json_path 
-      
+    score_threshold_changed = pyqtSignal(float)  # threshold_value
+
     def __init__(self, parent=None):  
         super().__init__(parent)  
         self.setFixedWidth(300)  
@@ -121,6 +123,20 @@ class MenuPanel(QWidget):
         self.show_confidence_cb = QCheckBox("スコア表示")
         self.show_confidence_cb.setChecked(True)
         display_layout.addWidget(self.show_confidence_cb)
+
+        # スコア閾値設定を追加  
+        score_threshold_layout = QHBoxLayout()  
+        score_threshold_layout.addWidget(QLabel("スコア閾値:"))  
+
+        self.score_threshold_spinbox = QDoubleSpinBox()  
+        self.score_threshold_spinbox.setRange(0.0, 1.0)  
+        self.score_threshold_spinbox.setSingleStep(0.1)  
+        self.score_threshold_spinbox.setDecimals(2)  
+        self.score_threshold_spinbox.setValue(0.2)  # デフォルト値  
+        self.score_threshold_spinbox.valueChanged.connect(self.on_score_threshold_changed)  
+        score_threshold_layout.addWidget(self.score_threshold_spinbox)  
+          
+        display_layout.addLayout(score_threshold_layout)
 
         display_group.setLayout(display_layout)
         layout.addWidget(display_group)
@@ -345,3 +361,17 @@ class MenuPanel(QWidget):
         # 複数フレームアノテーション完了シグナルを発行  
         self.multi_frame_btn.setChecked(False)  
         self._on_multi_frame_clicked(False)
+
+    def on_score_threshold_changed(self, value: float):  
+        """スコア閾値変更時の処理"""  
+        self.score_threshold_changed.emit(value)  
+      
+    def get_display_options(self) -> Dict[str, bool]:  
+        """表示オプションを取得（スコア閾値を追加）"""  
+        return {  
+            'show_manual': self.show_manual_cb.isChecked(),  
+            'show_auto': self.show_auto_cb.isChecked(),  
+            'show_ids': self.show_ids_cb.isChecked(),  
+            'show_confidence': self.show_confidence_cb.isChecked(),  
+            'score_threshold': self.score_threshold_spinbox.value()  
+        }
