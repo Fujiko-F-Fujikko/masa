@@ -334,10 +334,18 @@ class MenuPanel(QWidget):
         self.edit_mode_btn.setEnabled(True)  
         self.play_btn.setEnabled(True)
       
-    def update_annotation_count(self, count: int):  
+    def update_annotation_count(self, count: int, manual_count: int = None):  
         """アノテーション数を更新"""  
-        self.annotation_count_label.setText(f"Annotations: {count}")  
-        self.tracking_btn.setEnabled(count > 0)  
+        if manual_count is not None:  
+            loaded_count = count - manual_count  
+            self.annotation_count_label.setText(  
+                f"総アノテーション数: {count}\n"  
+                f"(読み込み: {loaded_count}, 手動: {manual_count})"  
+            )  
+        else:  
+            self.annotation_count_label.setText(f"アノテーション数: {count}")  
+          
+        self.tracking_btn.setEnabled(count > 0)
       
     def update_range_info(self, start_frame: int, end_frame: int):  
         """範囲情報を更新"""  

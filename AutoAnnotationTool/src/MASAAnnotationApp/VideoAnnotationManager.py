@@ -296,7 +296,11 @@ class VideoAnnotationManager:
           
         # 読み込んだアノテーションを設定  
         self.frame_annotations = loaded_annotations  
-          
+
+        # デバッグ用：読み込んだアノテーション数を確認  
+        total_loaded = sum(len(frame_ann.objects) for frame_ann in loaded_annotations.values())  
+        print(f"Loaded {total_loaded} annotations from JSON")
+
         # next_object_idを更新  
         max_id = 0  
         for frame_annotation in self.frame_annotations.values():  
@@ -353,3 +357,22 @@ class VideoAnnotationManager:
             json.dump(result_data, f, indent=2, ensure_ascii=False)  
           
         print(f"MASA JSON exported to {output_path}")
+    
+    def get_annotation_statistics(self):  
+        """アノテーション統計を取得"""  
+        if not self.frame_annotations:  
+            return {"total": 0, "manual": 0, "loaded": 0}  
+          
+        total = 0  
+        manual = 0  
+        loaded = 0  
+          
+        for frame_annotation in self.frame_annotations.values():  
+            for obj in frame_annotation.objects:  
+                total += 1  
+                if obj.is_manual:  
+                    manual += 1  
+                else:  
+                    loaded += 1  
+          
+        return {"total": total, "manual": manual, "loaded": loaded}

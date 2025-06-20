@@ -213,15 +213,19 @@ class MASAAnnotationWidget(QWidget):
             options['score_threshold']
         )
 
-    def update_annotation_count(self):
-        """アノテーション数を更新"""
-        if not self.video_manager:
-            return
-
-        total_annotations = sum(
-            len(annotations) for annotations in self.video_manager.manual_annotations.values()
+    def update_annotation_count(self):  
+        """アノテーション数を更新"""  
+        if not self.video_manager:  
+            return  
+      
+        # 統計情報を取得  
+        stats = self.video_manager.get_annotation_statistics()  
+          
+        # MenuPanelに詳細情報を渡す  
+        self.menu_panel.update_annotation_count(  
+            stats["total"],   
+            stats["manual"]  
         )
-        self.menu_panel.update_annotation_count(total_annotations)
 
     def start_tracking(self):
         """自動追跡を開始"""
