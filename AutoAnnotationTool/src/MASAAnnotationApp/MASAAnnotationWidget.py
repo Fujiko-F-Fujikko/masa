@@ -456,6 +456,10 @@ class MASAAnnotationWidget(QWidget):
       
     def on_annotation_selected(self, annotation):  
         """アノテーション選択時の処理"""  
+        # annotationがNoneの場合は処理をスキップ  
+        if annotation is None:  
+            return  
+          
         # MenuPanelの編集コントロールに選択されたアノテーションの情報を設定  
         if hasattr(self.menu_panel, 'label_combo'):  
             # ラベルコンボボックスに現在のラベルを設定  

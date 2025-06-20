@@ -7,6 +7,7 @@ from PyQt6.QtGui import QPixmap, QImage, QPainter, QPen, QColor
 
 from AnnotationVisualizer import AnnotationVisualizer
 from VideoAnnotationManager import VideoAnnotationManager
+from BoundingBoxEditor import BoundingBoxEditor
 from DataClass import ObjectAnnotation
 
 class VideoPreviewWidget(QLabel):  
@@ -17,7 +18,8 @@ class VideoPreviewWidget(QLabel):
     frame_changed = pyqtSignal(int)  # frame_id  
     range_selection_changed = pyqtSignal(int, int)  # start_frame, end_frame  
     multi_frame_bbox_created = pyqtSignal(int, int, int, int, int)  # x1, y1, x2, y2, frame_id 
-    annotation_selected = pyqtSignal(object)  # ObjectAnn
+    annotation_selected = pyqtSignal(object)  # ObjectAnnotation
+    annotation_updated = pyqtSignal(object)  # ObjectAnnotation
       
     def __init__(self, parent=None):  
         super().__init__(parent)  
@@ -68,6 +70,11 @@ class VideoPreviewWidget(QLabel):
         self.edit_mode = False  
         self.selected_annotation = None  
         self.hover_annotation = None  
+        
+        # BoundingBoxEditor を追加  
+        self.bbox_editor = BoundingBoxEditor(self)  
+        self.bbox_editor.annotation_updated.connect(self.on_annotation_updated)  
+        self.bbox_editor.selection_changed.connect(self.on_selection_changed)  
 
         # 可視化  
         self.visualizer = AnnotationVisualizer()  
@@ -163,6 +170,12 @@ class VideoPreviewWidget(QLabel):
             return  
           
         self.current_frame = frame.copy()  
+
+        # 座標変換パラメータを BoundingBoxEditor に設定  
+        self.bbox_editor.set_coordinate_transform(  
+            self.scale_x, self.scale_y, self.offset_x, self.offset_y,  
+            self.original_width, self.original_height  
+        )  
       
         # 複数フレームモードの場合、作成中のアノテーションを表示  
         if self.multi_frame_mode and self.multi_frame_annotations:  
@@ -190,6 +203,9 @@ class VideoPreviewWidget(QLabel):
                         show_confidence=self.show_confidence,  
                         selected_annotation=self.selected_annotation if self.edit_mode else None  
                     )
+                    # 編集モードの場合、選択オーバーレイを描画  
+                    if self.edit_mode:  
+                        frame = self.bbox_editor.draw_selection_overlay(frame)  
         
         # 範囲選択モードの場合、範囲を視覚的に表示  
         if self.range_selection_mode:  
@@ -282,14 +298,25 @@ class VideoPreviewWidget(QLabel):
         """マウス押下イベント"""  
 
         if self.edit_mode and event.button() == Qt.MouseButton.LeftButton:  
-            # 編集モードの場合、クリック位置のアノテーションを選択  
-            clicked_annotation = self._get_annotation_at_position(event.position().toPoint())  
-            if clicked_annotation:  
-                self.selected_annotation = clicked_annotation  
-                self.annotation_selected.emit(clicked_annotation)  
-                self.update_frame_display()  
-                return  
-
+            pos = event.position().toPoint()  
+              
+            # 現在のフレームのアノテーションを取得  
+            frame_annotation = self.video_manager.get_frame_annotations(self.current_frame_id)  
+            annotations = frame_annotation.objects if frame_annotation else []  
+              
+            # アノテーション選択を試行  
+            selected = self.bbox_editor.select_annotation_at_position(pos, annotations)  
+            if selected:  
+                # ドラッグ操作を開始  
+                operation_type = self.bbox_editor.start_drag_operation(pos)  
+                if operation_type != "none":  
+                    return  
+          
+        self.update_frame_display()  
+        return  
+          
+        self.update_frame_display()  
+        return  
         # 複数フレームモードまたは通常のアノテーションモードの場合のみ処理  
         if (not self.annotation_mode and not self.multi_frame_mode) or event.button() != Qt.MouseButton.LeftButton:  
             return  
@@ -300,6 +327,20 @@ class VideoPreviewWidget(QLabel):
       
     def mouseMoveEvent(self, event):  
         """マウス移動イベント"""  
+        if self.edit_mode:  
+            pos = event.position().toPoint()  
+              
+            # ドラッグ操作中の場合  
+            if self.bbox_editor.dragging_bbox or self.bbox_editor.resizing_bbox:  
+                self.bbox_editor.update_drag_operation(pos)  
+                self.update_frame_display()  
+                return  
+              
+            # カーソル形状を更新  
+            cursor = self.bbox_editor.get_cursor_for_position(pos)  
+            self.setCursor(cursor)  
+            return 
+
         if not self.drawing:  
             return  
           
@@ -308,10 +349,15 @@ class VideoPreviewWidget(QLabel):
         self.update()  
       
     def mouseReleaseEvent(self, event):  
-        """マウス離上イベント"""  
+        """マウス離上イベント"""
+        if self.edit_mode and event.button() == Qt.MouseButton.LeftButton:  
+            if self.bbox_editor.dragging_bbox or self.bbox_editor.resizing_bbox:  
+                self.bbox_editor.end_drag_operation()  
+                self.setCursor(Qt.CursorShape.PointingHandCursor)  
+                return  
         if not self.drawing or event.button() != Qt.MouseButton.LeftButton:  
             return  
-          
+        
         self.drawing = False  
         self.end_point = event.position().toPoint()  
           
@@ -367,6 +413,17 @@ class VideoPreviewWidget(QLabel):
         self.result_view_mode = enabled  # 編集モード時は結果表示も有効  
         self.selected_annotation = None  
         self.setCursor(Qt.CursorShape.PointingHandCursor if enabled else Qt.CursorShape.ArrowCursor)  
+        # BoundingBoxEditor の編集モードを設定  
+        self.bbox_editor.set_editing_mode(enabled)  
+
+        # 視覚的フィードバック  
+        if enabled:  
+            self.setCursor(Qt.CursorShape.PointingHandCursor)  
+            self.setStyleSheet("border: 3px solid #FFD700; background-color: black;")  
+        else:  
+            self.setCursor(Qt.CursorShape.ArrowCursor)  
+            self.setStyleSheet("border: 2px solid gray; background-color: black;")  
+        
         self.update_frame_display()  
 
     # クリック位置のアノテーションを取得するメソッドを追加  
@@ -392,3 +449,18 @@ class VideoPreviewWidget(QLabel):
                 return annotation  
           
         return None  
+
+    def on_annotation_updated(self, annotation):  
+        """アノテーション更新時の処理"""  
+        # フレーム表示を更新  
+        self.update_frame_display()  
+          
+        # 親ウィジェットに更新を通知  
+        if hasattr(self, 'annotation_updated'):  
+            self.annotation_updated.emit(annotation)  
+      
+    def on_selection_changed(self, annotation):  
+        """選択変更時の処理"""  
+        # 親ウィジェットに選択変更を通知  
+        if hasattr(self, 'annotation_selected'):  
+            self.annotation_selected.emit(annotation)
