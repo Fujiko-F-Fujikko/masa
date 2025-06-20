@@ -124,18 +124,27 @@ class VideoPreviewWidget(QLabel):
         if not self.video_manager:  
             return  
           
-        self.current_frame_id = max(0, min(frame_id, self.video_manager.total_frames - 1))  
-        self.update_frame_display()  
-        self.frame_changed.emit(self.current_frame_id)  
+        # 再帰防止フラグをチェック  
+        if hasattr(self, '_updating_frame') and self._updating_frame:  
+            return  
           
-        # 範囲選択モードの場合  
-        if self.range_selection_mode:  
-            self.range_end_frame = self.current_frame_id  
-            self.range_selection_changed.emit(  
-                min(self.range_start_frame, self.range_end_frame),  
-                max(self.range_start_frame, self.range_end_frame)  
-            )  
-      
+        self._updating_frame = True  
+        try:  
+            self.current_frame_id = max(0, min(frame_id, self.video_manager.total_frames - 1))  
+            self.update_frame_display()  
+            self.frame_changed.emit(self.current_frame_id)  
+              
+            # 範囲選択モードの場合の処理...  
+            if self.range_selection_mode:  
+                self.range_end_frame = self.current_frame_id  
+                self.range_selection_changed.emit(  
+                    min(self.range_start_frame, self.range_end_frame),  
+                    max(self.range_start_frame, self.range_end_frame)  
+                )  
+        finally:  
+            self._updating_frame = False
+    
+    
     def update_frame_display(self):  
         """フレーム表示を更新"""  
         if not self.video_manager:  

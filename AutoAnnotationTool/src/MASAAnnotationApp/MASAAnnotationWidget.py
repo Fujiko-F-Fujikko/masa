@@ -10,7 +10,8 @@ from VideoControlPanel import VideoControlPanel
 from VideoPreviewWidget import VideoPreviewWidget
 from VideoAnnotationManager import VideoAnnotationManager
 from TrackingWorker import TrackingWorker
-from Dialog import AnnotationInputDialog, TrackingSettingsDialog
+from Dialog import AnnotationInputDialog
+from VideoPlaybackController import VideoPlaybackController
 
 class MASAAnnotationWidget(QWidget):
     """統合されたMASAアノテーションメインウィジェット"""
@@ -20,6 +21,7 @@ class MASAAnnotationWidget(QWidget):
         self.video_manager = None
         self.pending_bbox = None
         self.multi_frame_dialog = None
+        self.playback_controller = None
         self.setup_ui()
 
     def setup_ui(self):
@@ -92,25 +94,40 @@ class MASAAnnotationWidget(QWidget):
         # スコア閾値変更のシグナル接続を追加  
         self.menu_panel.score_threshold_changed.connect(self.on_score_threshold_changed)
 
-    def load_video(self):
-        """動画ファイルを読み込み"""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select Video File", "",
-            "Video Files (*.mp4 *.avi *.mov *.mkv);;All Files (*)"
-        )
+        # 再生制御のシグナル接続を追加  
+        self.menu_panel.play_requested.connect(self.start_playback)  
+        self.menu_panel.pause_requested.connect(self.pause_playback)  
 
-        if file_path:
-            config = MASAConfig()
-            self.video_manager = VideoAnnotationManager(file_path, config)
-
-            if self.video_manager.load_video():
-                self.video_preview.set_video_manager(self.video_manager)
-                self.video_control.set_total_frames(self.video_manager.total_frames)
-                self.video_control.set_current_frame(0)
-                self.menu_panel.update_video_info(file_path, self.video_manager.total_frames)
-
-                QMessageBox.information(self, "Success", f"Video loaded: {file_path}")
-            else:
+    def load_video(self):  
+        """動画ファイルを読み込み"""  
+        file_path, _ = QFileDialog.getOpenFileName(  
+            self, "Select Video File", "",  
+            "Video Files (*.mp4 *.avi *.mov *.mkv);;All Files (*)"  
+        )  
+      
+        if file_path:  
+            config = MASAConfig()  
+            self.video_manager = VideoAnnotationManager(file_path, config)  
+      
+            if self.video_manager.load_video():  
+                # 再生制御を初期化  
+                self.playback_controller = VideoPlaybackController(self.video_manager)  
+                self.playback_controller.frame_updated.connect(self.on_playback_frame_changed)  
+                self.playback_controller.playback_finished.connect(self.on_playback_finished)  
+                  
+                # 動画のFPSを取得して設定  
+                if hasattr(self.video_manager.video_reader, 'fps'):  
+                    fps = self.video_manager.video_reader.get(cv2.CAP_PROP_FPS)  
+                    if fps > 0:  
+                        self.playback_controller.set_fps(fps)  
+                  
+                self.video_preview.set_video_manager(self.video_manager)  
+                self.video_control.set_total_frames(self.video_manager.total_frames)  
+                self.video_control.set_current_frame(0)  
+                self.menu_panel.update_video_info(file_path, self.video_manager.total_frames)  
+      
+                QMessageBox.information(self, "Success", f"Video loaded: {file_path}")  
+            else:  
                 QMessageBox.critical(self, "Error", "Failed to load video file")
 
     def set_annotation_mode(self, enabled: bool):
@@ -165,9 +182,13 @@ class MASAAnnotationWidget(QWidget):
                     f"Added annotation: {label} at frame {current_frame}"
                 )
 
-    def on_frame_changed(self, frame_id: int):
-        """フレーム変更時の処理"""
-        self.video_control.set_current_frame(frame_id)
+    def on_frame_changed(self, frame_id: int):  
+        """フレーム変更時の処理"""  
+        self.video_control.set_current_frame(frame_id)  
+          
+        # MenuPanelのフレーム表示も更新  
+        if self.video_manager:  
+            self.menu_panel.update_frame_display(frame_id, self.video_manager.total_frames)
 
     def on_range_selection_changed(self, start_frame: int, end_frame: int):
         """範囲選択変更時の処理"""
@@ -388,3 +409,29 @@ class MASAAnnotationWidget(QWidget):
     def on_score_threshold_changed(self, threshold: float):  
         """スコア閾値変更時の処理"""  
         self.update_display_options()  
+        
+    def start_playback(self):  
+        """再生開始"""  
+        if self.playback_controller:  
+            current_frame = self.video_control.current_frame  
+            self.playback_controller.play(current_frame)  
+      
+    def pause_playback(self):  
+        """再生一時停止"""  
+        if self.playback_controller:  
+            self.playback_controller.pause()  
+      
+    def on_playback_frame_changed(self, frame_id: int):  
+        """再生中のフレーム変更処理"""  
+        # VideoControlPanelとVideoPreviewWidgetを更新  
+        self.video_control.set_current_frame(frame_id)  
+        self.video_preview.set_frame(frame_id)  
+          
+        # MenuPanelのフレーム表示も更新  
+        if self.video_manager:  
+            self.menu_panel.update_frame_display(frame_id, self.video_manager.total_frames)
+
+    def on_playback_finished(self):  
+        """再生完了処理"""  
+        self.menu_panel.reset_playback_button()  
+        QMessageBox.information(self, "Playback", "Video playback completed")

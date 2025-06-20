@@ -23,6 +23,8 @@ class MenuPanel(QWidget):
     result_view_requested = pyqtSignal(bool)  # 互換性のために残す（非推奨）
     load_json_requested = pyqtSignal(str)  # json_path 
     score_threshold_changed = pyqtSignal(float)  # threshold_value
+    play_requested = pyqtSignal()  
+    pause_requested = pyqtSignal()  
 
     def __init__(self, parent=None):  
         super().__init__(parent)  
@@ -93,16 +95,19 @@ class MenuPanel(QWidget):
         file_group.setLayout(file_layout)
         layout.addWidget(file_group)
 
-        # 再生コントロールグループ
-        playback_group = QGroupBox("再生コントロール")
-        playback_layout = QVBoxLayout()
-        self.play_btn = QPushButton("再生")
-        self.play_btn.setEnabled(False)
-        playback_layout.addWidget(self.play_btn)
-        self.frame_label = QLabel("フレーム: 0/0")
-        playback_layout.addWidget(self.frame_label)
-        playback_group.setLayout(playback_layout)
-        layout.addWidget(playback_group)
+        # 再生コントロールグループを更新  
+        playback_group = QGroupBox("再生コントロール")  
+        playback_layout = QVBoxLayout()  
+          
+        self.play_btn = QPushButton("再生")  
+        self.play_btn.setEnabled(False)  
+        self.play_btn.clicked.connect(self._on_play_clicked)  
+        playback_layout.addWidget(self.play_btn)  
+          
+        self.frame_label = QLabel("フレーム: 0/0")  
+        playback_layout.addWidget(self.frame_label)  
+        playback_group.setLayout(playback_layout)  
+        layout.addWidget(playback_group)  
 
         # 表示設定グループ
         display_group = QGroupBox("表示設定")
@@ -296,17 +301,21 @@ class MenuPanel(QWidget):
             self.propagate_label_btn.setEnabled(False)
         self.edit_mode_requested.emit(checked)  
       
-    def update_video_info(self, video_path: str, total_frames: int):  
-        """動画情報を更新"""  
-        filename = Path(video_path).name  
-        self.video_info_label.setText(f"{filename}\n{total_frames} frames")  
+    def update_video_info(self, video_path: str, total_frames: int):    
+        """動画情報を更新"""    
+        filename = Path(video_path).name    
+        self.video_info_label.setText(f"{filename}\n{total_frames} frames")    
           
-        # ボタンを有効化  
-        self.annotation_mode_btn.setEnabled(True)  
-        self.range_selection_btn.setEnabled(True)  
-        self.multi_frame_btn.setEnabled(True)  
-        self.multi_frame_label_input.setEnabled(True)
-        self.edit_mode_btn.setEnabled(True)
+        # フレーム表示も更新  
+        self.frame_label.setText(f"フレーム: 0/{total_frames - 1}")  
+            
+        # ボタンを有効化    
+        self.annotation_mode_btn.setEnabled(True)    
+        self.range_selection_btn.setEnabled(True)    
+        self.multi_frame_btn.setEnabled(True)    
+        self.multi_frame_label_input.setEnabled(True)  
+        self.edit_mode_btn.setEnabled(True)  
+        self.play_btn.setEnabled(True)
       
     def update_annotation_count(self, count: int):  
         """アノテーション数を更新"""  
@@ -375,3 +384,20 @@ class MenuPanel(QWidget):
             'show_confidence': self.show_confidence_cb.isChecked(),  
             'score_threshold': self.score_threshold_spinbox.value()  
         }
+
+    def _on_play_clicked(self):  
+        """再生/一時停止ボタンクリック処理"""  
+        if self.play_btn.text() == "再生":  
+            self.play_requested.emit()  
+            self.play_btn.setText("一時停止")  
+        else:  
+            self.pause_requested.emit()  
+            self.play_btn.setText("再生") 
+
+    def reset_playback_button(self):  
+        """再生ボタンを初期状態にリセット"""  
+        self.play_btn.setText("再生")
+        
+    def update_frame_display(self, current_frame: int, total_frames: int):  
+        """フレーム表示を更新"""  
+        self.frame_label.setText(f"フレーム: {current_frame}/{total_frames - 1}")

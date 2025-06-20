@@ -84,6 +84,11 @@ class VideoControlPanel(QWidget):
         self.current_frame = frame_id  
         self.frame_slider.setValue(frame_id)  
         self.update_frame_info()  
+
+        # 再生中でない場合のみシグナルを発信  
+        # （再生中は自動更新されるため）  
+        if not hasattr(self, '_playback_updating'):  
+            self.frame_changed.emit(frame_id)  
       
     def toggle_range_mode(self, enabled: bool):  
         """範囲選択モードの切り替え"""  
@@ -97,11 +102,16 @@ class VideoControlPanel(QWidget):
             self.range_slider.set_values(start, end)  
       
     def on_frame_changed(self, frame_id: int):  
-        """フレーム変更イベント"""  
+        """フレーム変更イベント（手動操作時）"""  
+        # 再生制御がある場合は一時停止  
+        if hasattr(self.parent(), 'playback_controller') and self.parent().playback_controller:  
+            if self.parent().playback_controller.is_playing:  
+                self.parent().pause_playback()  
+          
         self.current_frame = frame_id  
         self.update_frame_info()  
-        self.frame_changed.emit(frame_id)  
-      
+        self.frame_changed.emit(frame_id)      
+
     def on_range_changed(self, start_frame: int, end_frame: int):  
         """範囲変更イベント"""  
         self.range_changed.emit(start_frame, end_frame)  
