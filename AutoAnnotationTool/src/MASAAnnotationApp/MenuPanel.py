@@ -200,8 +200,22 @@ class MenuPanel(QWidget):
         self.complete_multi_frame_btn.setEnabled(False)
         mode_layout.addWidget(self.complete_multi_frame_btn)
 
+        # 編集モードボタンのスタイルを設定  
+        edit_button_style = """  
+            QPushButton {  
+                background-color: #f0f0f0;  
+                border: 2px solid #ccc;  
+                padding: 5px;  
+            }  
+            QPushButton:checked {  
+                background-color: #FFD700;  
+                border: 2px solid #FFA500;  
+                font-weight: bold;  
+            }  
+        """  
         self.edit_mode_btn = QPushButton("編集モード")
         self.edit_mode_btn.setCheckable(True)
+        self.edit_mode_btn.setStyleSheet(edit_button_style)
         self.edit_mode_btn.clicked.connect(self._on_edit_mode_clicked)
         self.edit_mode_btn.setEnabled(False)
         mode_layout.addWidget(self.edit_mode_btn)

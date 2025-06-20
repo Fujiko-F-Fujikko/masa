@@ -97,6 +97,10 @@ class MASAAnnotationWidget(QWidget):
         # 再生制御のシグナル接続を追加  
         self.menu_panel.play_requested.connect(self.start_playback)  
         self.menu_panel.pause_requested.connect(self.pause_playback)  
+        
+        # 編集モード関連のシグナル接続を追加  
+        self.menu_panel.edit_mode_requested.connect(self.set_edit_mode)  
+        self.video_preview.annotation_selected.connect(self.on_annotation_selected)  
 
     def load_video(self):  
         """動画ファイルを読み込み"""  
@@ -439,3 +443,26 @@ class MASAAnnotationWidget(QWidget):
         """再生完了処理"""  
         self.menu_panel.reset_playback_button()  
         QMessageBox.information(self, "Playback", "Video playback completed")
+    
+    def set_edit_mode(self, enabled: bool):  
+        """編集モードの設定"""  
+        self.video_preview.set_edit_mode(enabled)  
+        if enabled:  
+            QMessageBox.information(  
+                self, "Edit Mode",  
+                "Click on annotations in the video to select and edit them.\n"  
+                "Selected annotations will be highlighted in yellow."  
+            )  
+      
+    def on_annotation_selected(self, annotation):  
+        """アノテーション選択時の処理"""  
+        # MenuPanelの編集コントロールに選択されたアノテーションの情報を設定  
+        if hasattr(self.menu_panel, 'label_combo'):  
+            # ラベルコンボボックスに現在のラベルを設定  
+            index = self.menu_panel.label_combo.findText(annotation.label)  
+            if index >= 0:  
+                self.menu_panel.label_combo.setCurrentIndex(index)  
+          
+        if hasattr(self.menu_panel, 'track_id_edit'):  
+            # Track ID入力欄に現在のIDを設定  
+            self.menu_panel.track_id_edit.setText(str(annotation.object_id))

@@ -1,11 +1,13 @@
 import cv2
 import numpy as np
+from typing import Optional
 from PyQt6.QtWidgets import QLabel
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QRect
 from PyQt6.QtGui import QPixmap, QImage, QPainter, QPen, QColor
 
 from AnnotationVisualizer import AnnotationVisualizer
 from VideoAnnotationManager import VideoAnnotationManager
+from DataClass import ObjectAnnotation
 
 class VideoPreviewWidget(QLabel):  
     """統合された動画プレビューウィジェット"""  
@@ -15,6 +17,7 @@ class VideoPreviewWidget(QLabel):
     frame_changed = pyqtSignal(int)  # frame_id  
     range_selection_changed = pyqtSignal(int, int)  # start_frame, end_frame  
     multi_frame_bbox_created = pyqtSignal(int, int, int, int, int)  # x1, y1, x2, y2, frame_id 
+    annotation_selected = pyqtSignal(object)  # ObjectAnn
       
     def __init__(self, parent=None):  
         super().__init__(parent)  
@@ -60,6 +63,11 @@ class VideoPreviewWidget(QLabel):
         self.multi_frame_mode = False  # 複数フレームアノテーションモード  
         self.current_multi_frame_label = ""  
         self.multi_frame_annotations = []  # 現在作成中の複数フレームアノテーション  
+        
+        # 編集モード関連を追加  
+        self.edit_mode = False  
+        self.selected_annotation = None  
+        self.hover_annotation = None  
 
         # 可視化  
         self.visualizer = AnnotationVisualizer()  
@@ -160,29 +168,29 @@ class VideoPreviewWidget(QLabel):
         if self.multi_frame_mode and self.multi_frame_annotations:  
             frame = self._draw_multi_frame_annotations(frame)  
           
-        # 結果確認モードの場合、アノテーションを描画    
-        if self.result_view_mode:    
-            frame_annotation = self.video_manager.get_frame_annotations(self.current_frame_id)    
-            if frame_annotation and frame_annotation.objects:    
-                annotations_to_show = []    
-                    
+        # 結果確認モードまたは編集モードの場合、アノテーションを描画  
+        if self.result_view_mode or self.edit_mode:  
+            frame_annotation = self.video_manager.get_frame_annotations(self.current_frame_id)  
+            if frame_annotation and frame_annotation.objects:  
+                annotations_to_show = []  
+                  
                 for annotation in frame_annotation.objects:  
-                    # スコア閾値によるフィルタリングを追加  
                     if annotation.bbox.confidence < self.score_threshold:  
                         continue  
                           
-                    if annotation.is_manual and self.show_manual_annotations:    
-                        annotations_to_show.append(annotation)    
-                    elif not annotation.is_manual and self.show_auto_annotations:    
-                        annotations_to_show.append(annotation)    
-                    
-                if annotations_to_show:    
-                    frame = self.visualizer.draw_annotations(    
-                        frame, annotations_to_show,    
-                        show_ids=self.show_ids,    
-                        show_confidence=self.show_confidence    
+                    if annotation.is_manual and self.show_manual_annotations:  
+                        annotations_to_show.append(annotation)  
+                    elif not annotation.is_manual and self.show_auto_annotations:  
+                        annotations_to_show.append(annotation)  
+                  
+                if annotations_to_show:  
+                    frame = self.visualizer.draw_annotations(  
+                        frame, annotations_to_show,  
+                        show_ids=self.show_ids,  
+                        show_confidence=self.show_confidence,  
+                        selected_annotation=self.selected_annotation if self.edit_mode else None  
                     )
-          
+        
         # 範囲選択モードの場合、範囲を視覚的に表示  
         if self.range_selection_mode:  
             frame = self._draw_range_indicator(frame)  
@@ -272,6 +280,16 @@ class VideoPreviewWidget(QLabel):
       
     def mousePressEvent(self, event):  
         """マウス押下イベント"""  
+
+        if self.edit_mode and event.button() == Qt.MouseButton.LeftButton:  
+            # 編集モードの場合、クリック位置のアノテーションを選択  
+            clicked_annotation = self._get_annotation_at_position(event.position().toPoint())  
+            if clicked_annotation:  
+                self.selected_annotation = clicked_annotation  
+                self.annotation_selected.emit(clicked_annotation)  
+                self.update_frame_display()  
+                return  
+
         # 複数フレームモードまたは通常のアノテーションモードの場合のみ処理  
         if (not self.annotation_mode and not self.multi_frame_mode) or event.button() != Qt.MouseButton.LeftButton:  
             return  
@@ -339,3 +357,38 @@ class VideoPreviewWidget(QLabel):
             pen = QPen(QColor(255, 0, 0), 2, Qt.PenStyle.SolidLine)  
             painter.setPen(pen)  
             painter.drawRect(self.current_rect)
+
+    # 編集モード設定メソッドを追加  
+    def set_edit_mode(self, enabled: bool):  
+        """編集モードの設定"""  
+        self.edit_mode = enabled  
+        self.annotation_mode = False  
+        self.range_selection_mode = False  
+        self.result_view_mode = enabled  # 編集モード時は結果表示も有効  
+        self.selected_annotation = None  
+        self.setCursor(Qt.CursorShape.PointingHandCursor if enabled else Qt.CursorShape.ArrowCursor)  
+        self.update_frame_display()  
+
+    # クリック位置のアノテーションを取得するメソッドを追加  
+    def _get_annotation_at_position(self, pos: QPoint) -> Optional[ObjectAnnotation]:  
+        """指定位置にあるアノテーションを取得"""  
+        if not self.video_manager:  
+            return None  
+          
+        frame_annotation = self.video_manager.get_frame_annotations(self.current_frame_id)  
+        if not frame_annotation or not frame_annotation.objects:  
+            return None  
+          
+        # ウィジェット座標を画像座標に変換  
+        adjusted_x = max(0, pos.x() - self.offset_x)  
+        adjusted_y = max(0, pos.y() - self.offset_y)  
+        image_x = int(adjusted_x * self.scale_x)  
+        image_y = int(adjusted_y * self.scale_y)  
+          
+        # クリック位置がバウンディングボックス内にあるアノテーションを検索  
+        for annotation in frame_annotation.objects:  
+            if (annotation.bbox.x1 <= image_x <= annotation.bbox.x2 and  
+                annotation.bbox.y1 <= image_y <= annotation.bbox.y2):  
+                return annotation  
+          
+        return None  

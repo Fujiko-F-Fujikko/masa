@@ -26,13 +26,23 @@ class AnnotationVisualizer:
         return colors  
       
     def draw_annotations(self, frame: np.ndarray, annotations: List[ObjectAnnotation],   
-                        show_ids: bool = True, show_confidence: bool = True) -> np.ndarray:  
-        """フレームにアノテーションを描画（座標精度を向上）"""  
+                        show_ids: bool = True, show_confidence: bool = True,
+                        selected_annotation: ObjectAnnotation = None) -> np.ndarray:  
+        """フレームにアノテーションを描画（選択表示対応）"""  
         result_frame = frame.copy()  
           
         for annotation in annotations:  
             color = self.colors[annotation.object_id % len(self.colors)]  
               
+            # 選択されたアノテーションは異なる色で表示  
+            if selected_annotation and annotation.object_id == selected_annotation.object_id:  
+                color = (255, 255, 0)  # 黄色でハイライト  
+                thickness = 4  
+            else:  
+                color = self.colors[annotation.object_id % len(self.colors)]  
+                # 手動アノテーションは太い線、自動は細い線  
+                thickness = 3 if annotation.is_manual else 2  
+
             # バウンディングボックス座標を整数に変換（四捨五入）  
             pt1 = (int(round(annotation.bbox.x1)), int(round(annotation.bbox.y1)))  
             pt2 = (int(round(annotation.bbox.x2)), int(round(annotation.bbox.y2)))  
@@ -42,8 +52,6 @@ class AnnotationVisualizer:
             pt1 = (max(0, min(pt1[0], w-1)), max(0, min(pt1[1], h-1)))  
             pt2 = (max(0, min(pt2[0], w-1)), max(0, min(pt2[1], h-1)))  
               
-            # 手動アノテーションは太い線、自動は細い線  
-            thickness = 3 if annotation.is_manual else 2  
             cv2.rectangle(result_frame, pt1, pt2, color, thickness)  
               
             # ラベルとIDを描画  
