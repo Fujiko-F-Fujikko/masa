@@ -129,6 +129,23 @@ class MenuPanel(QWidget):
         self.show_confidence_cb.setChecked(True)
         display_layout.addWidget(self.show_confidence_cb)
 
+        # シンプルな緑色チェックマーク  
+        simple_checkbox_style = """  
+        QCheckBox::indicator:checked {  
+            background-color: #4CAF50;  
+            border: 1px solid #4CAF50;  
+        }  
+        QCheckBox::indicator:unchecked {  
+            background-color: white;  
+            border: 1px solid #ccc;  
+        }  
+        """
+        # 各チェックボックスに適用  
+        self.show_manual_cb.setStyleSheet(simple_checkbox_style)  
+        self.show_auto_cb.setStyleSheet(simple_checkbox_style)  
+        self.show_ids_cb.setStyleSheet(simple_checkbox_style)  
+        self.show_confidence_cb.setStyleSheet(simple_checkbox_style)
+
         # スコア閾値設定を追加  
         score_threshold_layout = QHBoxLayout()  
         score_threshold_layout.addWidget(QLabel("スコア閾値:"))  
