@@ -69,6 +69,7 @@ class MASAAnnotationWidget(QWidget):
         self.menu_panel.tracking_requested.connect(self.start_tracking)
         self.menu_panel.export_requested.connect(self.export_annotations)
         self.menu_panel.multi_frame_mode_requested.connect(self.set_multi_frame_mode)
+        self.menu_panel.load_json_requested.connect(self.load_json_annotations)
 
         # 動画プレビューからのシグナル
         self.video_preview.bbox_created.connect(self.on_bbox_created)
@@ -249,28 +250,48 @@ class MASAAnnotationWidget(QWidget):
             f"You can now view results using 'View Results Mode'."
         )
 
-    def export_annotations(self, format: str):
-        """アノテーションをエクスポート"""
-        if not self.video_manager:
-            return
-
-        if format == "json":
-            file_path, _ = QFileDialog.getSaveFileName(
-                self, "Save JSON Annotations", "annotations.json",
-                "JSON Files (*.json);;All Files (*)"
-            )
-        else:  # COCO
-            file_path, _ = QFileDialog.getSaveFileName(
-                self, "Save COCO Annotations", "annotations_coco.json",
-                "JSON Files (*.json);;All Files (*)"
-            )
-
-        if file_path:
-            try:
-                self.video_manager.export_annotations(file_path, format=format)
-                QMessageBox.information(self, "Export Complete", f"Annotations exported to {file_path}")
-            except Exception as e:
-                QMessageBox.critical(self, "Export Error", f"Failed to export annotations: {e}")
+    def export_annotations(self, format: str):  
+        """アノテーションをエクスポート（MASA JSON形式を追加）"""  
+        if not self.video_manager:  
+            return  
+      
+        if format == "json":  
+            # 既存のカスタムJSON形式  
+            file_path, _ = QFileDialog.getSaveFileName(  
+                self, "Save JSON Annotations", "annotations.json",  
+                "JSON Files (*.json);;All Files (*)"  
+            )  
+            if file_path:  
+                try:  
+                    self.video_manager.export_annotations(file_path, format=format)  
+                    QMessageBox.information(self, "Export Complete", f"Annotations exported to {file_path}")  
+                except Exception as e:  
+                    QMessageBox.critical(self, "Export Error", f"Failed to export annotations: {e}")  
+                      
+        elif format == "masa_json":  
+            # MASA形式のJSON  
+            file_path, _ = QFileDialog.getSaveFileName(  
+                self, "Save MASA JSON Annotations", "masa_annotations.json",  
+                "JSON Files (*.json);;All Files (*)"  
+            )  
+            if file_path:  
+                try:  
+                    self.video_manager.export_masa_json(file_path)  
+                    QMessageBox.information(self, "Export Complete", f"MASA JSON exported to {file_path}")  
+                except Exception as e:  
+                    QMessageBox.critical(self, "Export Error", f"Failed to export MASA JSON: {e}")  
+        else:  
+            # COCO形式  
+            file_path, _ = QFileDialog.getSaveFileName(  
+                self, "Save COCO Annotations", "annotations_coco.json",  
+                "JSON Files (*.json);;All Files (*)"  
+            )  
+            if file_path:  
+                try:  
+                    self.video_manager.export_annotations(file_path, format=format)  
+                    QMessageBox.information(self, "Export Complete", f"Annotations exported to {file_path}")  
+                except Exception as e:  
+                    QMessageBox.critical(self, "Export Error", f"Failed to export annotations: {e}")
 
     def set_multi_frame_mode(self, enabled: bool, label: str):
         """複数フレームモードの設定"""
@@ -333,3 +354,30 @@ class MASAAnnotationWidget(QWidget):
         # 作成中のアノテーションをクリア
         self.video_preview.multi_frame_annotations.clear()
         self.video_preview.update_frame_display()
+
+    def load_json_annotations(self, json_path: str):  
+        """JSONアノテーションファイルを読み込み"""  
+        if not self.video_manager:  
+            QMessageBox.warning(self, "Warning", "Please load a video file first")  
+            return  
+          
+        if self.video_manager.load_json_annotations(json_path):  
+            # UI更新  
+            total_annotations = sum(  
+                len(frame_annotation.objects)   
+                for frame_annotation in self.video_manager.frame_annotations.values()  
+            )  
+              
+            self.menu_panel.update_json_info(json_path, total_annotations)  
+            self.update_annotation_count()  
+              
+            # 結果表示モードを有効化  
+            self.video_preview.set_result_view_mode(True)  
+            self.menu_panel.enable_result_view(True)  
+              
+            QMessageBox.information(  
+                self, "JSON Loaded",   
+                f"Successfully loaded {total_annotations} annotations from JSON file"  
+            )  
+        else:  
+            QMessageBox.critical(self, "Error", "Failed to load JSON annotation file")

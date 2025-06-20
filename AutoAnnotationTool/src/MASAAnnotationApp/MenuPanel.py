@@ -3,7 +3,7 @@ from typing import Dict
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QGroupBox, QCheckBox, QLineEdit,
-    QMessageBox, QTabWidget, QComboBox
+    QMessageBox, QTabWidget, QComboBox, QFileDialog
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
@@ -20,6 +20,7 @@ class MenuPanel(QWidget):
     export_requested = pyqtSignal(str)  # format  
     multi_frame_mode_requested = pyqtSignal(bool, str)  # enabled, label  
     result_view_requested = pyqtSignal(bool)  # 互換性のために残す（非推奨）
+    load_json_requested = pyqtSignal(str)  # json_path 
       
     def __init__(self, parent=None):  
         super().__init__(parent)  
@@ -65,15 +66,23 @@ class MenuPanel(QWidget):
         video_layout.addWidget(self.video_info_label)
         file_layout.addLayout(video_layout)
 
-        # JSONファイル
-        json_layout = QVBoxLayout()
-        self.load_json_btn = QPushButton("JSONを読み込み")
-        self.load_json_btn.clicked.connect(self._on_load_json_clicked)
-        json_layout.addWidget(self.load_json_btn)
-        self.save_json_btn = QPushButton("JSONを保存")
-        self.save_json_btn.clicked.connect(lambda: self.export_requested.emit("json"))
-        self.save_json_btn.setEnabled(False)
-        json_layout.addWidget(self.save_json_btn)
+        # JSONファイル操作を更新  
+        json_layout = QVBoxLayout()  
+        self.load_json_btn = QPushButton("JSONを読み込み")  
+        self.load_json_btn.clicked.connect(self._on_load_json_clicked)  
+        json_layout.addWidget(self.load_json_btn)  
+          
+        # MASA JSON保存ボタンを追加  
+        self.save_masa_json_btn = QPushButton("MASA JSONを保存")  
+        self.save_masa_json_btn.clicked.connect(lambda: self.export_requested.emit("masa_json"))  
+        self.save_masa_json_btn.setEnabled(False)  
+        json_layout.addWidget(self.save_masa_json_btn)  
+          
+        self.save_json_btn = QPushButton("カスタムJSONを保存")  
+        self.save_json_btn.clicked.connect(lambda: self.export_requested.emit("json"))  
+        self.save_json_btn.setEnabled(False)  
+        json_layout.addWidget(self.save_json_btn)  
+
         self.json_info_label = QLabel("JSONが読み込まれていません")
         self.json_info_label.setWordWrap(True)
         json_layout.addWidget(self.json_info_label)
@@ -224,10 +233,21 @@ class MenuPanel(QWidget):
         annotation_tab.setLayout(layout)
         self.tab_widget.addTab(annotation_tab, "アノテーション")
 
-    def _on_load_json_clicked(self):
-        """JSONファイル読み込みボタンのクリックハンドラ"""
-        self.load_video_requested.emit()
+    def _on_load_json_clicked(self):  
+        """JSONファイル読み込みボタンのクリックハンドラ"""  
+        file_path, _ = QFileDialog.getOpenFileName(  
+            self, "Select JSON Annotation File", "",  
+            "JSON Files (*.json);;All Files (*)"  
+        )  
+          
+        if file_path:  
+            self.load_json_requested.emit(file_path)  
 
+    def update_json_info(self, json_path: str, annotation_count: int):  
+        """JSON情報を更新"""  
+        filename = Path(json_path).name  
+        self.json_info_label.setText(f"{filename}\n{annotation_count} annotations loaded")
+    
     def _on_annotation_mode_clicked(self, checked):  
         if checked:  
             self.range_selection_btn.setChecked(False)  
@@ -287,7 +307,8 @@ class MenuPanel(QWidget):
       
     def enable_result_view(self, enabled: bool):  
         """結果確認モードを有効化"""  
-        self.save_json_btn.setEnabled(enabled)  
+        self.save_json_btn.setEnabled(enabled)
+        self.save_masa_json_btn.setEnabled(enabled)
       
     def get_display_options(self) -> Dict[str, bool]:  
         """表示オプションを取得"""  

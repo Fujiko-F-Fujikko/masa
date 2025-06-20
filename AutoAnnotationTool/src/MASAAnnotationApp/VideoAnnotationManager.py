@@ -1,9 +1,11 @@
+import os
 import json
 import cv2
 import numpy as np
 from typing import Dict, List, Optional
 from DataClass import MASAConfig, ObjectAnnotation, FrameAnnotation, BoundingBox
 from ObjectTracker import ObjectTracker
+from JSONLoader import JSONLoader
 
 class VideoAnnotationManager:  
     """複数フレーム機能を統合したアノテーション管理クラス"""  
@@ -279,3 +281,75 @@ class VideoAnnotationManager:
                 continue  
           
         return results
+
+    def load_json_annotations(self, json_path: str) -> bool:  
+        """JSONファイルからアノテーションを読み込み"""  
+        loader = JSONLoader()  
+        loaded_annotations = loader.load_json_annotations(json_path)  
+          
+        if not loaded_annotations:  
+            return False  
+          
+        # 既存のアノテーションをクリア  
+        self.frame_annotations.clear()  
+        self.manual_annotations.clear()  
+          
+        # 読み込んだアノテーションを設定  
+        self.frame_annotations = loaded_annotations  
+          
+        # next_object_idを更新  
+        max_id = 0  
+        for frame_annotation in self.frame_annotations.values():  
+            for obj in frame_annotation.objects:  
+                max_id = max(max_id, obj.object_id)  
+        self.next_object_id = max_id + 1  
+          
+        return True  
+      
+    def export_masa_json(self, output_path: str):  
+        """MASA形式のJSONでエクスポート（demo/video_demo_with_text.pyと同じ形式）"""  
+        # ラベルマッピングを作成  
+        all_labels = set()  
+        for frame_annotation in self.frame_annotations.values():  
+            for obj in frame_annotation.objects:  
+                all_labels.add(obj.label)  
+          
+        label_mapping = {str(i): label for i, label in enumerate(sorted(all_labels))}  
+        label_to_id = {label: i for i, label in enumerate(sorted(all_labels))}  
+          
+        annotations = []  
+        for frame_annotation in self.frame_annotations.values():  
+            for obj in frame_annotation.objects:  
+                # xyxy形式からxywh形式に変換  
+                bbox_xywh = [  
+                    obj.bbox.x1,  
+                    obj.bbox.y1,  
+                    obj.bbox.x2 - obj.bbox.x1,  
+                    obj.bbox.y2 - obj.bbox.y1  
+                ]  
+                  
+                annotation_data = {  
+                    "frame_id": obj.frame_id,  
+                    "track_id": obj.object_id,  
+                    "bbox": bbox_xywh,  
+                    "score": obj.bbox.confidence,  
+                    "label": label_to_id.get(obj.label, 0),  
+                    "label_name": obj.label  
+                }  
+                  
+                # マスクがある場合は追加  
+                if hasattr(obj, 'has_mask') and obj.has_mask:  
+                    annotation_data["has_mask"] = True  
+                  
+                annotations.append(annotation_data)  
+          
+        result_data = {  
+            "video_name": os.path.basename(self.video_path),  
+            "label_mapping": label_mapping,  
+            "annotations": annotations  
+        }  
+          
+        with open(output_path, 'w', encoding='utf-8') as f:  
+            json.dump(result_data, f, indent=2, ensure_ascii=False)  
+          
+        print(f"MASA JSON exported to {output_path}")
