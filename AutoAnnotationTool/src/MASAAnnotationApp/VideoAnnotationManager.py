@@ -296,11 +296,11 @@ class VideoAnnotationManager:
           
         # 読み込んだアノテーションを設定  
         self.frame_annotations = loaded_annotations  
-
+          
         # デバッグ用：読み込んだアノテーション数を確認  
         total_loaded = sum(len(frame_ann.objects) for frame_ann in loaded_annotations.values())  
-        print(f"Loaded {total_loaded} annotations from JSON")
-
+        print(f"Loaded {total_loaded} annotations from JSON")  
+          
         # next_object_idを更新  
         max_id = 0  
         for frame_annotation in self.frame_annotations.values():  
@@ -308,8 +308,27 @@ class VideoAnnotationManager:
                 max_id = max(max_id, obj.object_id)  
         self.next_object_id = max_id + 1  
           
-        return True  
+        return True
+
+    def update_annotation_count(self):  
+        """アノテーション数を更新（ラベル更新も含む）"""  
+        if not self.video_manager:  
+            return  
       
+        # 統計情報を取得  
+        stats = self.video_manager.get_annotation_statistics()  
+          
+        # MenuPanelに詳細情報を渡す  
+        self.menu_panel.update_annotation_count(  
+            stats["total"],   
+            stats["manual"]  
+        )  
+          
+        # ラベルコンボボックスも更新  
+        existing_labels = self.video_manager.get_all_labels()  
+        if existing_labels:  
+            self.menu_panel.initialize_label_combo(existing_labels)
+
     def export_masa_json(self, output_path: str):  
         """MASA形式のJSONでエクスポート（demo/video_demo_with_text.pyと同じ形式）"""  
         # ラベルマッピングを作成  
@@ -376,3 +395,22 @@ class VideoAnnotationManager:
                     loaded += 1  
           
         return {"total": total, "manual": manual, "loaded": loaded}
+
+    def get_all_labels(self) -> List[str]:  
+        """全フレームから既存のラベルを取得"""  
+        all_labels = set()  
+          
+        for frame_annotation in self.frame_annotations.values():  
+            for obj in frame_annotation.objects:  
+                all_labels.add(obj.label)  
+          
+        return sorted(list(all_labels))
+
+    def update_annotation_label(self, object_id: int, frame_id: int, new_label: str):  
+        """指定されたアノテーションのラベルを更新します。"""  
+        if frame_id in self.frame_annotations:  
+            for obj in self.frame_annotations[frame_id].objects:  
+                if obj.object_id == object_id:  
+                    obj.label = new_label  
+                    return True  
+        return False

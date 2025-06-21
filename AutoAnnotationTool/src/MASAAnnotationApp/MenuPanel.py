@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QGroupBox, QCheckBox, QLineEdit,
@@ -25,9 +25,11 @@ class MenuPanel(QWidget):
     score_threshold_changed = pyqtSignal(float)  # threshold_value
     play_requested = pyqtSignal()  
     pause_requested = pyqtSignal()  
+    label_change_requested = pyqtSignal(object, str)  # annotation, new_label
 
     def __init__(self, parent=None):  
         super().__init__(parent)  
+        self.current_selected_annotation_label = None
         self.setFixedWidth(300)  
         self.setStyleSheet("background-color: #f0f0f0; border-right: 1px solid #ccc;")  
         self.setup_ui()  
@@ -213,12 +215,6 @@ class MenuPanel(QWidget):
                 font-weight: bold;  
             }  
         """  
-        self.edit_mode_btn = QPushButton("編集モード")
-        self.edit_mode_btn.setCheckable(True)
-        self.edit_mode_btn.setStyleSheet(edit_button_style)
-        self.edit_mode_btn.clicked.connect(self._on_edit_mode_clicked)
-        self.edit_mode_btn.setEnabled(False)
-        mode_layout.addWidget(self.edit_mode_btn)
 
         mode_group.setLayout(mode_layout)
         layout.addWidget(mode_group)
@@ -235,8 +231,17 @@ class MenuPanel(QWidget):
         edit_group = QGroupBox("アノテーション編集")
         edit_layout = QVBoxLayout()
 
+        self.edit_mode_btn = QPushButton("編集モード")
+        self.edit_mode_btn.setCheckable(True)
+        self.edit_mode_btn.setStyleSheet(edit_button_style)
+        self.edit_mode_btn.clicked.connect(self._on_edit_mode_clicked)
+        self.edit_mode_btn.setEnabled(False)
+        edit_layout.addWidget(self.edit_mode_btn)
+
         self.label_combo = QComboBox()
+        self.label_combo.setEditable(True)
         self.label_combo.setEnabled(False)
+        self.label_combo.currentIndexChanged.connect(self._on_label_changed)
         edit_layout.addWidget(QLabel("ラベル:"))
         edit_layout.addWidget(self.label_combo)
 
@@ -440,3 +445,57 @@ class MenuPanel(QWidget):
     def update_frame_display(self, current_frame: int, total_frames: int):  
         """フレーム表示を更新"""  
         self.frame_label.setText(f"フレーム: {current_frame}/{total_frames - 1}")
+
+    def _on_label_changed(self):  
+        """ラベル変更時の処理"""  
+        if hasattr(self, 'current_selected_annotation') and self.current_selected_annotation:  
+            new_label = self.label_combo.currentText()  
+              
+            # ラベルが実際に変更された場合のみシグナルを発火  
+            if new_label != self.current_selected_annotation_label:  
+                self.label_change_requested.emit(self.current_selected_annotation, new_label)  
+                # 変更が適用されたら、現在のラベルを更新  
+                self.current_selected_annotation_label = new_label  
+                  
+                # ここで QMessageBox.information を表示  
+                QMessageBox.information(  
+                    self, "ラベル変更",  
+                    f"アノテーションID {self.current_selected_annotation.object_id} のラベルを '{new_label}' に変更しました。"  
+                )
+  
+    def update_selected_annotation_info(self, annotation):  
+        """選択されたアノテーション情報をUIに反映"""  
+        self.current_selected_annotation = annotation  
+        if annotation is None:  
+            self.current_selected_annotation_label = None # 選択解除時にリセット  
+            return  
+          
+        self.current_selected_annotation_label = annotation.label # 現在のラベルを保存  
+          
+        # 既存のラベルをコンボボックスに追加（重複チェック）  
+        current_labels = [self.label_combo.itemText(i) for i in range(self.label_combo.count())]  
+        if annotation.label not in current_labels:  
+            self.label_combo.addItem(annotation.label)  
+          
+        # 現在のラベルを選択  
+        index = self.label_combo.findText(annotation.label)  
+        if index >= 0:  
+            self.label_combo.setCurrentIndex(index)  
+        else:  
+            # 新しいラベルの場合は追加して選択  
+            self.label_combo.addItem(annotation.label)  
+            self.label_combo.setCurrentText(annotation.label)  
+          
+        # Track IDも更新  
+        self.track_id_edit.setText(str(annotation.object_id))
+
+    def initialize_label_combo(self, existing_labels: List[str]):  
+        """既存のラベルでコンボボックスを初期化"""  
+        self.label_combo.clear()  
+          
+        # 既存のラベルを追加  
+        for label in existing_labels:  
+            self.label_combo.addItem(label)  
+          
+        # 編集可能にして新しいラベルも入力できるようにする  
+        self.label_combo.setEditable(True)  

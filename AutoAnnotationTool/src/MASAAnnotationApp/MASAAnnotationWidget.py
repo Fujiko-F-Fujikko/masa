@@ -103,6 +103,7 @@ class MASAAnnotationWidget(QWidget):
         # 編集モード関連のシグナル接続を追加  
         self.menu_panel.edit_mode_requested.connect(self.set_edit_mode)  
         self.video_preview.annotation_selected.connect(self.on_annotation_selected)  
+        self.menu_panel.label_change_requested.connect(self.on_label_change_requested)
 
     def load_video(self):  
         """動画ファイルを読み込み"""  
@@ -167,25 +168,25 @@ class MASAAnnotationWidget(QWidget):
         self.video_preview.set_result_view_mode(enabled)
         self.update_display_options()
 
-    def on_bbox_created(self, x1: int, y1: int, x2: int, y2: int):
-        """バウンディングボックス作成時の処理"""
-        bbox = BoundingBox(x1, y1, x2, y2)
-
-        # ラベル入力ダイアログを表示
-        dialog = AnnotationInputDialog(bbox, self)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            label = dialog.get_label()
-            if label:
-                # アノテーションを追加
-                current_frame = self.video_control.current_frame
-                annotation = self.video_manager.add_manual_annotation(current_frame, bbox, label)
-
-                # UI更新
-                self.update_annotation_count()
-
-                QMessageBox.information(
-                    self, "Annotation Added",
-                    f"Added annotation: {label} at frame {current_frame}"
+    def on_bbox_created(self, x1: int, y1: int, x2: int, y2: int):  
+        """バウンディングボックス作成時の処理"""  
+        bbox = BoundingBox(x1, y1, x2, y2)  
+      
+        # ラベル入力ダイアログを表示  
+        dialog = AnnotationInputDialog(bbox, self)  
+        if dialog.exec() == QDialog.DialogCode.Accepted:  
+            label = dialog.get_label()  
+            if label:  
+                # アノテーションを追加  
+                current_frame = self.video_control.current_frame  
+                annotation = self.video_manager.add_manual_annotation(current_frame, bbox, label)  
+      
+                # UI更新  
+                self.update_annotation_count()  # これでラベルコンボボックスも更新される  
+      
+                QMessageBox.information(  
+                    self, "Annotation Added",  
+                    f"Added annotation: {label} at frame {current_frame}"  
                 )
 
     def on_frame_changed(self, frame_id: int):  
@@ -220,7 +221,7 @@ class MASAAnnotationWidget(QWidget):
         )
 
     def update_annotation_count(self):  
-        """アノテーション数を更新"""  
+        """アノテーション数を更新（ラベル更新も含む）"""  
         if not self.video_manager:  
             return  
       
@@ -231,7 +232,12 @@ class MASAAnnotationWidget(QWidget):
         self.menu_panel.update_annotation_count(  
             stats["total"],   
             stats["manual"]  
-        )
+        )  
+          
+        # ラベルコンボボックスも更新  
+        existing_labels = self.video_manager.get_all_labels()  
+        if existing_labels:  
+            self.menu_panel.initialize_label_combo(existing_labels)
 
     def start_tracking(self):
         """自動追跡を開始"""
@@ -461,14 +467,9 @@ class MASAAnnotationWidget(QWidget):
         # annotationがNoneの場合は処理をスキップ  
         if annotation is None:  
             return  
-          
         # MenuPanelの編集コントロールに選択されたアノテーションの情報を設定  
-        if hasattr(self.menu_panel, 'label_combo'):  
-            # ラベルコンボボックスに現在のラベルを設定  
-            index = self.menu_panel.label_combo.findText(annotation.label)  
-            if index >= 0:  
-                self.menu_panel.label_combo.setCurrentIndex(index)  
-          
+        self.menu_panel.update_selected_annotation_info(annotation)
+        
         if hasattr(self.menu_panel, 'track_id_edit'):  
             # Track ID入力欄に現在のIDを設定  
             self.menu_panel.track_id_edit.setText(str(annotation.object_id))
@@ -534,3 +535,19 @@ class MASAAnnotationWidget(QWidget):
         else:  
             QMessageBox.critical(self, "Error", "Failed to load JSON annotation file")  
             return False
+
+    def on_label_change_requested(self, annotation, new_label):  
+        """ラベル変更要求の処理"""  
+        if annotation and new_label:  
+            # VideoAnnotationManager を介してアノテーションのラベルを更新  
+            if self.video_manager.update_annotation_label(  
+                annotation.object_id, annotation.frame_id, new_label  
+            ):  
+                # 成功した場合のみ表示を更新  
+                self.video_preview.update_frame_display()  
+                # ここにあった QMessageBox.information は削除  
+            else:  
+                QMessageBox.warning(  
+                    self, "ラベル変更失敗",  
+                    f"アノテーションID {annotation.object_id} のラベル変更に失敗しました。"  
+                )
