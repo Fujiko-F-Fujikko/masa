@@ -1,3 +1,5 @@
+import os
+import cv2
 from typing import Dict
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QDialog,
@@ -470,3 +472,65 @@ class MASAAnnotationWidget(QWidget):
         if hasattr(self.menu_panel, 'track_id_edit'):  
             # Track ID入力欄に現在のIDを設定  
             self.menu_panel.track_id_edit.setText(str(annotation.object_id))
+
+    def load_video_from_path(self, video_path: str):  
+        """パスから動画ファイルを読み込み"""  
+        if not os.path.exists(video_path):  
+            QMessageBox.critical(self, "Error", f"Video file not found: {video_path}")  
+            return False  
+          
+        config = MASAConfig()  
+        self.video_manager = VideoAnnotationManager(video_path, config)  
+      
+        if self.video_manager.load_video():  
+            # 再生制御を初期化  
+            self.playback_controller = VideoPlaybackController(self.video_manager)  
+            self.playback_controller.frame_updated.connect(self.on_playback_frame_changed)  
+            self.playback_controller.playback_finished.connect(self.on_playback_finished)  
+              
+            # 動画のFPSを取得して設定  
+            if hasattr(self.video_manager.video_reader, 'fps'):  
+                fps = self.video_manager.video_reader.get(cv2.CAP_PROP_FPS)  
+                if fps > 0:  
+                    self.playback_controller.set_fps(fps)  
+              
+            self.video_preview.set_video_manager(self.video_manager)  
+            self.video_control.set_total_frames(self.video_manager.total_frames)  
+            self.video_control.set_current_frame(0)  
+            self.menu_panel.update_video_info(video_path, self.video_manager.total_frames)  
+              
+            print(f"Video loaded: {video_path}")  
+            return True  
+        else:  
+            QMessageBox.critical(self, "Error", "Failed to load video file")  
+            return False  
+      
+    def load_json_from_path(self, json_path: str):  
+        """パスからJSONアノテーションファイルを読み込み"""  
+        if not os.path.exists(json_path):  
+            QMessageBox.critical(self, "Error", f"JSON file not found: {json_path}")  
+            return False  
+          
+        if not self.video_manager:  
+            QMessageBox.warning(self, "Warning", "Please load a video file first")  
+            return False  
+          
+        if self.video_manager.load_json_annotations(json_path):  
+            # UI更新  
+            total_annotations = sum(  
+                len(frame_annotation.objects)   
+                for frame_annotation in self.video_manager.frame_annotations.values()  
+            )  
+              
+            self.menu_panel.update_json_info(json_path, total_annotations)  
+            self.update_annotation_count()  
+              
+            # 結果表示モードを有効化  
+            self.video_preview.set_result_view_mode(True)  
+            self.menu_panel.enable_result_view(True)  
+              
+            print(f"JSON loaded: {json_path}")  
+            return True  
+        else:  
+            QMessageBox.critical(self, "Error", "Failed to load JSON annotation file")  
+            return False
