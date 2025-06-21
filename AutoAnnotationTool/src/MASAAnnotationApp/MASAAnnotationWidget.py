@@ -55,8 +55,8 @@ class MASAAnnotationWidget(QWidget):
         main_layout.addWidget(right_widget)
 
         # レイアウト比率設定（左：右 = 1：3）
-        main_layout.setStretch(0, 1)
-        main_layout.setStretch(1, 3)
+        main_layout.setStretch(0, 1) # 左側のメニューパネル(index 0)
+        main_layout.setStretch(1, 3) # 右側の動画プレビューと制御パネル(index 1)
 
         self.setLayout(main_layout)
 

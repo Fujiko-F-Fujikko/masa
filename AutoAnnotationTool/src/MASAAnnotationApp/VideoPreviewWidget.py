@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from typing import Optional
-from PyQt6.QtWidgets import QLabel
+from PyQt6.QtWidgets import QLabel, QSizePolicy
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QRect
 from PyQt6.QtGui import QPixmap, QImage, QPainter, QPen, QColor
 
@@ -23,9 +23,13 @@ class VideoPreviewWidget(QLabel):
       
     def __init__(self, parent=None):  
         super().__init__(parent)  
-        self.setMinimumSize(800, 600)  
+        self.setMinimumSize((int)(2688/2), (int)(1512/2))  
         self.setStyleSheet("border: 2px solid gray; background-color: black;")  
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)  
+        
+        # サイズポリシーを設定してウィンドウサイズに追従  
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)  
+
           
         # 動画関連  
         self.video_manager = None  
@@ -464,3 +468,15 @@ class VideoPreviewWidget(QLabel):
         # 親ウィジェットに選択変更を通知  
         if hasattr(self, 'annotation_selected'):  
             self.annotation_selected.emit(annotation)
+
+    def resizeEvent(self, event):  
+        """ウィンドウサイズ変更時の処理"""  
+        super().resizeEvent(event)  
+          
+        # フレーム表示を更新（スケール比とオフセットの再計算）  
+        if self.current_frame is not None:  
+            self.update_frame_display()  
+          
+        # 編集モードのラベル位置も調整  
+        if hasattr(self, 'mode_label') and self.mode_label.isVisible():  
+            self.mode_label.move(self.width() - self.mode_label.width() - 10, 10)
