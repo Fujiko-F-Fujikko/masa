@@ -21,8 +21,6 @@ class MASAAnnotationWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.video_manager = None
-        self.pending_bbox = None
-        self.multi_frame_dialog = None
         self.playback_controller = None
         self.setup_ui()
 

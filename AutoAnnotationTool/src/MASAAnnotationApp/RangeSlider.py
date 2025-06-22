@@ -24,8 +24,7 @@ class RangeSlider(QWidget):
         self.dragging_end = False  
         self.dragging_range = False  
         self.drag_offset = 0  
-        self.is_dragging = False
-          
+        
         # ハンドルのサイズ  
         self.handle_width = 12  
         self.handle_height = 20  
@@ -144,15 +143,12 @@ class RangeSlider(QWidget):
                 
             if start_handle.contains(pos):    
                 self.dragging_start = True    
-                self.is_dragging = True    
                 self.drag_offset = pos.x() - start_handle.center().x()    
             elif end_handle.contains(pos):    
                 self.dragging_end = True    
-                self.is_dragging = True    
                 self.drag_offset = pos.x() - end_handle.center().x()    
             elif range_rect.contains(pos):    
                 self.dragging_range = True    
-                self.is_dragging = True    
                 self.drag_offset = pos.x() - range_rect.center().x()    
             else:    
                 # トラック上をクリックした場合の処理...    
@@ -179,7 +175,6 @@ class RangeSlider(QWidget):
         self.dragging_start = False  
         self.dragging_end = False  
         self.dragging_range = False  
-        self.is_dragging = False  
         
     def paintEvent(self, event):  
         painter = QPainter(self)  

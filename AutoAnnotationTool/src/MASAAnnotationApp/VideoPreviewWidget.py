@@ -50,12 +50,7 @@ class VideoPreviewWidget(QLabel):
         # 表示モード  
         self.annotation_mode = False  # アノテーション作成モード  
         self.result_view_mode = False  # 結果確認モード  
-          
-        # 範囲選択関連  
-        self.range_start_frame = 0  
-        self.range_end_frame = 0  
-        self.range_selecting = False  
-          
+
         # 表示オプション  
         self.show_manual_annotations = True  
         self.show_auto_annotations = True  
@@ -71,7 +66,6 @@ class VideoPreviewWidget(QLabel):
         # 編集モード関連を追加  
         self.edit_mode = False  
         self.selected_annotation = None  
-        self.hover_annotation = None  
         
         # BoundingBoxEditor を追加  
         self.bbox_editor = BoundingBoxEditor(self)  
@@ -421,30 +415,6 @@ class VideoPreviewWidget(QLabel):
           
         self.update_frame_display()
 
-    # クリック位置のアノテーションを取得するメソッドを追加  
-    def _get_annotation_at_position(self, pos: QPoint) -> Optional[ObjectAnnotation]:  
-        """指定位置にあるアノテーションを取得"""  
-        if not self.video_manager:  
-            return None  
-          
-        frame_annotation = self.video_manager.get_frame_annotations(self.current_frame_id)  
-        if not frame_annotation or not frame_annotation.objects:  
-            return None  
-          
-        # ウィジェット座標を画像座標に変換  
-        adjusted_x = max(0, pos.x() - self.offset_x)  
-        adjusted_y = max(0, pos.y() - self.offset_y)  
-        image_x = int(adjusted_x * self.scale_x)  
-        image_y = int(adjusted_y * self.scale_y)  
-          
-        # クリック位置がバウンディングボックス内にあるアノテーションを検索  
-        for annotation in frame_annotation.objects:  
-            if (annotation.bbox.x1 <= image_x <= annotation.bbox.x2 and  
-                annotation.bbox.y1 <= image_y <= annotation.bbox.y2):  
-                return annotation  
-          
-        return None  
-
     def on_annotation_updated(self, annotation):  
         """アノテーション更新時の処理"""  
         # フレーム表示を更新  
@@ -467,10 +437,6 @@ class VideoPreviewWidget(QLabel):
         # フレーム表示を更新（スケール比とオフセットの再計算）  
         if self.current_frame is not None:  
             self.update_frame_display()  
-          
-        # 編集モードのラベル位置も調整  
-        if hasattr(self, 'mode_label') and self.mode_label.isVisible():  
-            self.mode_label.move(self.width() - self.mode_label.width() - 10, 10)
 
     # BoundingBoxEditor からのシグナルを受け取るスロット  
     def _on_new_bbox_drawing_started(self):  

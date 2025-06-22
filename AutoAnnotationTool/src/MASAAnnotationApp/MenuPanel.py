@@ -374,15 +374,6 @@ class MenuPanel(QWidget):
         self.save_json_btn.setEnabled(enabled)
         self.save_masa_json_btn.setEnabled(enabled)
       
-    def get_display_options(self) -> Dict[str, bool]:  
-        """表示オプションを取得"""  
-        return {  
-            'show_manual': self.show_manual_cb.isChecked(),  
-            'show_auto': self.show_auto_cb.isChecked(),  
-            'show_ids': self.show_ids_cb.isChecked(),  
-            'show_confidence': self.show_confidence_cb.isChecked()  
-        }  
-      
     def _on_multi_frame_clicked(self, checked):  
         if checked:  
             label = self.multi_frame_label_input.text().strip()  

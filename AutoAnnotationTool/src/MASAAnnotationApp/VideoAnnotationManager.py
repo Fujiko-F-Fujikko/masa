@@ -17,7 +17,6 @@ class VideoAnnotationManager:
         self.video_reader = None  
         self.frame_annotations: Dict[int, FrameAnnotation] = {}  
         self.manual_annotations: Dict[int, List[ObjectAnnotation]] = {}  
-        self.current_frame_id = 0  
         self.total_frames = 0  
         self.next_object_id = 1
         self.multi_frame_objects = {}  # オブジェクトIDごとの複数フレーム情報
@@ -225,66 +224,6 @@ class VideoAnnotationManager:
         self.next_object_id += 1  
         self._is_labels_cache_dirty = True
         return annotations  
-      
-    def process_automatic_tracking(self, start_frame_id: int, end_frame_id: int = None) -> Dict[int, List[ObjectAnnotation]]:  
-        """複数フレーム情報を活用した追跡処理"""  
-        if end_frame_id is None:  
-            end_frame_id = self.total_frames - 1  
-          
-        # 初期化  
-        if not self.tracker.initialized:  
-            self.tracker.initialize()  
-          
-        # 開始フレームの手動アノテーションを取得  
-        if start_frame_id not in self.manual_annotations:  
-            print(f"No manual annotations found for frame {start_frame_id}")  
-            return {}  
-          
-        manual_objects = self.manual_annotations[start_frame_id]  
-          
-        # テキストプロンプトを生成（ラベルから）  
-        unique_labels = list(set([obj.label for obj in manual_objects]))  
-        text_prompt = " . ".join(unique_labels) if unique_labels else None  
-          
-        results = {}  
-          
-        # フレームごとに追跡処理  
-        for frame_id in range(start_frame_id, min(end_frame_id + 1, self.total_frames)):  
-            frame = self.get_frame(frame_id)  
-            if frame is None:  
-                continue  
-              
-            try:  
-                # 追跡実行（memo_tracklet_framesとmemo_momentumを活用）
-                tracked_annotations = self.tracker.track_objects(  
-                    frame=frame,  
-                    frame_id=frame_id,  
-                    initial_annotations=manual_objects if frame_id == start_frame_id else None,  
-                    texts=text_prompt  
-                )  
-                  
-                # 結果を保存  
-                results[frame_id] = tracked_annotations  
-                  
-                # フレームアノテーションを更新  
-                if frame_id not in self.frame_annotations:  
-                    self.frame_annotations[frame_id] = FrameAnnotation(frame_id=frame_id)  
-                  
-                # 手動アノテーションと自動追跡結果をマージ  
-                all_annotations = []  
-                if frame_id in self.manual_annotations:  
-                    all_annotations.extend(self.manual_annotations[frame_id])  
-                all_annotations.extend(tracked_annotations)  
-                  
-                self.frame_annotations[frame_id].objects = all_annotations  
-                  
-                print(f"Frame {frame_id}: {len(tracked_annotations)} objects tracked")  
-                  
-            except Exception as e:  
-                print(f"Error tracking frame {frame_id}: {e}")  
-                continue  
-          
-        return results
 
     def load_json_annotations(self, json_path: str) -> bool:  
         """JSONファイルからアノテーションを読み込み"""  
