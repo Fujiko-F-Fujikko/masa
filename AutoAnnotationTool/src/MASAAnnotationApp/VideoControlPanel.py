@@ -16,8 +16,8 @@ class VideoControlPanel(QWidget):
         super().__init__(parent)  
         self.total_frames = 0  
         self.current_frame = 0  
-        self.range_selection_mode = False  
         self.setup_ui()  
+        self.range_slider.setVisible(False)  # 初期状態では範囲選択スライダーを非表示にする
           
     def setup_ui(self):  
         layout = QVBoxLayout()  
@@ -54,13 +54,6 @@ class VideoControlPanel(QWidget):
         control_layout.addWidget(self.next_btn)  
           
         layout.addLayout(control_layout)  
-          
-        # 範囲選択モード切り替え  
-        self.range_mode_btn = QPushButton("Range Selection Mode")  
-        self.range_mode_btn.setCheckable(True)  
-        self.range_mode_btn.clicked.connect(self.toggle_range_mode)  
-        layout.addWidget(self.range_mode_btn)  
-        
         
         self.setLayout(layout)  
 
@@ -88,19 +81,8 @@ class VideoControlPanel(QWidget):
         # 再生中でない場合のみシグナルを発信  
         # （再生中は自動更新されるため）  
         if not hasattr(self, '_playback_updating'):  
-            self.frame_changed.emit(frame_id)  
-      
-    def toggle_range_mode(self, enabled: bool):  
-        """範囲選択モードの切り替え"""  
-        self.range_selection_mode = enabled  
-        self.range_slider.setVisible(enabled)  
-          
-        if enabled:  
-            # 現在のフレームを中心とした範囲を初期設定  
-            start = max(0, self.current_frame - 50)  
-            end = min(self.total_frames - 1, self.current_frame + 50)  
-            self.range_slider.set_values(start, end)  
-      
+            self.frame_changed.emit(frame_id)
+
     def on_frame_changed(self, frame_id: int):  
         """フレーム変更イベント（手動操作時）"""  
         # 再生制御がある場合は一時停止  
@@ -111,10 +93,6 @@ class VideoControlPanel(QWidget):
         self.current_frame = frame_id  
         self.update_frame_info()  
         self.frame_changed.emit(frame_id)      
-
-    def on_range_changed(self, start_frame: int, end_frame: int):  
-        """範囲変更イベント"""  
-        self.range_changed.emit(start_frame, end_frame)  
       
     def prev_frame(self):  
         """前のフレームに移動"""  
@@ -132,7 +110,4 @@ class VideoControlPanel(QWidget):
       
     def get_selected_range(self) -> tuple:  
         """選択された範囲を取得"""  
-        if self.range_selection_mode:  
-            return self.range_slider.get_values()  
-        else:  
-            return (0, self.total_frames - 1)
+        return self.range_slider.get_values()  

@@ -134,41 +134,46 @@ class RangeSlider(QWidget):
             # 範囲移動中は先頭フレームを表示  
             self.current_frame_changed.emit(self.start_value)  
       
-    def mousePressEvent(self, event):  
-        if event.button() == Qt.MouseButton.LeftButton:  
-            pos = event.position().toPoint()  
-              
-            start_handle = self._get_start_handle_rect()  
-            end_handle = self._get_end_handle_rect()  
-            range_rect = self._get_range_rect()  
-              
-            if start_handle.contains(pos):  
-                self.dragging_start = True  
-                self.is_dragging = True  
-                self.drag_offset = pos.x() - start_handle.center().x()  
-            elif end_handle.contains(pos):  
-                self.dragging_end = True  
-                self.is_dragging = True  
-                self.drag_offset = pos.x() - end_handle.center().x()  
-            elif range_rect.contains(pos):  
-                self.dragging_range = True  
-                self.is_dragging = True  
-                self.drag_offset = pos.x() - range_rect.center().x()  
-            else:  
-                # トラック上をクリックした場合の処理...  
-                value = self._pixel_to_value(pos.x())  
-                start_dist = abs(value - self.start_value)  
-                end_dist = abs(value - self.end_value)  
+    def mousePressEvent(self, event):    
+        if event.button() == Qt.MouseButton.LeftButton:    
+            pos = event.position().toPoint()    
+                
+            start_handle = self._get_start_handle_rect()    
+            end_handle = self._get_end_handle_rect()    
+            range_rect = self._get_range_rect()    
+                
+            if start_handle.contains(pos):    
+                self.dragging_start = True    
+                self.is_dragging = True    
+                self.drag_offset = pos.x() - start_handle.center().x()    
+            elif end_handle.contains(pos):    
+                self.dragging_end = True    
+                self.is_dragging = True    
+                self.drag_offset = pos.x() - end_handle.center().x()    
+            elif range_rect.contains(pos):    
+                self.dragging_range = True    
+                self.is_dragging = True    
+                self.drag_offset = pos.x() - range_rect.center().x()    
+            else:    
+                # トラック上をクリックした場合の処理...    
+                value = self._pixel_to_value(pos.x())    
                   
-                if start_dist < end_dist:  
+                # クリック位置に最も近いハンドルを移動させる  
+                if abs(value - self.start_value) < abs(value - self.end_value):  
+                    # start_valueがクリック位置に近い場合  
                     self.start_value = value  
-                    self.current_frame_changed.emit(self.start_value)  
                 else:  
+                    # end_valueがクリック位置に近い場合  
                     self.end_value = value  
-                    self.current_frame_changed.emit(self.end_value)  
                   
-                self.update()  
-                self.range_changed.emit(self.start_value, self.end_value)  
+                # start_valueがend_valueより大きくなった場合は入れ替える  
+                if self.start_value > self.end_value:  
+                    self.start_value, self.end_value = self.end_value, self.start_value  
+                  
+                self.update()    
+                self.range_changed.emit(self.start_value, self.end_value)    
+                # クリックでフレームを移動させる場合は current_frame_changed も発火  
+                self.current_frame_changed.emit(value) # クリックしたフレームに移動
       
     def mouseReleaseEvent(self, event):  
         self.dragging_start = False  

@@ -68,7 +68,6 @@ class MASAAnnotationWidget(QWidget):
         # メニューパネルからのシグナル
         self.menu_panel.load_video_requested.connect(self.load_video)
         self.menu_panel.annotation_mode_requested.connect(self.set_annotation_mode)
-        self.menu_panel.range_selection_requested.connect(self.set_range_selection_mode)
         self.menu_panel.result_view_requested.connect(self.set_result_view_mode)
         self.menu_panel.tracking_requested.connect(self.start_tracking)
         self.menu_panel.export_requested.connect(self.export_annotations)
@@ -78,7 +77,6 @@ class MASAAnnotationWidget(QWidget):
         # 動画プレビューからのシグナル
         self.video_preview.bbox_created.connect(self.on_bbox_created)
         self.video_preview.frame_changed.connect(self.on_frame_changed)
-        self.video_preview.range_selection_changed.connect(self.on_range_selection_changed)
         self.video_preview.multi_frame_bbox_created.connect(self.on_multi_frame_bbox_created)
 
         # 動画制御からのシグナル
@@ -150,22 +148,6 @@ class MASAAnnotationWidget(QWidget):
                 "You will be prompted to enter labels for each annotation."
             )
 
-    def set_range_selection_mode(self, enabled: bool):
-        """範囲選択モードの設定"""
-        # 動画制御パネルの範囲選択モードを設定
-        self.video_control.toggle_range_mode(enabled)
-        
-        # 動画プレビューの範囲選択モードは無効化（スライダーで制御）
-        self.video_preview.set_range_selection_mode(False)
-
-        if enabled:
-            QMessageBox.information(
-                self, "Range Selection Mode",
-                "Use the range slider below the video to select frames for auto tracking.\n"
-                "Drag the handles to adjust start and end frames.\n"
-                "You can also drag the blue range area to move the entire selection."
-            )
-
     def set_result_view_mode(self, enabled: bool):
         """結果確認モードの設定"""
         self.video_preview.set_result_view_mode(enabled)
@@ -217,11 +199,10 @@ class MASAAnnotationWidget(QWidget):
 
     def on_range_frame_preview(self, frame_id: int):
         """範囲選択中のフレームプレビュー処理"""
-        # 範囲選択モードの場合のみ動画を更新
-        if self.video_control.range_selection_mode:
-            self.video_preview.set_frame(frame_id)
-            # 通常のフレームスライダーも同期
-            self.video_control.set_current_frame(frame_id)
+        # 動画を更新
+        self.video_preview.set_frame(frame_id)
+        # 通常のフレームスライダーも同期
+        self.video_control.set_current_frame(frame_id)
 
     def update_display_options(self):
         """表示オプションを更新"""
@@ -253,37 +234,32 @@ class MASAAnnotationWidget(QWidget):
         if existing_labels:  
             self.menu_panel.initialize_label_combo(existing_labels)
 
-    def start_tracking(self):
-        """自動追跡を開始"""
-        if not self.video_manager or not self.video_manager.manual_annotations:
-            QMessageBox.warning(self, "Warning", "Please add manual annotations first")
-            return
-
-        # 範囲選択モードが有効な場合は、選択された範囲を使用
-        if self.video_control.range_selection_mode:
-            start_frame, end_frame = self.video_control.get_selected_range()
-        else:
-            # 警告を表示
-            QMessageBox.warning(self, "Warning", "Please select a frame range for auto tracking")
-            return
-
-        # 確認ダイアログ
-        frame_count = end_frame - start_frame + 1
-        reply = QMessageBox.question(
-            self, "Confirm Tracking",
-            f"Start automatic tracking from frame {start_frame} to {end_frame}?\n"
-            f"Total frames to process: {frame_count}\n"
-            f"This may take several minutes.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-
-        if reply == QMessageBox.StandardButton.Yes:
-            self.menu_panel.update_tracking_progress("Tracking in progress...")
-
-            # バックグラウンドで追跡処理を実行
-            self.tracking_worker = TrackingWorker(self.video_manager, start_frame, end_frame)
-            self.tracking_worker.tracking_completed.connect(self.on_tracking_completed)
-            self.tracking_worker.progress_updated.connect(self.on_tracking_progress)
+    def start_tracking(self):  
+        """自動追跡を開始"""  
+        if not self.video_manager or not self.video_manager.manual_annotations:  
+            QMessageBox.warning(self, "Warning", "Please add manual annotations first")  
+            return  
+  
+        # 編集モードがONの場合は常に範囲選択スライダーが有効なので、直接範囲を取得  
+        start_frame, end_frame = self.video_control.get_selected_range()  
+          
+        # 確認ダイアログ  
+        frame_count = end_frame - start_frame + 1  
+        reply = QMessageBox.question(  
+            self, "Confirm Tracking",  
+            f"Start automatic tracking from frame {start_frame} to {end_frame}?\n"  
+            f"Total frames to process: {frame_count}\n"  
+            f"This may take several minutes.",  
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+        )  
+  
+        if reply == QMessageBox.StandardButton.Yes:  
+            self.menu_panel.update_tracking_progress("Tracking in progress...")  
+  
+            # バックグラウンドで追跡処理を実行  
+            self.tracking_worker = TrackingWorker(self.video_manager, start_frame, end_frame)  
+            self.tracking_worker.tracking_completed.connect(self.on_tracking_completed)  
+            self.tracking_worker.progress_updated.connect(self.on_tracking_progress)  
             self.tracking_worker.start()
 
     def on_tracking_progress(self, current_frame: int, total_frames: int):
@@ -469,6 +445,9 @@ class MASAAnnotationWidget(QWidget):
     def set_edit_mode(self, enabled: bool):  
         """編集モードの設定"""  
         self.video_preview.set_edit_mode(enabled)  
+        # 編集モードがONの場合のみ範囲選択スライダーを表示  
+        self.video_control.range_slider.setVisible(enabled)
+ 
         if enabled:  
             QMessageBox.information(  
                 self, "Edit Mode",  

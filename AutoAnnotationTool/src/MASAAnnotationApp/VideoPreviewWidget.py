@@ -16,7 +16,6 @@ class VideoPreviewWidget(QLabel):
     # シグナル定義  
     bbox_created = pyqtSignal(int, int, int, int)  # x1, y1, x2, y2  
     frame_changed = pyqtSignal(int)  # frame_id  
-    range_selection_changed = pyqtSignal(int, int)  # start_frame, end_frame  
     multi_frame_bbox_created = pyqtSignal(int, int, int, int, int)  # x1, y1, x2, y2, frame_id 
     annotation_selected = pyqtSignal(object)  # ObjectAnnotation
     annotation_updated = pyqtSignal(object)  # ObjectAnnotation
@@ -50,7 +49,6 @@ class VideoPreviewWidget(QLabel):
           
         # 表示モード  
         self.annotation_mode = False  # アノテーション作成モード  
-        self.range_selection_mode = False  # 範囲選択モード  
         self.result_view_mode = False  # 結果確認モード  
           
         # 範囲選択関連  
@@ -115,16 +113,7 @@ class VideoPreviewWidget(QLabel):
         self.range_selection_mode = False  
         self.result_view_mode = False  
         self.setCursor(Qt.CursorShape.CrossCursor if enabled else Qt.CursorShape.ArrowCursor)  
-      
-    def set_range_selection_mode(self, enabled: bool):  
-        """範囲選択モードの設定"""  
-        self.range_selection_mode = enabled  
-        self.annotation_mode = False  
-        self.result_view_mode = False  
-        if enabled:  
-            self.range_start_frame = self.current_frame_id  
-            self.range_end_frame = self.current_frame_id  
-      
+
     def set_result_view_mode(self, enabled: bool):  
         """結果確認モードの設定"""  
         self.result_view_mode = enabled  
@@ -156,14 +145,6 @@ class VideoPreviewWidget(QLabel):
             self.current_frame_id = max(0, min(frame_id, self.video_manager.total_frames - 1))  
             self.update_frame_display()  
             self.frame_changed.emit(self.current_frame_id)  
-              
-            # 範囲選択モードの場合の処理...  
-            if self.range_selection_mode:  
-                self.range_end_frame = self.current_frame_id  
-                self.range_selection_changed.emit(  
-                    min(self.range_start_frame, self.range_end_frame),  
-                    max(self.range_start_frame, self.range_end_frame)  
-                )  
         finally:  
             self._updating_frame = False
     
@@ -214,11 +195,7 @@ class VideoPreviewWidget(QLabel):
                     # 編集モードの場合、選択オーバーレイを描画  
                     if self.edit_mode:  
                         frame = self.bbox_editor.draw_selection_overlay(frame)  
-        
-        # 範囲選択モードの場合、範囲を視覚的に表示  
-        if self.range_selection_mode:  
-            frame = self._draw_range_indicator(frame)  
-          
+
         self._display_frame_on_widget(frame)  
 
     def _draw_multi_frame_annotations(self, frame: np.ndarray) -> np.ndarray:  
@@ -245,33 +222,6 @@ class VideoPreviewWidget(QLabel):
                        (pt1[0], pt1[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)  
           
         return result_frame
-      
-    def _draw_range_indicator(self, frame: np.ndarray) -> np.ndarray:  
-        """範囲選択の視覚的インジケーターを描画"""  
-        result_frame = frame.copy()  
-          
-        # 範囲内のフレームかどうかで色を変える  
-        start_frame = min(self.range_start_frame, self.range_end_frame)  
-        end_frame = max(self.range_start_frame, self.range_end_frame)  
-          
-        if start_frame <= self.current_frame_id <= end_frame:  
-            # 範囲内：緑の枠  
-            color = (0, 255, 0)  
-            thickness = 5  
-        else:  
-            # 範囲外：赤の枠  
-            color = (255, 0, 0)  
-            thickness = 3  
-          
-        h, w = result_frame.shape[:2]  
-        cv2.rectangle(result_frame, (10, 10), (w-10, h-10), color, thickness)  
-          
-        # 範囲情報をテキストで表示  
-        range_text = f"Range: {start_frame} - {end_frame} (Current: {self.current_frame_id})"  
-        cv2.putText(result_frame, range_text, (20, 50),   
-                   cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)  
-          
-        return result_frame  
       
     def _display_frame_on_widget(self, frame: np.ndarray):  
         """フレームをウィジェットに表示"""  

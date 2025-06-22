@@ -15,7 +15,6 @@ class MenuPanel(QWidget):
     # シグナル定義  
     load_video_requested = pyqtSignal()  
     annotation_mode_requested = pyqtSignal(bool)  
-    range_selection_requested = pyqtSignal(bool)  
     edit_mode_requested = pyqtSignal(bool)  
     tracking_requested = pyqtSignal()  
     export_requested = pyqtSignal(str)  # format  
@@ -273,12 +272,6 @@ class MenuPanel(QWidget):
         tracking_group = QGroupBox("自動追跡")
         tracking_layout = QVBoxLayout()
 
-        self.range_selection_btn = QPushButton("範囲選択モード")
-        self.range_selection_btn.setCheckable(True)
-        self.range_selection_btn.clicked.connect(self._on_range_selection_clicked)
-        self.range_selection_btn.setEnabled(False)
-        tracking_layout.addWidget(self.range_selection_btn)
-
         self.range_info_label = QLabel("範囲: 未選択")
         tracking_layout.addWidget(self.range_info_label)
 
@@ -314,22 +307,13 @@ class MenuPanel(QWidget):
     
     def _on_annotation_mode_clicked(self, checked):  
         if checked:  
-            self.range_selection_btn.setChecked(False)  
             self.multi_frame_btn.setChecked(False)
             self.edit_mode_btn.setChecked(False)
         self.annotation_mode_requested.emit(checked)  
       
-    def _on_range_selection_clicked(self, checked):  
-        if checked:  
-            self.annotation_mode_btn.setChecked(False)  
-            self.multi_frame_btn.setChecked(False)
-            self.edit_mode_btn.setChecked(False)
-        self.range_selection_requested.emit(checked)  
-      
     def _on_edit_mode_clicked(self, checked):  
         if checked:  
             self.annotation_mode_btn.setChecked(False)  
-            self.range_selection_btn.setChecked(False)
             self.multi_frame_btn.setChecked(False)
             # 編集用コントロールを有効化
             self.label_combo.setEnabled(True)
@@ -356,7 +340,6 @@ class MenuPanel(QWidget):
             
         # ボタンを有効化    
         self.annotation_mode_btn.setEnabled(True)    
-        self.range_selection_btn.setEnabled(True)    
         self.multi_frame_btn.setEnabled(True)    
         self.multi_frame_label_input.setEnabled(True)  
         self.edit_mode_btn.setEnabled(True)  
@@ -407,7 +390,6 @@ class MenuPanel(QWidget):
               
             # 他のモードを無効化  
             self.annotation_mode_btn.setChecked(False)  
-            self.range_selection_btn.setChecked(False)  
             self.edit_mode_btn.setChecked(False)
             self.result_view_requested.emit(False)  # 結果表示モードをOFF
               
