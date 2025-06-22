@@ -6,57 +6,65 @@ from PyQt6.QtWidgets import (
 from DataClass import BoundingBox
 
 class AnnotationInputDialog(QDialog):  
-    """アノテーション入力ダイアログ"""  
-      
-    def __init__(self, bbox: BoundingBox, parent=None):  
+    def __init__(self, bbox: BoundingBox, parent=None, existing_labels: list = None): # existing_labels を追加  
         super().__init__(parent)  
+        self.setWindowTitle("アノテーション追加")  
         self.bbox = bbox  
         self.label = ""  
-        self.setup_ui()  
-          
-    def setup_ui(self):  
-        self.setWindowTitle("Add Annotation")  
-        self.setModal(True)  
-          
+  
+        self.setup_ui(existing_labels) # existing_labels を渡す  
+  
+    def setup_ui(self, existing_labels: list = None):  
         layout = QVBoxLayout()  
-          
+  
         # バウンディングボックス情報  
-        bbox_info = QLabel(f"Bounding Box: ({self.bbox.x1:.0f}, {self.bbox.y1:.0f}) to ({self.bbox.x2:.0f}, {self.bbox.y2:.0f})")  
-        layout.addWidget(bbox_info)  
-          
+        bbox_info_label = QLabel(f"BBox: ({self.bbox.x1}, {self.bbox.y1}) - ({self.bbox.x2}, {self.bbox.y2})")  
+        layout.addWidget(bbox_info_label)  
+  
         # ラベル入力  
         label_layout = QHBoxLayout()  
-        label_layout.addWidget(QLabel("Label:"))  
-          
+        label_layout.addWidget(QLabel("ラベル:"))  
         self.label_input = QLineEdit()  
-        self.label_input.setPlaceholderText("Enter object label (e.g., person, car)")  
         label_layout.addWidget(self.label_input)  
-          
-        # プリセット  
-        self.preset_combo = QComboBox()  
-        self.preset_combo.addItems(["", "person", "car", "bicycle", "dog", "cat", "bird"])  
-        self.preset_combo.currentTextChanged.connect(self.on_preset_selected)  
-        label_layout.addWidget(self.preset_combo)  
-          
         layout.addLayout(label_layout)  
+  
+        # プリセットラベル  
+        preset_layout = QHBoxLayout()  
+        preset_layout.addWidget(QLabel("プリセット:"))  
+        self.preset_combo = QComboBox()  
+        self.preset_combo.setEditable(True) # 新しいラベルも入力できるように編集可能にする  
+  
+        if existing_labels: # 既存のラベルがあれば追加  
+            self.preset_combo.addItems(sorted(existing_labels))  
           
+        self.preset_combo.currentIndexChanged.connect(self._on_preset_selected)  
+        self.preset_combo.editTextChanged.connect(self._on_preset_text_changed) # テキスト変更時も同期  
+        preset_layout.addWidget(self.preset_combo)  
+        layout.addLayout(preset_layout)  
+  
         # ボタン  
-        buttons = QDialogButtonBox(  
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel  
-        )  
-        buttons.accepted.connect(self.accept)  
-        buttons.rejected.connect(self.reject)  
-        layout.addWidget(buttons)  
-          
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)  
+        button_box.accepted.connect(self.accept)  
+        button_box.rejected.connect(self.reject)  
+        layout.addWidget(button_box)  
+  
         self.setLayout(layout)  
-          
-        # フォーカスをラベル入力に設定  
-        self.label_input.setFocus()  
-      
-    def on_preset_selected(self, text):  
-        if text:  
-            self.label_input.setText(text)  
-      
+  
+        # 初期値を設定  
+        if existing_labels and existing_labels:  
+            self.preset_combo.setCurrentIndex(0) # 最初のプリセットを選択  
+            self.label_input.setText(self.preset_combo.currentText())  
+        else:  
+            self.label_input.setText("")  
+  
+    def _on_preset_selected(self, index):  
+        """プリセット選択時の処理"""  
+        self.label_input.setText(self.preset_combo.currentText())  
+  
+    def _on_preset_text_changed(self, text):  
+        """プリセットテキスト変更時の処理"""  
+        self.label_input.setText(text)  
+  
     def get_label(self) -> str:  
         return self.label_input.text().strip()
 

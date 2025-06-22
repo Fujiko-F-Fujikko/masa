@@ -175,8 +175,13 @@ class MASAAnnotationWidget(QWidget):
         """バウンディングボックス作成時の処理"""  
         bbox = BoundingBox(x1, y1, x2, y2)  
       
+        # 既存のラベルを取得  
+        existing_labels = []  
+        if self.video_manager:  
+            existing_labels = self.video_manager.get_all_labels()  
+      
         # ラベル入力ダイアログを表示  
-        dialog = AnnotationInputDialog(bbox, self)  
+        dialog = AnnotationInputDialog(bbox, self, existing_labels=existing_labels) # existing_labels を渡す  
         if dialog.exec() == QDialog.DialogCode.Accepted:  
             label = dialog.get_label()  
             if label:  
@@ -185,12 +190,18 @@ class MASAAnnotationWidget(QWidget):
                 annotation = self.video_manager.add_manual_annotation(current_frame, bbox, label)  
       
                 # UI更新  
-                self.update_annotation_count()  # これでラベルコンボボックスも更新される  
+                self.update_annotation_count()  
       
                 QMessageBox.information(  
                     self, "Annotation Added",  
                     f"Added annotation: {label} at frame {current_frame}"  
-                )
+                )  
+                  
+                # 新規追加したアノテーションを選択状態にする  
+                if self.video_preview.edit_mode:  
+                    self.video_preview.bbox_editor.selected_annotation = annotation  
+                    self.video_preview.bbox_editor.selection_changed.emit(annotation)  
+                    self.video_preview.update_frame_display()
 
     def on_frame_changed(self, frame_id: int):  
         """フレーム変更時の処理"""  

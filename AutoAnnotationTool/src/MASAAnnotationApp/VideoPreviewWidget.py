@@ -79,6 +79,10 @@ class VideoPreviewWidget(QLabel):
         self.bbox_editor = BoundingBoxEditor(self)  
         self.bbox_editor.annotation_updated.connect(self.on_annotation_updated)  
         self.bbox_editor.selection_changed.connect(self.on_selection_changed)  
+        # 新規描画関連のシグナルを接続  
+        self.bbox_editor.new_bbox_drawing_started.connect(self._on_new_bbox_drawing_started)  
+        self.bbox_editor.new_bbox_drawing_updated.connect(self._on_new_bbox_drawing_updated)  
+        self.bbox_editor.new_bbox_drawing_completed.connect(self._on_new_bbox_drawing_completed)  
 
         # 可視化  
         self.visualizer = AnnotationVisualizer()  
@@ -310,23 +314,23 @@ class VideoPreviewWidget(QLabel):
             displayable_annotations = []  
             if frame_annotation and frame_annotation.objects:  
                 for annotation in frame_annotation.objects:  
-                    # スコア閾値によるフィルタリング  
                     if annotation.bbox.confidence < self.score_threshold:  
                         continue  
-                    # 表示オプションによるフィルタリング  
-                    if (annotation.is_manual and self.show_manual_annotations) or  \
-                      (not annotation.is_manual and self.show_auto_annotations):  
+                    if (annotation.is_manual and self.show_manual_annotations) or \
+                       (not annotation.is_manual and self.show_auto_annotations):  
                         displayable_annotations.append(annotation)  
-      
+  
             # アノテーション選択を試行  
             selected = self.bbox_editor.select_annotation_at_position(pos, displayable_annotations)  
             if selected:  
-                # ドラッグ操作を開始  
+                # 既存のアノテーションが選択された場合、ドラッグ操作を開始  
                 operation_type = self.bbox_editor.start_drag_operation(pos)  
                 if operation_type != "none":  
                     return  
             else:  
-                # どのアノテーションも選択されなかった場合、現在の選択をクリア  
+                # どのアノテーションも選択されなかった場合、新規バウンディングボックスの作成を開始  
+                self.bbox_editor.start_new_bbox_drawing(pos)  
+                # 既存のアノテーション選択をクリア  
                 self.bbox_editor.selected_annotation = None  
                 self.bbox_editor.selection_changed.emit(None) # 選択解除を通知  
                 self.update_frame_display() # 表示を更新  
@@ -335,47 +339,64 @@ class VideoPreviewWidget(QLabel):
             self.update_frame_display()  
             return  
           
-        # 既存のアノテーション作成処理  
+        # 既存のアノテーション作成モードまたはマルチフレームモードの場合の処理  
         if (not self.annotation_mode and not self.multi_frame_mode) or event.button() != Qt.MouseButton.LeftButton:  
             return  
           
+        # 編集モード外での新規描画は VideoPreviewWidget が直接処理  
         self.drawing = True  
         self.start_point = event.position().toPoint()  
-        self.current_rect = QRect()
+        self.current_rect = QRect()  
       
     def mouseMoveEvent(self, event):  
         """マウス移動イベント"""  
         if self.edit_mode:  
             pos = event.position().toPoint()  
               
-            # ドラッグ操作中の場合  
+            # ドラッグ操作中の場合（既存アノテーションの移動・リサイズ）  
             if self.bbox_editor.dragging_bbox or self.bbox_editor.resizing_bbox:  
                 self.bbox_editor.update_drag_operation(pos)  
                 self.update_frame_display()  
+                return  
+            # 新規バウンディングボックス描画中の場合  
+            elif self.bbox_editor.drawing_new_bbox:  
+                self.bbox_editor.update_new_bbox_drawing(pos)  
+                self.update() # paintEvent をトリガー  
                 return  
               
             # カーソル形状を更新  
             cursor = self.bbox_editor.get_cursor_for_position(pos)  
             self.setCursor(cursor)  
-            return 
-
-        if not self.drawing:  
             return  
           
-        self.end_point = event.position().toPoint()  
-        self.current_rect = QRect(self.start_point, self.end_point).normalized()  
-        self.update()  
-      
+        # 編集モード外での新規描画中の場合  
+        if self.drawing:  
+            self.end_point = event.position().toPoint()  
+            self.current_rect = QRect(self.start_point, self.end_point).normalized()  
+            self.update()  
+            return  
+          
+        if not self.drawing:  
+            return  
+  
     def mouseReleaseEvent(self, event):  
-        """マウス離上イベント"""
-        if self.edit_mode and event.button() == Qt.MouseButton.LeftButton:  
+        """マウス離上イベント"""  
+        if self.edit_mode:  
             if self.bbox_editor.dragging_bbox or self.bbox_editor.resizing_bbox:  
+                # 編集モードでの既存アノテーションの移動・リサイズ操作完了  
                 self.bbox_editor.end_drag_operation()  
                 self.setCursor(Qt.CursorShape.PointingHandCursor)  
                 return  
+            elif self.bbox_editor.drawing_new_bbox:  
+                # 編集モードでの新規バウンディングボックス描画完了  
+                self.bbox_editor.complete_new_bbox_drawing(event.position().toPoint())  
+                self.setCursor(Qt.CursorShape.PointingHandCursor)  
+                return  
+          
+        # 編集モード外での新規描画完了  
         if not self.drawing or event.button() != Qt.MouseButton.LeftButton:  
             return  
-        
+          
         self.drawing = False  
         self.end_point = event.position().toPoint()  
           
@@ -403,24 +424,26 @@ class VideoPreviewWidget(QLabel):
         # 有効なバウンディングボックスかチェック  
         if abs(x2 - x1) > 10 and abs(y2 - y1) > 10:  
             if self.multi_frame_mode:  
-                # 複数フレームモードの場合  
                 self.multi_frame_bbox_created.emit(x1, y1, x2, y2, self.current_frame_id)  
             else:  
-                # 通常のアノテーションモード  
-                self.bbox_created.emit(x1, y1, x2, y2)  
+                self.bbox_created.emit(x1, y1, x2, y2) # 編集モード外での新規作成  
           
         self.current_rect = QRect()  
-        self.update()
-      
+        self.update()  
+  
     def paintEvent(self, event):  
         """描画イベント"""  
         super().paintEvent(event)  
+        painter = QPainter(self)  
           
+        # BoundingBoxEditor に新規描画中の矩形を描画させる  
+        self.bbox_editor.draw_new_bbox_overlay(painter)  
+  
+        # 編集モード外での新規描画中の矩形を描画  
         if self.drawing and not self.current_rect.isEmpty():  
-            painter = QPainter(self)  
             pen = QPen(QColor(255, 0, 0), 2, Qt.PenStyle.SolidLine)  
             painter.setPen(pen)  
-            painter.drawRect(self.current_rect)
+            painter.drawRect(self.current_rect)  
 
     # 編集モード設定メソッドを追加  
     def set_edit_mode(self, enabled: bool):  
@@ -498,3 +521,16 @@ class VideoPreviewWidget(QLabel):
         # 編集モードのラベル位置も調整  
         if hasattr(self, 'mode_label') and self.mode_label.isVisible():  
             self.mode_label.move(self.width() - self.mode_label.width() - 10, 10)
+
+    # BoundingBoxEditor からのシグナルを受け取るスロット  
+    def _on_new_bbox_drawing_started(self):  
+        self.setCursor(Qt.CursorShape.CrossCursor)  
+  
+    def _on_new_bbox_drawing_updated(self, x1, y1, x2, y2):  
+        # VideoPreviewWidget は描画を BoundingBoxEditor に委譲するため、ここでは何もしない  
+        pass  
+  
+    def _on_new_bbox_drawing_completed(self, x1, y1, x2, y2):  
+        # MASAAnnotationWidget に通知  
+        self.bbox_created.emit(x1, y1, x2, y2)  
+        self.setCursor(Qt.CursorShape.PointingHandCursor) # 編集モードのデフォルトカーソルに戻す

@@ -11,6 +11,9 @@ class BoundingBoxEditor(QObject):
     # シグナル定義  
     annotation_updated = pyqtSignal(object)  # ObjectAnnotation  
     selection_changed = pyqtSignal(object)   # ObjectAnnotation or None  
+    new_bbox_drawing_started = pyqtSignal()  
+    new_bbox_drawing_updated = pyqtSignal(int, int, int, int) # x1, y1, x2, y2  
+    new_bbox_drawing_completed = pyqtSignal(int, int, int, int) # x1, y1, x2, y2 
       
     def __init__(self, parent=None):  
         super().__init__(parent)  
@@ -39,6 +42,11 @@ class BoundingBoxEditor(QObject):
         self.offset_y = 0  
         self.image_width = 0  
         self.image_height = 0  
+
+        # 新規描画関連を追加  
+        self.drawing_new_bbox = False  
+        self.new_bbox_start_point = QPoint()  
+        self.new_bbox_current_rect = QRect()  
       
     def set_coordinate_transform(self, scale_x: float, scale_y: float,   
                                offset_x: int, offset_y: int,   
@@ -314,3 +322,48 @@ class BoundingBoxEditor(QObject):
         self.selected_annotation.bbox.y1 = new_y1  
         self.selected_annotation.bbox.x2 = new_x2
         self.selected_annotation.bbox.y2 = new_y2
+
+    def start_new_bbox_drawing(self, pos: QPoint):  
+        """新規バウンディングボックスの描画を開始"""  
+        self.drawing_new_bbox = True  
+        self.new_bbox_start_point = pos  
+        self.new_bbox_current_rect = QRect()  
+        self.new_bbox_drawing_started.emit()  
+  
+    def update_new_bbox_drawing(self, pos: QPoint):  
+        """新規バウンディングボックスの描画を更新"""  
+        if self.drawing_new_bbox:  
+            self.new_bbox_current_rect = QRect(self.new_bbox_start_point, pos).normalized()  
+            # ウィジェット座標を画像座標に変換してシグナルを発信  
+            x1, y1 = self._widget_to_image_coords(self.new_bbox_current_rect.topLeft())  
+            x2, y2 = self._widget_to_image_coords(self.new_bbox_current_rect.bottomRight())  
+            self.new_bbox_drawing_updated.emit(x1, y1, x2, y2)  
+  
+    def complete_new_bbox_drawing(self, pos: QPoint):  
+        """新規バウンディングボックスの描画を完了"""  
+        if self.drawing_new_bbox:  
+            self.drawing_new_bbox = False  
+            final_rect = QRect(self.new_bbox_start_point, pos).normalized()  
+              
+            # ウィジェット座標を画像座標に変換  
+            x1, y1 = self._widget_to_image_coords(final_rect.topLeft())  
+            x2, y2 = self._widget_to_image_coords(final_rect.bottomRight())  
+  
+            # 画像境界内にクリップ  
+            x1 = max(0, min(x1, self.image_width))  
+            y1 = max(0, min(y1, self.image_height))  
+            x2 = max(0, min(x2, self.image_width))  
+            y2 = max(0, min(y2, self.image_height))  
+  
+            # 有効なバウンディングボックスかチェック  
+            if abs(x2 - x1) > 10 and abs(y2 - y1) > 10:  
+                self.new_bbox_drawing_completed.emit(x1, y1, x2, y2)  
+              
+            self.new_bbox_current_rect = QRect() # クリア  
+  
+    def draw_new_bbox_overlay(self, painter: QPainter):  
+        """新規描画中のバウンディングボックスをオーバーレイとして描画"""  
+        if self.drawing_new_bbox and not self.new_bbox_current_rect.isEmpty():  
+            pen = QPen(QColor(255, 0, 0), 2, Qt.PenStyle.SolidLine)  
+            painter.setPen(pen)  
+            painter.drawRect(self.new_bbox_current_rect)
