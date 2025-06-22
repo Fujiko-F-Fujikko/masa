@@ -423,3 +423,39 @@ class VideoAnnotationManager:
                 return True  
         self._is_labels_cache_dirty = True
         return False
+
+    def delete_annotations_by_track_id(self, track_id: int) -> int:  
+        """指定されたTrack IDを持つすべてのアノテーションを削除します。  
+        削除されたアノテーションの総数を返します。  
+        """  
+        deleted_count = 0  
+        frames_to_update = set() # 変更があったフレームを記録  
+  
+        # frame_annotations から削除  
+        for frame_id, frame_annotation in list(self.frame_annotations.items()): # list()でコピーしてイテレート  
+            initial_frame_objects_count = len(frame_annotation.objects)  
+            frame_annotation.objects = [  
+                obj for obj in frame_annotation.objects if obj.object_id != track_id  
+            ]  
+            if len(frame_annotation.objects) < initial_frame_objects_count:  
+                deleted_count += (initial_frame_objects_count - len(frame_annotation.objects))  
+                frames_to_update.add(frame_id)  
+                # もしフレームにアノテーションが残っていなければ、フレーム自体を削除  
+                if not frame_annotation.objects:  
+                    del self.frame_annotations[frame_id]  
+  
+        # manual_annotations からも削除（もしあれば）  
+        for frame_id, manual_anns in list(self.manual_annotations.items()): # list()でコピーしてイテレート  
+            initial_manual_anns_count = len(manual_anns)  
+            self.manual_annotations[frame_id] = [  
+                obj for obj in manual_anns if obj.object_id != track_id  
+            ]  
+            if len(self.manual_annotations[frame_id]) < initial_manual_anns_count:  
+                frames_to_update.add(frame_id)  
+                # もしフレームにアノテーションが残っていなければ、フレーム自体を削除  
+                if not self.manual_annotations[frame_id]:  
+                    del self.manual_annotations[frame_id]  
+  
+        if deleted_count > 0:  
+            self._is_labels_cache_dirty = True # ラベルキャッシュをダーティに  
+        return deleted_count

@@ -105,6 +105,9 @@ class MASAAnnotationWidget(QWidget):
 
         # アノテーションを削除（単一）するシグナルを接続
         self.menu_panel.delete_single_annotation_requested.connect(self.on_delete_annotation_requested) # 新しいシグナルを既存のハンドラに接続
+        
+        # アノテーションを削除（一括）するシグナルを接続
+        self.menu_panel.delete_track_requested.connect(self.on_delete_track_requested)
 
     def load_video(self):  
         """動画ファイルを読み込み"""  
@@ -553,4 +556,21 @@ class MASAAnnotationWidget(QWidget):
                 QMessageBox.warning(  
                     self, "削除失敗",  
                     f"アノテーションID {annotation.object_id} の削除に失敗しました。"  
+                )
+
+    def on_delete_track_requested(self, track_id: int):  
+        """Track IDによるアノテーション一括削除要求の処理"""  
+        if track_id is not None:  
+            deleted_count = self.video_manager.delete_annotations_by_track_id(track_id)  
+            if deleted_count > 0:  
+                QMessageBox.information(  
+                    self, "Track一括削除",  
+                    f"Track ID '{track_id}' を持つアノテーションを {deleted_count} 件削除しました。"  
+                )  
+                self.update_annotation_count() # アノテーション数を更新  
+                self.video_preview.update_frame_display() # 表示を更新  
+            else:  
+                QMessageBox.warning(  
+                    self, "Track一括削除失敗",  
+                    f"Track ID '{track_id}' を持つアノテーションは見つかりませんでした。"  
                 )

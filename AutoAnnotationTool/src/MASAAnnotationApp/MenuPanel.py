@@ -26,6 +26,7 @@ class MenuPanel(QWidget):
     pause_requested = pyqtSignal()  
     label_change_requested = pyqtSignal(object, str)  # annotation, new_label
     delete_single_annotation_requested = pyqtSignal(object) # ObjectAnnotation
+    delete_track_requested = pyqtSignal(int) # object_id (Track ID)
 
     def __init__(self, parent=None):  
         super().__init__(parent)  
@@ -229,6 +230,7 @@ class MenuPanel(QWidget):
         # 一括編集ボタン
         self.delete_track_btn = QPushButton("一括削除")
         self.delete_track_btn.setEnabled(False)
+        self.delete_track_btn.clicked.connect(self._on_delete_track_clicked)
         edit_layout.addWidget(self.delete_track_btn)
 
         self.propagate_label_btn = QPushButton("一括ラベル変更")
@@ -500,7 +502,7 @@ class MenuPanel(QWidget):
         self.label_combo.setEditable(True)  
 
     def _on_delete_single_annotation_clicked(self):  
-        """単一アノテーション削除ボタンクリック時の処理"""  
+        """選択アノテーション削除ボタンクリック時の処理"""  
         if hasattr(self, 'current_selected_annotation') and self.current_selected_annotation:  
             reply = QMessageBox.question(  
                 self, "アノテーション削除確認",  
@@ -509,5 +511,20 @@ class MenuPanel(QWidget):
             )  
             if reply == QMessageBox.StandardButton.Yes:  
                 self.delete_single_annotation_requested.emit(self.current_selected_annotation)  
+                self.current_selected_annotation = None # 削除後、選択状態をクリア  
+                self.update_selected_annotation_info(None) # UIをリセット
+
+    def _on_delete_track_clicked(self):  
+        """一括削除ボタンクリック時の処理"""  
+        if hasattr(self, 'current_selected_annotation') and self.current_selected_annotation:  
+            track_id_to_delete = self.current_selected_annotation.object_id  
+            reply = QMessageBox.question(  
+                self, "Track一括削除確認",  
+                f"Track ID '{track_id_to_delete}' を持つすべてのアノテーションを削除しますか？\n"  
+                "この操作は元に戻せません。",  
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+            )  
+            if reply == QMessageBox.StandardButton.Yes:  
+                self.delete_track_requested.emit(track_id_to_delete)  
                 self.current_selected_annotation = None # 削除後、選択状態をクリア  
                 self.update_selected_annotation_info(None) # UIをリセット
