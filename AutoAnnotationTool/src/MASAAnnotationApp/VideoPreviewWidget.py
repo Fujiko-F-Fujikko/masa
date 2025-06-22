@@ -300,7 +300,6 @@ class VideoPreviewWidget(QLabel):
       
     def mousePressEvent(self, event):  
         """マウス押下イベント"""  
-
         if self.edit_mode and event.button() == Qt.MouseButton.LeftButton:  
             pos = event.position().toPoint()  
               
@@ -315,19 +314,23 @@ class VideoPreviewWidget(QLabel):
                 operation_type = self.bbox_editor.start_drag_operation(pos)  
                 if operation_type != "none":  
                     return  
+            else:  
+                # どのアノテーションも選択されなかった場合、現在の選択をクリア  
+                self.bbox_editor.selected_annotation = None  
+                self.bbox_editor.selection_changed.emit(None) # 選択解除を通知  
+                self.update_frame_display() # 表示を更新  
+                return  
+              
+            self.update_frame_display()  
+            return  
           
-        self.update_frame_display()  
-        return  
-          
-        self.update_frame_display()  
-        return  
-        # 複数フレームモードまたは通常のアノテーションモードの場合のみ処理  
+        # 既存のアノテーション作成処理  
         if (not self.annotation_mode and not self.multi_frame_mode) or event.button() != Qt.MouseButton.LeftButton:  
             return  
           
         self.drawing = True  
         self.start_point = event.position().toPoint()  
-        self.current_rect = QRect()  
+        self.current_rect = QRect()
       
     def mouseMoveEvent(self, event):  
         """マウス移動イベント"""  
@@ -414,12 +417,16 @@ class VideoPreviewWidget(QLabel):
         self.edit_mode = enabled  
         self.annotation_mode = False  
         self.range_selection_mode = False  
-        self.result_view_mode = enabled  # 編集モード時は結果表示も有効  
-        self.selected_annotation = None  
-        self.setCursor(Qt.CursorShape.PointingHandCursor if enabled else Qt.CursorShape.ArrowCursor)  
+        self.result_view_mode = enabled  
+          
+        # 編集モードがOFFになる場合、選択中のアノテーションをクリア  
+        if not enabled:  
+            self.bbox_editor.selected_annotation = None  
+            self.bbox_editor.selection_changed.emit(None) # 選択解除を通知  
+          
         # BoundingBoxEditor の編集モードを設定  
         self.bbox_editor.set_editing_mode(enabled)  
-
+          
         # 視覚的フィードバック  
         if enabled:  
             self.setCursor(Qt.CursorShape.PointingHandCursor)  
@@ -427,8 +434,8 @@ class VideoPreviewWidget(QLabel):
         else:  
             self.setCursor(Qt.CursorShape.ArrowCursor)  
             self.setStyleSheet("border: 2px solid gray; background-color: black;")  
-        
-        self.update_frame_display()  
+          
+        self.update_frame_display()
 
     # クリック位置のアノテーションを取得するメソッドを追加  
     def _get_annotation_at_position(self, pos: QPoint) -> Optional[ObjectAnnotation]:  

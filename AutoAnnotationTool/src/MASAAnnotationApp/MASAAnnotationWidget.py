@@ -467,15 +467,9 @@ class MASAAnnotationWidget(QWidget):
       
     def on_annotation_selected(self, annotation):  
         """アノテーション選択時の処理"""  
-        # annotationがNoneの場合は処理をスキップ  
-        if annotation is None:  
-            return  
         # MenuPanelの編集コントロールに選択されたアノテーションの情報を設定  
+        # annotationがNoneの場合はUIをリセット 
         self.menu_panel.update_selected_annotation_info(annotation)
-        
-        if hasattr(self.menu_panel, 'track_id_edit'):  
-            # Track ID入力欄に現在のIDを設定  
-            self.menu_panel.track_id_edit.setText(str(annotation.object_id))
 
     def load_video_from_path(self, video_path: str):  
         """パスから動画ファイルを読み込み"""  

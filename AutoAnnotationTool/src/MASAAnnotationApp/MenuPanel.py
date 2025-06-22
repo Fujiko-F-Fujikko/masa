@@ -477,16 +477,15 @@ class MenuPanel(QWidget):
         self.current_selected_annotation = annotation  
           
         # シグナルを一時的にブロック  
-        print("block label_combo signals")  
         self.label_combo.blockSignals(True)  
           
-        try: # try-finally ブロックで確実にシグナルブロックを解除  
+        try:  
             if annotation is None:  
                 self.current_selected_annotation_label = None  
                 self.label_combo.setCurrentText("") # ラベルコンボボックスをクリア  
                 self.track_id_edit.setText("") # Track ID入力欄をクリア  
-                self.delete_single_annotation_btn.setEnabled(False) # 新しいボタンを無効化  
-                self.delete_track_btn.setEnabled(False)  
+                self.delete_single_annotation_btn.setEnabled(False) # ボタンを無効化  
+                self.delete_track_btn.setEnabled(False) # ボタンを無効化  
             else:  
                 self.current_selected_annotation_label = annotation.label  
                   
@@ -506,12 +505,11 @@ class MenuPanel(QWidget):
                   
                 # Track IDも更新  
                 self.track_id_edit.setText(str(annotation.object_id))  
-                self.delete_single_annotation_btn.setEnabled(True) # 新しいボタンを有効化  
-                self.delete_track_btn.setEnabled(True)  
+                self.delete_single_annotation_btn.setEnabled(True) # ボタンを有効化  
+                self.delete_track_btn.setEnabled(True) # ボタンを有効化  
                   
         finally:  
             # シグナルブロックを解除  
-            print("unblock label_combo signals")  
             self.label_combo.blockSignals(False)
 
     def initialize_label_combo(self, existing_labels: List[str]):  
