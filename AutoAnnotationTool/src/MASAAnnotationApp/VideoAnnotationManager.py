@@ -21,7 +21,11 @@ class VideoAnnotationManager:
         self.total_frames = 0  
         self.next_object_id = 1
         self.multi_frame_objects = {}  # オブジェクトIDごとの複数フレーム情報
-          
+
+        # ラベルキャッシュの初期化
+        self._all_labels_cache = set()
+        self._is_labels_cache_dirty = True
+
     def load_video(self) -> bool:  
         """動画ファイルを読み込み"""  
         try:  
@@ -72,7 +76,7 @@ class VideoAnnotationManager:
             self.frame_annotations[frame_id] = FrameAnnotation(frame_id=frame_id)  
           
         self.frame_annotations[frame_id].objects.append(annotation)  
-          
+        self._is_labels_cache_dirty = True
         return annotation  
       
       
@@ -219,7 +223,7 @@ class VideoAnnotationManager:
         # 複数フレーム情報を記録  
         self.multi_frame_objects[object_id] = annotations  
         self.next_object_id += 1  
-          
+        self._is_labels_cache_dirty = True
         return annotations  
       
     def process_automatic_tracking(self, start_frame_id: int, end_frame_id: int = None) -> Dict[int, List[ObjectAnnotation]]:  
@@ -307,27 +311,8 @@ class VideoAnnotationManager:
             for obj in frame_annotation.objects:  
                 max_id = max(max_id, obj.object_id)  
         self.next_object_id = max_id + 1  
-          
+        self._is_labels_cache_dirty = True
         return True
-
-    def update_annotation_count(self):  
-        """アノテーション数を更新（ラベル更新も含む）"""  
-        if not self.video_manager:  
-            return  
-      
-        # 統計情報を取得  
-        stats = self.video_manager.get_annotation_statistics()  
-          
-        # MenuPanelに詳細情報を渡す  
-        self.menu_panel.update_annotation_count(  
-            stats["total"],   
-            stats["manual"]  
-        )  
-          
-        # ラベルコンボボックスも更新  
-        existing_labels = self.video_manager.get_all_labels()  
-        if existing_labels:  
-            self.menu_panel.initialize_label_combo(existing_labels)
 
     def export_masa_json(self, output_path: str):  
         """MASA形式のJSONでエクスポート（demo/video_demo_with_text.pyと同じ形式）"""  
@@ -397,14 +382,18 @@ class VideoAnnotationManager:
         return {"total": total, "manual": manual, "loaded": loaded}
 
     def get_all_labels(self) -> List[str]:  
-        """全フレームから既存のラベルを取得"""  
-        all_labels = set()  
-          
+        """全フレームから既存のラベルを取得（キャッシュ対応）"""  
+        if not self._is_labels_cache_dirty:  
+            return sorted(list(self._all_labels_cache))  
+      
+        print("Updating labels cache...")
+        self._all_labels_cache.clear()  
         for frame_annotation in self.frame_annotations.values():  
             for obj in frame_annotation.objects:  
-                all_labels.add(obj.label)  
+                self._all_labels_cache.add(obj.label)  
           
-        return sorted(list(all_labels))
+        self._is_labels_cache_dirty = False  
+        return sorted(list(self._all_labels_cache))
 
     def update_annotation_label(self, object_id: int, frame_id: int, new_label: str):  
         """指定されたアノテーションのラベルを更新します。"""  
@@ -413,6 +402,7 @@ class VideoAnnotationManager:
                 if obj.object_id == object_id:  
                     obj.label = new_label  
                     return True  
+        self._is_labels_cache_dirty = True
         return False
 
     def delete_annotation(self, object_id: int, frame_id: int) -> bool:  
@@ -431,4 +421,5 @@ class VideoAnnotationManager:
                         if not (obj.object_id == object_id and obj.frame_id == frame_id)  
                     ]  
                 return True  
+        self._is_labels_cache_dirty = True
         return False
