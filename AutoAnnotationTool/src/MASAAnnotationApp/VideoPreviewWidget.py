@@ -305,10 +305,21 @@ class VideoPreviewWidget(QLabel):
               
             # 現在のフレームのアノテーションを取得  
             frame_annotation = self.video_manager.get_frame_annotations(self.current_frame_id)  
-            annotations = frame_annotation.objects if frame_annotation else []  
               
+            # 表示されているアノテーションのみをフィルタリング  
+            displayable_annotations = []  
+            if frame_annotation and frame_annotation.objects:  
+                for annotation in frame_annotation.objects:  
+                    # スコア閾値によるフィルタリング  
+                    if annotation.bbox.confidence < self.score_threshold:  
+                        continue  
+                    # 表示オプションによるフィルタリング  
+                    if (annotation.is_manual and self.show_manual_annotations) or  \
+                      (not annotation.is_manual and self.show_auto_annotations):  
+                        displayable_annotations.append(annotation)  
+      
             # アノテーション選択を試行  
-            selected = self.bbox_editor.select_annotation_at_position(pos, annotations)  
+            selected = self.bbox_editor.select_annotation_at_position(pos, displayable_annotations)  
             if selected:  
                 # ドラッグ操作を開始  
                 operation_type = self.bbox_editor.start_drag_operation(pos)  
