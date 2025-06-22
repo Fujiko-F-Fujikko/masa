@@ -26,6 +26,7 @@ class MenuPanel(QWidget):
     play_requested = pyqtSignal()  
     pause_requested = pyqtSignal()  
     label_change_requested = pyqtSignal(object, str)  # annotation, new_label
+    delete_single_annotation_requested = pyqtSignal(object) # ObjectAnnotation
 
     def __init__(self, parent=None):  
         super().__init__(parent)  
@@ -250,6 +251,12 @@ class MenuPanel(QWidget):
         edit_layout.addWidget(QLabel("Track ID:"))
         edit_layout.addWidget(self.track_id_edit)
 
+        # 新しい単一アノテーション削除ボタンを追加  
+        self.delete_single_annotation_btn = QPushButton("選択アノテーションを削除")  
+        self.delete_single_annotation_btn.setEnabled(False)  
+        self.delete_single_annotation_btn.clicked.connect(self._on_delete_single_annotation_clicked)  
+        edit_layout.addWidget(self.delete_single_annotation_btn)  
+
         # 一括編集ボタン
         self.delete_track_btn = QPushButton("選択Track全削除")
         self.delete_track_btn.setEnabled(False)
@@ -466,28 +473,44 @@ class MenuPanel(QWidget):
     def update_selected_annotation_info(self, annotation):  
         """選択されたアノテーション情報をUIに反映"""  
         self.current_selected_annotation = annotation  
-        if annotation is None:  
-            self.current_selected_annotation_label = None # 選択解除時にリセット  
-            return  
           
-        self.current_selected_annotation_label = annotation.label # 現在のラベルを保存  
+        # シグナルを一時的にブロック  
+        print("block label_combo signals")  
+        self.label_combo.blockSignals(True)  
           
-        # 既存のラベルをコンボボックスに追加（重複チェック）  
-        current_labels = [self.label_combo.itemText(i) for i in range(self.label_combo.count())]  
-        if annotation.label not in current_labels:  
-            self.label_combo.addItem(annotation.label)  
-          
-        # 現在のラベルを選択  
-        index = self.label_combo.findText(annotation.label)  
-        if index >= 0:  
-            self.label_combo.setCurrentIndex(index)  
-        else:  
-            # 新しいラベルの場合は追加して選択  
-            self.label_combo.addItem(annotation.label)  
-            self.label_combo.setCurrentText(annotation.label)  
-          
-        # Track IDも更新  
-        self.track_id_edit.setText(str(annotation.object_id))
+        try: # try-finally ブロックで確実にシグナルブロックを解除  
+            if annotation is None:  
+                self.current_selected_annotation_label = None  
+                self.label_combo.setCurrentText("") # ラベルコンボボックスをクリア  
+                self.track_id_edit.setText("") # Track ID入力欄をクリア  
+                self.delete_single_annotation_btn.setEnabled(False) # 新しいボタンを無効化  
+                self.delete_track_btn.setEnabled(False)  
+            else:  
+                self.current_selected_annotation_label = annotation.label  
+                  
+                # 既存のラベルをコンボボックスに追加（重複チェック）  
+                current_labels = [self.label_combo.itemText(i) for i in range(self.label_combo.count())]  
+                if annotation.label not in current_labels:  
+                    self.label_combo.addItem(annotation.label)  
+                  
+                # 現在のラベルを選択  
+                index = self.label_combo.findText(annotation.label)  
+                if index >= 0:  
+                    self.label_combo.setCurrentIndex(index)  
+                else:  
+                    # 新しいラベルの場合は追加して選択  
+                    self.label_combo.addItem(annotation.label)  
+                    self.label_combo.setCurrentText(annotation.label)  
+                  
+                # Track IDも更新  
+                self.track_id_edit.setText(str(annotation.object_id))  
+                self.delete_single_annotation_btn.setEnabled(True) # 新しいボタンを有効化  
+                self.delete_track_btn.setEnabled(True)  
+                  
+        finally:  
+            # シグナルブロックを解除  
+            print("unblock label_combo signals")  
+            self.label_combo.blockSignals(False)
 
     def initialize_label_combo(self, existing_labels: List[str]):  
         """既存のラベルでコンボボックスを初期化"""  
@@ -499,3 +522,16 @@ class MenuPanel(QWidget):
           
         # 編集可能にして新しいラベルも入力できるようにする  
         self.label_combo.setEditable(True)  
+
+    def _on_delete_single_annotation_clicked(self):  
+        """単一アノテーション削除ボタンクリック時の処理"""  
+        if hasattr(self, 'current_selected_annotation') and self.current_selected_annotation:  
+            reply = QMessageBox.question(  
+                self, "アノテーション削除確認",  
+                f"フレーム {self.current_selected_annotation.frame_id} のアノテーション (ID: {self.current_selected_annotation.object_id}, ラベル: '{self.current_selected_annotation.label}') を削除しますか？",  
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+            )  
+            if reply == QMessageBox.StandardButton.Yes:  
+                self.delete_single_annotation_requested.emit(self.current_selected_annotation)  
+                self.current_selected_annotation = None # 削除後、選択状態をクリア  
+                self.update_selected_annotation_info(None) # UIをリセット

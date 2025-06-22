@@ -414,3 +414,21 @@ class VideoAnnotationManager:
                     obj.label = new_label  
                     return True  
         return False
+
+    def delete_annotation(self, object_id: int, frame_id: int) -> bool:  
+        """指定されたアノテーションを削除します。"""  
+        if frame_id in self.frame_annotations:  
+            initial_count = len(self.frame_annotations[frame_id].objects)  
+            self.frame_annotations[frame_id].objects = [  
+                obj for obj in self.frame_annotations[frame_id].objects  
+                if not (obj.object_id == object_id and obj.frame_id == frame_id)  
+            ]  
+            if len(self.frame_annotations[frame_id].objects) < initial_count:  
+                # manual_annotationsからも削除（もしあれば）  
+                if frame_id in self.manual_annotations:  
+                    self.manual_annotations[frame_id] = [  
+                        obj for obj in self.manual_annotations[frame_id]  
+                        if not (obj.object_id == object_id and obj.frame_id == frame_id)  
+                    ]  
+                return True  
+        return False

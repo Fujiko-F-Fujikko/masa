@@ -105,6 +105,9 @@ class MASAAnnotationWidget(QWidget):
         self.video_preview.annotation_selected.connect(self.on_annotation_selected)  
         self.menu_panel.label_change_requested.connect(self.on_label_change_requested)
 
+        # アノテーションを削除（単一）するシグナルを接続
+        self.menu_panel.delete_single_annotation_requested.connect(self.on_delete_annotation_requested) # 新しいシグナルを既存のハンドラに接続
+
     def load_video(self):  
         """動画ファイルを読み込み"""  
         file_path, _ = QFileDialog.getOpenFileName(  
@@ -550,4 +553,20 @@ class MASAAnnotationWidget(QWidget):
                 QMessageBox.warning(  
                     self, "ラベル変更失敗",  
                     f"アノテーションID {annotation.object_id} のラベル変更に失敗しました。"  
+                )
+
+    def on_delete_annotation_requested(self, annotation):  
+        """アノテーション削除要求の処理"""  
+        if annotation:  
+            if self.video_manager.delete_annotation(annotation.object_id, annotation.frame_id):  
+                QMessageBox.information(  
+                    self, "アノテーション削除",  
+                    f"フレーム {annotation.frame_id} のアノテーション (ID: {annotation.object_id}) を削除しました。"  
+                )  
+                self.update_annotation_count() # アノテーション数を更新  
+                self.video_preview.update_frame_display() # 表示を更新  
+            else:  
+                QMessageBox.warning(  
+                    self, "削除失敗",  
+                    f"アノテーションID {annotation.object_id} の削除に失敗しました。"  
                 )
