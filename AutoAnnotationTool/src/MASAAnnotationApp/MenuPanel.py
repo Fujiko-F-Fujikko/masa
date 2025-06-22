@@ -334,12 +334,14 @@ class MenuPanel(QWidget):
             # 編集用コントロールを有効化
             self.label_combo.setEnabled(True)
             self.track_id_edit.setEnabled(True)
+            self.delete_single_annotation_btn.setEnabled(True)
             self.delete_track_btn.setEnabled(True)
             self.propagate_label_btn.setEnabled(True)
         else:
             # 編集用コントロールを無効化
             self.label_combo.setEnabled(False)
             self.track_id_edit.setEnabled(False)
+            self.delete_single_annotation_btn.setEnabled(False)
             self.delete_track_btn.setEnabled(False)
             self.propagate_label_btn.setEnabled(False)
         self.edit_mode_requested.emit(checked)  
