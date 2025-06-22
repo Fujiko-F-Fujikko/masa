@@ -108,6 +108,9 @@ class MASAAnnotationWidget(QWidget):
         
         # アノテーションを削除（一括）するシグナルを接続
         self.menu_panel.delete_track_requested.connect(self.on_delete_track_requested)
+        
+        # アノテーションラベルを変更（一括）するシグナルを接続
+        self.menu_panel.propagate_label_requested.connect(self.on_propagate_label_requested)
 
     def load_video(self):  
         """動画ファイルを読み込み"""  
@@ -572,5 +575,22 @@ class MASAAnnotationWidget(QWidget):
             else:  
                 QMessageBox.warning(  
                     self, "Track一括削除失敗",  
+                    f"Track ID '{track_id}' を持つアノテーションは見つかりませんでした。"  
+                )
+
+    def on_propagate_label_requested(self, track_id: int, new_label: str):  
+        """Track IDによるアノテーション一括ラベル変更要求の処理"""  
+        if track_id is not None and new_label:  
+            updated_count = self.video_manager.update_annotations_label_by_track_id(track_id, new_label)  
+            if updated_count > 0:  
+                QMessageBox.information(  
+                    self, "Track一括ラベル変更",  
+                    f"Track ID '{track_id}' を持つアノテーション {updated_count} 件のラベルを '{new_label}' に変更しました。"  
+                )  
+                self.update_annotation_count() # アノテーション数を更新（ラベルキャッシュも更新される）  
+                self.video_preview.update_frame_display() # 表示を更新  
+            else:  
+                QMessageBox.warning(  
+                    self, "Track一括ラベル変更失敗",  
                     f"Track ID '{track_id}' を持つアノテーションは見つかりませんでした。"  
                 )

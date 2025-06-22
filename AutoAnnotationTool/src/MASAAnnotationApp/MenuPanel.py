@@ -4,10 +4,13 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QGroupBox, QCheckBox, QLineEdit,
     QMessageBox, QTabWidget, QComboBox, QFileDialog,
-    QDoubleSpinBox
+    QDoubleSpinBox, QDialog
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
+
+from Dialog import AnnotationInputDialog
+from BoundingBoxEditor import BoundingBox
 
 class MenuPanel(QWidget):  
     """タブベースの左側メニューパネル"""  
@@ -27,6 +30,7 @@ class MenuPanel(QWidget):
     label_change_requested = pyqtSignal(object, str)  # annotation, new_label
     delete_single_annotation_requested = pyqtSignal(object) # ObjectAnnotation
     delete_track_requested = pyqtSignal(int) # object_id (Track ID)
+    propagate_label_requested = pyqtSignal(int, str) # object_id (Track ID), new_label
 
     def __init__(self, parent=None):  
         super().__init__(parent)  
@@ -235,6 +239,7 @@ class MenuPanel(QWidget):
 
         self.propagate_label_btn = QPushButton("一括ラベル変更")
         self.propagate_label_btn.setEnabled(False)
+        self.propagate_label_btn.clicked.connect(self._on_propagate_label_clicked)
         edit_layout.addWidget(self.propagate_label_btn)
 
         edit_group.setLayout(edit_layout)
@@ -317,12 +322,14 @@ class MenuPanel(QWidget):
             self.delete_single_annotation_btn.setEnabled(True)
             self.delete_track_btn.setEnabled(True)
             self.propagate_label_btn.setEnabled(True)
+            self.propagate_label_btn.setEnabled(True)
         else:
             # 編集用コントロールを無効化
             self.label_combo.setEnabled(False)
             self.track_id_edit.setEnabled(False)
             self.delete_single_annotation_btn.setEnabled(False)
             self.delete_track_btn.setEnabled(False)
+            self.propagate_label_btn.setEnabled(False)
             self.propagate_label_btn.setEnabled(False)
         self.edit_mode_requested.emit(checked)  
       
@@ -460,10 +467,11 @@ class MenuPanel(QWidget):
         try:  
             if annotation is None:  
                 self.current_selected_annotation_label = None  
-                self.label_combo.setCurrentText("") # ラベルコンボボックスをクリア  
-                self.track_id_edit.setText("") # Track ID入力欄をクリア  
-                self.delete_single_annotation_btn.setEnabled(False) # ボタンを無効化  
-                self.delete_track_btn.setEnabled(False) # ボタンを無効化  
+                self.label_combo.setCurrentText("")  
+                self.track_id_edit.setText("")  
+                self.delete_single_annotation_btn.setEnabled(False)  
+                self.delete_track_btn.setEnabled(False)  
+                self.propagate_label_btn.setEnabled(False)
             else:  
                 self.current_selected_annotation_label = annotation.label  
                   
@@ -483,8 +491,9 @@ class MenuPanel(QWidget):
                   
                 # Track IDも更新  
                 self.track_id_edit.setText(str(annotation.object_id))  
-                self.delete_single_annotation_btn.setEnabled(True) # ボタンを有効化  
-                self.delete_track_btn.setEnabled(True) # ボタンを有効化  
+                self.delete_single_annotation_btn.setEnabled(True)  
+                self.delete_track_btn.setEnabled(True)  
+                self.propagate_label_btn.setEnabled(True) # この行を追加  
                   
         finally:  
             # シグナルブロックを解除  
@@ -528,3 +537,35 @@ class MenuPanel(QWidget):
                 self.delete_track_requested.emit(track_id_to_delete)  
                 self.current_selected_annotation = None # 削除後、選択状態をクリア  
                 self.update_selected_annotation_info(None) # UIをリセット
+
+    def _on_propagate_label_clicked(self):  
+        """一括ラベル変更ボタンクリック時の処理"""  
+        if hasattr(self, 'current_selected_annotation') and self.current_selected_annotation:  
+            track_id_to_change = self.current_selected_annotation.object_id  
+              
+            # ラベル入力ダイアログを表示  
+            # AnnotationInputDialog はバウンディングボックスを引数に取るため、ダミーのBoundingBoxを渡す  
+            dummy_bbox = BoundingBox(0, 0, 1, 1)   
+            dialog = AnnotationInputDialog(dummy_bbox, self, existing_labels=self.get_all_labels_from_manager())  
+            dialog.setWindowTitle(f"Track ID {track_id_to_change} のラベルを一括変更")  
+              
+            if dialog.exec() == QDialog.DialogCode.Accepted:  
+                new_label = dialog.get_label()  
+                if new_label:  
+                    reply = QMessageBox.question(  
+                        self, "Track一括ラベル変更確認",  
+                        f"Track ID '{track_id_to_change}' を持つすべてのアノテーションのラベルを '{new_label}' に変更しますか？",  
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+                    )  
+                    if reply == QMessageBox.StandardButton.Yes:  
+                        self.propagate_label_requested.emit(track_id_to_change, new_label)  
+                        # ラベル変更後も選択状態は維持されるため、UIはリセットしない  
+                else:  
+                    QMessageBox.warning(self, "入力エラー", "新しいラベル名を入力してください。")  
+              
+    def get_all_labels_from_manager(self) -> List[str]:  
+        """MASAAnnotationWidgetからVideoAnnotationManagerの全ラベルを取得するヘルパーメソッド"""  
+        # MASAAnnotationWidgetのインスタンスが親として設定されていることを前提とする  
+        if hasattr(self.parent(), 'video_manager') and self.parent().video_manager:  
+            return self.parent().video_manager.get_all_labels()  
+        return []

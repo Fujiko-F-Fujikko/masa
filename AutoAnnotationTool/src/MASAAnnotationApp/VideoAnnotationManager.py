@@ -459,3 +459,27 @@ class VideoAnnotationManager:
         if deleted_count > 0:  
             self._is_labels_cache_dirty = True # ラベルキャッシュをダーティに  
         return deleted_count
+
+    def update_annotations_label_by_track_id(self, track_id: int, new_label: str) -> int:  
+        """指定されたTrack IDを持つすべてのアノテーションのラベルを更新します。  
+        変更されたアノテーションの総数を返します。  
+        """  
+        updated_count = 0  
+          
+        # frame_annotations 内の ObjectAnnotation を更新  
+        for frame_annotation in self.frame_annotations.values():  
+            for obj in frame_annotation.objects:  
+                if obj.object_id == track_id:  
+                    obj.label = new_label  
+                    updated_count += 1  
+          
+        # manual_annotations 内の ObjectAnnotation も更新（もしあれば）  
+        for manual_anns in self.manual_annotations.values():  
+            for obj in manual_anns:  
+                if obj.object_id == track_id:  
+                    obj.label = new_label  
+                    # updated_count は frame_annotations でカウント済みのため、ここでは加算しない  
+          
+        if updated_count > 0:  
+            self._is_labels_cache_dirty = True # ラベルキャッシュをダーティに  
+        return updated_count
