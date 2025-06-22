@@ -174,33 +174,17 @@ class MenuPanel(QWidget):
         annotation_tab = QWidget()
         layout = QVBoxLayout()
 
-        # アノテーションモードグループ
-        mode_group = QGroupBox("操作モード")
-        mode_layout = QVBoxLayout()
+        # アノテーション情報グループ
+        info_group = QGroupBox("アノテーション情報")
+        info_layout = QVBoxLayout()
+        self.annotation_count_label = QLabel("アノテーション数: 0")
+        info_layout.addWidget(self.annotation_count_label)
+        info_group.setLayout(info_layout)
+        layout.addWidget(info_group)
 
-        self.annotation_mode_btn = QPushButton("シングルフレームアノテーションモード")
-        self.annotation_mode_btn.setCheckable(True)
-        self.annotation_mode_btn.clicked.connect(self._on_annotation_mode_clicked)
-        self.annotation_mode_btn.setEnabled(False)
-        mode_layout.addWidget(self.annotation_mode_btn)
-
-        self.multi_frame_btn = QPushButton("マルチフレームアノテーションモード")
-        self.multi_frame_btn.setCheckable(True)
-        self.multi_frame_btn.clicked.connect(self._on_multi_frame_clicked)
-        self.multi_frame_btn.setEnabled(False)
-        mode_layout.addWidget(self.multi_frame_btn)
-
-        # ラベル入力
-        self.multi_frame_label_input = QLineEdit()
-        self.multi_frame_label_input.setPlaceholderText("オブジェクトラベル")
-        self.multi_frame_label_input.setEnabled(False)
-        mode_layout.addWidget(self.multi_frame_label_input)
-
-        # 完了ボタン
-        self.complete_multi_frame_btn = QPushButton("マルチフレームアノテーション設定完了")
-        self.complete_multi_frame_btn.clicked.connect(self._on_complete_multi_frame)
-        self.complete_multi_frame_btn.setEnabled(False)
-        mode_layout.addWidget(self.complete_multi_frame_btn)
+        # アノテーション編集グループ
+        edit_group = QGroupBox("アノテーション編集")
+        edit_layout = QVBoxLayout()
 
         # 編集モードボタンのスタイルを設定  
         edit_button_style = """  
@@ -215,21 +199,6 @@ class MenuPanel(QWidget):
                 font-weight: bold;  
             }  
         """  
-
-        mode_group.setLayout(mode_layout)
-        layout.addWidget(mode_group)
-
-        # アノテーション情報グループ
-        info_group = QGroupBox("アノテーション情報")
-        info_layout = QVBoxLayout()
-        self.annotation_count_label = QLabel("アノテーション数: 0")
-        info_layout.addWidget(self.annotation_count_label)
-        info_group.setLayout(info_layout)
-        layout.addWidget(info_group)
-
-        # アノテーション編集グループ
-        edit_group = QGroupBox("アノテーション編集")
-        edit_layout = QVBoxLayout()
 
         self.edit_mode_btn = QPushButton("編集モード")
         self.edit_mode_btn.setCheckable(True)
@@ -247,6 +216,7 @@ class MenuPanel(QWidget):
 
         self.track_id_edit = QLineEdit()
         self.track_id_edit.setEnabled(False)
+        self.track_id_edit.setReadOnly(True)
         edit_layout.addWidget(QLabel("Track ID:"))
         edit_layout.addWidget(self.track_id_edit)
 
@@ -257,11 +227,11 @@ class MenuPanel(QWidget):
         edit_layout.addWidget(self.delete_single_annotation_btn)  
 
         # 一括編集ボタン
-        self.delete_track_btn = QPushButton("選択Track全削除")
+        self.delete_track_btn = QPushButton("一括削除")
         self.delete_track_btn.setEnabled(False)
         edit_layout.addWidget(self.delete_track_btn)
 
-        self.propagate_label_btn = QPushButton("ラベル変更を伝播")
+        self.propagate_label_btn = QPushButton("一括ラベル変更")
         self.propagate_label_btn.setEnabled(False)
         edit_layout.addWidget(self.propagate_label_btn)
 
@@ -271,6 +241,30 @@ class MenuPanel(QWidget):
         # 自動追跡グループ
         tracking_group = QGroupBox("自動追跡")
         tracking_layout = QVBoxLayout()
+
+        self.annotation_mode_btn = QPushButton("シングルフレームアノテーションモード")
+        self.annotation_mode_btn.setCheckable(True)
+        self.annotation_mode_btn.clicked.connect(self._on_annotation_mode_clicked)
+        self.annotation_mode_btn.setEnabled(False)
+        tracking_layout.addWidget(self.annotation_mode_btn)
+
+        self.multi_frame_btn = QPushButton("マルチフレームアノテーションモード")
+        self.multi_frame_btn.setCheckable(True)
+        self.multi_frame_btn.clicked.connect(self._on_multi_frame_clicked)
+        self.multi_frame_btn.setEnabled(False)
+        tracking_layout.addWidget(self.multi_frame_btn)
+
+        # ラベル入力
+        self.multi_frame_label_input = QLineEdit()
+        self.multi_frame_label_input.setPlaceholderText("オブジェクトラベル")
+        self.multi_frame_label_input.setEnabled(False)
+        tracking_layout.addWidget(self.multi_frame_label_input)
+
+        # 完了ボタン
+        self.complete_multi_frame_btn = QPushButton("マルチフレームアノテーション設定完了")
+        self.complete_multi_frame_btn.clicked.connect(self._on_complete_multi_frame)
+        self.complete_multi_frame_btn.setEnabled(False)
+        tracking_layout.addWidget(self.complete_multi_frame_btn)
 
         self.range_info_label = QLabel("範囲: 未選択")
         tracking_layout.addWidget(self.range_info_label)
