@@ -36,22 +36,20 @@ class TrackingWorker(QThread):
   
     def process_tracking_with_progress(self) -> dict:  
         """進捗報告付きの追跡処理"""  
+        print("assign_track_id:", self.assigned_track_id)  # デバッグ用
         results = {}  
         total_frames = self.end_frame - self.start_frame + 1  
-  
-        # MASAモデルに渡すテキストプロンプトは、割り当てられたラベルのみ  
+        max_used_id = self.assigned_track_id  
+
         text_prompt = self.assigned_label  
-  
-        # Track IDを生成し、initial_annotationsに割り当てるための辞書  
-        # {frame_id: [ObjectAnnotation, ...]}  
+
         initial_object_annotations_map = {}  
-        # new_track_id = self.video_manager.get_next_object_id() # ここを削除  
         for frame_id, bbox in self.initial_annotations:  
             if frame_id not in initial_object_annotations_map:  
                 initial_object_annotations_map[frame_id] = []  
             initial_object_annotations_map[frame_id].append(  
                 ObjectAnnotation(  
-                    object_id=self.assigned_track_id, # __init__で受け取ったassigned_track_idを使用  
+                    object_id= -1, # MASAモデルが新しいトラックとして扱うように-1を設定  
                     frame_id=frame_id,  
                     bbox=bbox,  
                     label=self.assigned_label,  
@@ -59,40 +57,39 @@ class TrackingWorker(QThread):
                     confidence=1.0  
                 )  
             )  
-  
+
         for i, frame_id in enumerate(range(self.start_frame, self.end_frame + 1)):  
             self.progress_updated.emit(i + 1, total_frames)  
-  
+
             frame_image = self.video_manager.get_frame(frame_id)  
             if frame_image is None:  
                 continue  
-  
+
             try:  
-                # 現在のフレームに手動で指定された初期アノテーションがある場合、それをObjectTrackerに渡す  
                 current_frame_initial_annotations = initial_object_annotations_map.get(frame_id, [])  
                   
                 tracked_annotations = self.object_tracker.track_objects(  
                     frame=frame_image,  
                     frame_id=frame_id,  
-                    initial_annotations=current_frame_initial_annotations, # 現在のフレームの初期アノテーションを渡す  
+                    initial_annotations=current_frame_initial_annotations,  
                     texts=text_prompt  
                 )  
   
-                # ObjectTrackerから返されるannotationsは、MASAモデルが生成したTrack IDとラベルが付与されているはず  
-                # ユーザーの要求フローでは「同一のトラックIDが付与される」とあるため、  
-                # ここでMASAモデルが生成したTrack IDをそのまま利用する。  
-                # ただし、ラベルはユーザーが指定したassigned_labelに上書きする。  
                 final_annotations_for_frame = []  
+                # MASAモデルが生成したTrack IDをそのまま利用し、ラベルのみ上書き  
+                # ここでMASAモデルが生成したIDを上書きする。  
                 for ann in tracked_annotations:  
-                    # MASAモデルが生成したTrack IDを、assigned_track_idに上書き  
-                    # これにより、MASAモデルが生成したIDが何であっても、  
-                    # ユーザーが指定したTrack IDに統一される  
-                    ann.object_id = self.assigned_track_id   
+                    # MASAモデルが生成したIDに基準IDを加算してオフセット  
+                    ann.object_id = ann.object_id + self.assigned_track_id  
+                    max_used_id = max(max_used_id, ann.object_id)
                     ann.label = self.assigned_label  
                     final_annotations_for_frame.append(ann)  
                   
+                # 最大使用IDを記録  
+                self.max_used_track_id = max_used_id  
+
                 results[frame_id] = final_annotations_for_frame  
-  
+
             except Exception as e:  
                 print(f"Error tracking frame {frame_id}: {e}")  
                 self.error_occurred.emit(f"Error tracking frame {frame_id}: {e}")  

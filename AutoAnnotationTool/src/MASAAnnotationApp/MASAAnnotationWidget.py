@@ -718,3 +718,10 @@ class MASAAnnotationWidget(QWidget):
         self.update_annotation_count()  
         self.video_preview.update_frame_display()  
         self.menu_panel.update_tracking_progress("") # 進捗表示をクリア
+        
+        # VideoAnnotationManagerのnext_object_idを更新  
+        if hasattr(self.tracking_worker, 'max_used_track_id'):  
+            self.video_manager.next_object_id = max(  
+                self.video_manager.next_object_id,   
+                self.tracking_worker.max_used_track_id + 1  
+            )
