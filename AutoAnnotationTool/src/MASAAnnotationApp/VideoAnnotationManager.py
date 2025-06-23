@@ -53,31 +53,31 @@ class VideoAnnotationManager:
             return frame  
         return None  
       
-    def add_manual_annotation(self, frame_id: int, bbox: BoundingBox, label: str) -> ObjectAnnotation:  
+    def add_manual_annotation(self, frame_id: int, bbox: BoundingBox, label: str, is_manual: bool = True, object_id: Optional[int] = None) -> ObjectAnnotation:  
         """手動アノテーションを追加"""  
-        annotation = ObjectAnnotation(  
-            object_id=self.next_object_id,  
-            label=label,  
-            bbox=bbox,  
-            frame_id=frame_id,  
-            is_manual=True,  
-            track_confidence=1.0  
-        )  
+        if frame_id not in self.frame_annotations:  
+            self.frame_annotations[frame_id] = FrameAnnotation(frame_id=frame_id, objects=[])  
           
+        if object_id is None:  
+            object_id = self.get_next_object_id() # 新しいIDを生成  
+          
+        annotation = ObjectAnnotation(  
+            object_id=object_id,  
+            frame_id=frame_id,  
+            bbox=bbox,  
+            label=label,  
+            is_manual=is_manual,  
+            track_confidence=1.0 # 手動アノテーションの信頼度は1.0とする  
+        )  
+        self.frame_annotations[frame_id].objects.append(annotation)  
+          
+        # manual_annotations にも追加  
         if frame_id not in self.manual_annotations:  
             self.manual_annotations[frame_id] = []  
-          
         self.manual_annotations[frame_id].append(annotation)  
-        self.next_object_id += 1  
           
-        # フレームアノテーションも更新  
-        if frame_id not in self.frame_annotations:  
-            self.frame_annotations[frame_id] = FrameAnnotation(frame_id=frame_id)  
-          
-        self.frame_annotations[frame_id].objects.append(annotation)  
-        self._is_labels_cache_dirty = True
-        return annotation  
-      
+        self._is_labels_cache_dirty = True # ラベルキャッシュをダーティに  
+        return annotation      
       
     def get_frame_annotations(self, frame_id: int) -> Optional[FrameAnnotation]:  
         """指定フレームのアノテーションを取得"""  
@@ -240,17 +240,14 @@ class VideoAnnotationManager:
         # 読み込んだアノテーションを設定  
         self.frame_annotations = loaded_annotations  
           
-        # デバッグ用：読み込んだアノテーション数を確認  
-        total_loaded = sum(len(frame_ann.objects) for frame_ann in loaded_annotations.values())  
-        print(f"Loaded {total_loaded} annotations from JSON")  
-          
         # next_object_idを更新  
         max_id = 0  
         for frame_annotation in self.frame_annotations.values():  
             for obj in frame_annotation.objects:  
                 max_id = max(max_id, obj.object_id)  
-        self.next_object_id = max_id + 1  
-        self._is_labels_cache_dirty = True
+        self.next_object_id = max_id + 1 # 読み込んだIDの最大値+1に設定  
+          
+        self._is_labels_cache_dirty = True # ラベルキャッシュをダーティに  
         return True
 
     def export_masa_json(self, output_path: str):  
@@ -422,3 +419,9 @@ class VideoAnnotationManager:
         if updated_count > 0:  
             self._is_labels_cache_dirty = True # ラベルキャッシュをダーティに  
         return updated_count
+
+    def get_next_object_id(self) -> int:  
+        """次に利用可能なオブジェクトID（Track ID）を取得し、インクリメントする"""  
+        next_id = self.next_object_id  
+        self.next_object_id += 1  
+        return next_id

@@ -20,6 +20,7 @@ class MASAAnnotationWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.temp_bboxes_for_batch_add = [] # 一括追加モードで生成されたBBoxを一時的に保持
         self.video_manager = None
         self.playback_controller = None
         self.setup_ui()
@@ -65,11 +66,9 @@ class MASAAnnotationWidget(QWidget):
         """シグナルとスロットを接続"""
         # メニューパネルからのシグナル
         self.menu_panel.load_video_requested.connect(self.load_video)
-        self.menu_panel.annotation_mode_requested.connect(self.set_annotation_mode)
         self.menu_panel.result_view_requested.connect(self.set_result_view_mode)
         self.menu_panel.tracking_requested.connect(self.start_tracking)
         self.menu_panel.export_requested.connect(self.export_annotations)
-        self.menu_panel.multi_frame_mode_requested.connect(self.set_multi_frame_mode)
         self.menu_panel.load_json_requested.connect(self.load_json_annotations)
 
         # 動画プレビューからのシグナル
@@ -81,9 +80,6 @@ class MASAAnnotationWidget(QWidget):
         self.video_control.frame_changed.connect(self.video_preview.set_frame)
         self.video_control.range_changed.connect(self.on_range_selection_changed)
         self.video_control.range_frame_preview.connect(self.on_range_frame_preview)
-
-        # Complete Multi-Frame ボタンのシグナル接続
-        self.menu_panel.complete_multi_frame_btn.clicked.connect(self.on_complete_multi_frame)
 
         # 表示オプションの変更
         for checkbox in [self.menu_panel.show_manual_cb, self.menu_panel.show_auto_cb,
@@ -109,6 +105,12 @@ class MASAAnnotationWidget(QWidget):
         
         # アノテーションラベルを変更（一括）するシグナルを接続
         self.menu_panel.propagate_label_requested.connect(self.on_propagate_label_requested)
+        
+        self.menu_panel.batch_add_annotation_requested.connect(self.set_batch_add_annotation_mode)  
+        self.menu_panel.complete_batch_add_requested.connect(self.on_complete_batch_add)  
+        # VideoPreviewWidgetからのbbox_createdシグナルは、このモードでも利用  
+        self.video_preview.bbox_created.connect(self.on_bbox_created_for_batch_add) 
+
 
     def load_video(self):  
         """動画ファイルを読み込み"""  
@@ -160,34 +162,37 @@ class MASAAnnotationWidget(QWidget):
     def on_bbox_created(self, x1: int, y1: int, x2: int, y2: int):  
         """バウンディングボックス作成時の処理"""  
         bbox = BoundingBox(x1, y1, x2, y2)  
+        current_frame = self.video_control.current_frame  
       
-        # 既存のラベルを取得  
-        existing_labels = []  
-        if self.video_manager:  
-            existing_labels = self.video_manager.get_all_labels()  
+        if self.video_preview.batch_add_annotation_mode:  
+            # 新規アノテーション一括追加モードの場合  
+            self.temp_bboxes_for_batch_add.append((current_frame, bbox)) # ここでframe_idとbboxをタプルで追加  
+            self.video_preview.update_frame_display() # 一時的な描画を更新  
+            QMessageBox.information(  
+                self, "BBox追加",  
+                f"フレーム {current_frame} にバウンディングボックスを追加しました。"  
+            )  
+        else:  
+            # 従来のシングルフレームアノテーションモードの場合  
+            # ラベル入力ダイアログを表示  
+            existing_labels = []  
+            if self.video_manager:  
+                existing_labels = self.video_manager.get_all_labels()  
       
-        # ラベル入力ダイアログを表示  
-        dialog = AnnotationInputDialog(bbox, self, existing_labels=existing_labels) # existing_labels を渡す  
-        if dialog.exec() == QDialog.DialogCode.Accepted:  
-            label = dialog.get_label()  
-            if label:  
-                # アノテーションを追加  
-                current_frame = self.video_control.current_frame  
-                annotation = self.video_manager.add_manual_annotation(current_frame, bbox, label)  
-      
-                # UI更新  
-                self.update_annotation_count()  
-      
-                QMessageBox.information(  
-                    self, "Annotation Added",  
-                    f"Added annotation: {label} at frame {current_frame}"  
-                )  
-                  
-                # 新規追加したアノテーションを選択状態にする  
-                if self.video_preview.edit_mode:  
-                    self.video_preview.bbox_editor.selected_annotation = annotation  
-                    self.video_preview.bbox_editor.selection_changed.emit(annotation)  
-                    self.video_preview.update_frame_display()
+            dialog = AnnotationInputDialog(bbox, self, existing_labels=existing_labels)  
+            if dialog.exec() == QDialog.DialogCode.Accepted:  
+                label = dialog.get_label()  
+                if label:  
+                    annotation = self.video_manager.add_manual_annotation(current_frame, bbox, label)  
+                    self.update_annotation_count()  
+                    QMessageBox.information(  
+                        self, "Annotation Added",  
+                        f"Added annotation: {label} at frame {current_frame}"  
+                    )  
+                    if self.video_preview.edit_mode:  
+                        self.video_preview.bbox_editor.selected_annotation = annotation  
+                        self.video_preview.bbox_editor.selection_changed.emit(annotation)  
+                        self.video_preview.update_frame_display()
 
     def on_frame_changed(self, frame_id: int):  
         """フレーム変更時の処理"""  
@@ -592,3 +597,124 @@ class MASAAnnotationWidget(QWidget):
                     self, "Track一括ラベル変更失敗",  
                     f"Track ID '{track_id}' を持つアノテーションは見つかりませんでした。"  
                 )
+
+    def set_batch_add_annotation_mode(self, enabled: bool):  
+        """新規アノテーション一括追加モードの有効/無効を切り替える"""  
+        self.video_preview.set_batch_add_annotation_mode(enabled) # VideoPreviewWidgetのモードを設定  
+          
+        # 他のモードボタンの状態を適切にリセット  
+        # 例:  
+        # self.single_frame_mode_button.setChecked(not enabled)  
+        # self.multi_frame_mode_button.setChecked(not enabled)  
+          
+        # 「新規アノテーション一括追加」ボタン自体の有効/無効を制御  
+        # このボタンがどのウィジェットに属しているかによるが、例えばmenu_panelにある場合  
+        if hasattr(self, 'menu_panel') and hasattr(self.menu_panel, 'batch_add_button'):  
+            self.menu_panel.batch_add_button.setEnabled(enabled)  
+          
+        # 編集モードがONの場合にのみ、このボタンが有効になるようにする  
+        # このロジックは、ボタンがクリックされたときに呼び出される場所で制御されるべきだが、  
+        # ここで明示的に設定することも可能  
+        if enabled and self.video_preview.edit_mode:  
+            # ボタンを有効にする  
+            if hasattr(self, 'menu_panel') and hasattr(self.menu_panel, 'batch_add_button'):  
+                self.menu_panel.batch_add_button.setEnabled(True)  
+        else:  
+            # ボタンを無効にする  
+            if hasattr(self, 'menu_panel') and hasattr(self.menu_panel, 'batch_add_button'):  
+                self.menu_panel.batch_add_button.setEnabled(False)  
+      
+        # UIの更新をトリガー  
+        self.video_preview.update_frame_display()
+
+    def on_bbox_created_for_batch_add(self, x1: int, y1: int, x2: int, y2: int):  
+        """新規アノテーション一括追加モードでのバウンディングボックス作成時の処理"""  
+        if self.video_preview.batch_add_annotation_mode: # このモードがONの場合のみ処理  
+            bbox = BoundingBox(x1, y1, x2, y2)  
+            # 一時リストに追加 (フレームIDは後で割り当てる)  
+            self.temp_bboxes_for_batch_add.append((self.video_control.current_frame, bbox))  
+            self.video_preview.update_frame_display() # 一時的な描画を更新  
+            QMessageBox.information(  
+                self, "BBox追加",  
+                f"フレーム {self.video_control.current_frame} にバウンディングボックスを追加しました。"  
+            )  
+        else:  
+            # 従来のシングルフレームアノテーションモードの処理  
+            # ... 既存の on_bbox_created ロジック ...  
+            pass # 既存の on_bbox_created の内容をここに移動または呼び出す
+
+    def on_complete_batch_add(self, label: str, dummy_start_frame: int, dummy_end_frame: int):  
+        """新規アノテーション一括追加完了時の処理"""  
+        if not self.temp_bboxes_for_batch_add:  
+            QMessageBox.warning(self, "警告", "追加するバウンディングボックスがありません。")  
+            return  
+      
+        # フレーム範囲の取得  
+        start_frame, end_frame = self.video_control.get_selected_range()  
+        if start_frame == -1 or end_frame == -1: # RangeSliderが初期状態の場合  
+            # temp_bboxes_for_batch_add に含まれるフレームIDの最小値と最大値を使用  
+            frame_ids_in_temp = [item[0] for item in self.temp_bboxes_for_batch_add]  
+            if frame_ids_in_temp:  
+                start_frame = min(frame_ids_in_temp)  
+                end_frame = max(frame_ids_in_temp)  
+            else:  
+                start_frame = 0  
+                end_frame = self.video_manager.total_frames - 1  
+      
+      
+        frame_count = end_frame - start_frame + 1  
+        reply = QMessageBox.question(  
+            self, "自動検出実行確認",  
+            f"指定されたバウンディングボックスを元に、フレーム {start_frame} から {end_frame} まで自動検出を実行しますか？\n"  
+            f"合計フレーム数: {frame_count}\n"  
+            f"この処理には時間がかかる場合があります。",  
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+        )  
+      
+        if reply == QMessageBox.StandardButton.Yes:  
+            self.menu_panel.update_tracking_progress("検出処理中...")  
+            # 新しいTrack IDを生成  
+            new_track_id = self.video_manager.get_next_object_id() # ここでTrack IDを生成  
+      
+            # TrackingWorkerに初期アノテーションとTrack IDを渡す  
+            self.tracking_worker = TrackingWorker(  
+                self.video_manager,  
+                start_frame,  
+                end_frame,  
+                initial_annotations=self.temp_bboxes_for_batch_add,  
+                assigned_track_id=new_track_id, # 生成したTrack IDを渡す  
+                assigned_label=label  
+            )  
+            self.tracking_worker.tracking_completed.connect(self.on_batch_add_tracking_completed)  
+            self.tracking_worker.progress_updated.connect(self.on_tracking_progress)  
+            self.tracking_worker.start()  
+              
+            # UIをリセット  
+            self.temp_bboxes_for_batch_add.clear()  
+            self.video_preview.set_batch_add_annotation_mode(False)  
+            self.video_preview.update_frame_display()  
+        else:  
+            QMessageBox.information(self, "キャンセル", "自動検出はキャンセルされました。")
+  
+    def on_batch_add_tracking_completed(self, tracked_annotations: dict):  
+        """新規アノテーション一括追加モードでの追跡完了時の処理"""  
+        if tracked_annotations:  
+            added_count = 0  
+            for frame_id, annotations_list in tracked_annotations.items():  
+                for ann in annotations_list:  
+                    # TrackingWorkerから返されたアノテーションをVideoAnnotationManagerに追加  
+                    # TrackingWorkerがObjectAnnotationを返すように修正する必要がある  
+                    self.video_manager.add_manual_annotation(  
+                        ann.frame_id, ann.bbox, ann.label, ann.is_manual, ann.object_id  
+                    )  
+                    added_count += 1  
+            QMessageBox.information(  
+                self, "検出完了",  
+                f"自動検出により {added_count} 件のアノテーションが追加されました。"  
+            )  
+        else:  
+            QMessageBox.information(self, "検出完了", "検出されたアノテーションはありませんでした。")  
+          
+        self.update_annotation_count()  
+        self.video_preview.update_frame_display()  
+        self.menu_panel.update_tracking_progress("") # 進捗表示をクリア

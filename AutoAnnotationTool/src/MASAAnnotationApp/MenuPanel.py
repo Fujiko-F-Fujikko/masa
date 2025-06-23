@@ -17,11 +17,9 @@ class MenuPanel(QWidget):
       
     # シグナル定義  
     load_video_requested = pyqtSignal()  
-    annotation_mode_requested = pyqtSignal(bool)  
     edit_mode_requested = pyqtSignal(bool)  
     tracking_requested = pyqtSignal()  
     export_requested = pyqtSignal(str)  # format  
-    multi_frame_mode_requested = pyqtSignal(bool, str)  # enabled, label  
     result_view_requested = pyqtSignal(bool)  # 互換性のために残す（非推奨）
     load_json_requested = pyqtSignal(str)  # json_path 
     score_threshold_changed = pyqtSignal(float)  # threshold_value
@@ -31,6 +29,9 @@ class MenuPanel(QWidget):
     delete_single_annotation_requested = pyqtSignal(object) # ObjectAnnotation
     delete_track_requested = pyqtSignal(int) # object_id (Track ID)
     propagate_label_requested = pyqtSignal(int, str) # object_id (Track ID), new_label
+    batch_add_annotation_requested = pyqtSignal(bool) # enabled  
+    complete_batch_add_requested = pyqtSignal(str, int, int) # label, start_frame, end_frame  
+
 
     def __init__(self, parent=None):  
         super().__init__(parent)  
@@ -246,44 +247,31 @@ class MenuPanel(QWidget):
         layout.addWidget(edit_group)
 
         # 自動追跡グループ
-        tracking_group = QGroupBox("自動追跡")
-        tracking_layout = QVBoxLayout()
-
-        self.annotation_mode_btn = QPushButton("シングルフレームアノテーションモード")
-        self.annotation_mode_btn.setCheckable(True)
-        self.annotation_mode_btn.clicked.connect(self._on_annotation_mode_clicked)
-        self.annotation_mode_btn.setEnabled(False)
-        tracking_layout.addWidget(self.annotation_mode_btn)
-
-        self.multi_frame_btn = QPushButton("マルチフレームアノテーションモード")
-        self.multi_frame_btn.setCheckable(True)
-        self.multi_frame_btn.clicked.connect(self._on_multi_frame_clicked)
-        self.multi_frame_btn.setEnabled(False)
-        tracking_layout.addWidget(self.multi_frame_btn)
-
-        # ラベル入力
-        self.multi_frame_label_input = QLineEdit()
-        self.multi_frame_label_input.setPlaceholderText("オブジェクトラベル")
-        self.multi_frame_label_input.setEnabled(False)
-        tracking_layout.addWidget(self.multi_frame_label_input)
-
-        # 完了ボタン
-        self.complete_multi_frame_btn = QPushButton("マルチフレームアノテーション設定完了")
-        self.complete_multi_frame_btn.clicked.connect(self._on_complete_multi_frame)
-        self.complete_multi_frame_btn.setEnabled(False)
-        tracking_layout.addWidget(self.complete_multi_frame_btn)
-
-        self.range_info_label = QLabel("範囲: 未選択")
-        tracking_layout.addWidget(self.range_info_label)
-
-        self.tracking_btn = QPushButton("追跡開始")
-        self.tracking_btn.clicked.connect(self.tracking_requested.emit)
-        self.tracking_btn.setEnabled(False)
-        tracking_layout.addWidget(self.tracking_btn)
-
-        self.tracking_progress_label = QLabel("")
-        tracking_layout.addWidget(self.tracking_progress_label)
-
+        tracking_group = QGroupBox("自動追跡")  
+        tracking_layout = QVBoxLayout()  
+  
+        # 新規アノテーション一括追加ボタン  
+        self.batch_add_annotation_btn = QPushButton("新規アノテーション一括追加")  
+        self.batch_add_annotation_btn.setCheckable(True)  
+        self.batch_add_annotation_btn.clicked.connect(self._on_batch_add_annotation_clicked)  
+        self.batch_add_annotation_btn.setEnabled(False)  
+        tracking_layout.addWidget(self.batch_add_annotation_btn)  
+  
+        # 追加完了ボタン  
+        self.complete_batch_add_btn = QPushButton("追加完了")  
+        self.complete_batch_add_btn.setEnabled(False)  
+        self.complete_batch_add_btn.clicked.connect(self._on_complete_batch_add_clicked)  
+        tracking_layout.addWidget(self.complete_batch_add_btn)  
+  
+        # 既存の自動追跡関連のUI要素 (必要に応じて調整)  
+        self.range_info_label = QLabel("範囲: 未選択")  
+        tracking_layout.addWidget(self.range_info_label)  
+  
+        self.tracking_progress_label = QLabel("")  
+        tracking_layout.addWidget(self.tracking_progress_label)  
+  
+        tracking_group.setLayout(tracking_layout)  
+        layout.addWidget(tracking_group)  
         tracking_group.setLayout(tracking_layout)
         layout.addWidget(tracking_group)
 
@@ -305,17 +293,9 @@ class MenuPanel(QWidget):
         """JSON情報を更新"""  
         filename = Path(json_path).name  
         self.json_info_label.setText(f"{filename}\n{annotation_count} annotations loaded")
-    
-    def _on_annotation_mode_clicked(self, checked):  
-        if checked:  
-            self.multi_frame_btn.setChecked(False)
-            self.edit_mode_btn.setChecked(False)
-        self.annotation_mode_requested.emit(checked)  
-      
+          
     def _on_edit_mode_clicked(self, checked):  
         if checked:  
-            self.annotation_mode_btn.setChecked(False)  
-            self.multi_frame_btn.setChecked(False)
             # 編集用コントロールを有効化
             self.label_combo.setEnabled(True)
             self.track_id_edit.setEnabled(True)
@@ -323,6 +303,8 @@ class MenuPanel(QWidget):
             self.delete_track_btn.setEnabled(True)
             self.propagate_label_btn.setEnabled(True)
             self.propagate_label_btn.setEnabled(True)
+            self.batch_add_annotation_btn.setEnabled(True)
+            self.complete_batch_add_btn.setEnabled(False)
         else:
             # 編集用コントロールを無効化
             self.label_combo.setEnabled(False)
@@ -331,6 +313,9 @@ class MenuPanel(QWidget):
             self.delete_track_btn.setEnabled(False)
             self.propagate_label_btn.setEnabled(False)
             self.propagate_label_btn.setEnabled(False)
+            self.batch_add_annotation_btn.setEnabled(False)
+            self.complete_batch_add_btn.setEnabled(False)
+
         self.edit_mode_requested.emit(checked)  
       
     def update_video_info(self, video_path: str, total_frames: int):    
@@ -342,9 +327,6 @@ class MenuPanel(QWidget):
         self.frame_label.setText(f"フレーム: 0/{total_frames - 1}")  
             
         # ボタンを有効化    
-        self.annotation_mode_btn.setEnabled(True)    
-        self.multi_frame_btn.setEnabled(True)    
-        self.multi_frame_label_input.setEnabled(True)  
         self.edit_mode_btn.setEnabled(True)  
         self.play_btn.setEnabled(True)
       
@@ -358,9 +340,7 @@ class MenuPanel(QWidget):
             )  
         else:  
             self.annotation_count_label.setText(f"アノテーション数: {count}")  
-          
-        self.tracking_btn.setEnabled(count > 0)
-      
+
     def update_range_info(self, start_frame: int, end_frame: int):  
         """範囲情報を更新"""  
         self.range_info_label.setText(f"Range: {start_frame} - {end_frame}")  
@@ -373,32 +353,6 @@ class MenuPanel(QWidget):
         """結果確認モードを有効化"""  
         self.save_json_btn.setEnabled(enabled)
         self.save_masa_json_btn.setEnabled(enabled)
-      
-    def _on_multi_frame_clicked(self, checked):  
-        if checked:  
-            label = self.multi_frame_label_input.text().strip()  
-            if not label:  
-                QMessageBox.warning(self, "Warning", "オブジェクトラベルを入力してください")  
-                self.multi_frame_btn.setChecked(False)  
-                return  
-              
-            # 他のモードを無効化  
-            self.annotation_mode_btn.setChecked(False)  
-            self.edit_mode_btn.setChecked(False)
-            self.result_view_requested.emit(False)  # 結果表示モードをOFF
-              
-            self.multi_frame_label_input.setEnabled(False)  
-            self.complete_multi_frame_btn.setEnabled(True)  
-        else:  
-            self.multi_frame_label_input.setEnabled(True)  
-            self.complete_multi_frame_btn.setEnabled(False)  
-          
-        self.multi_frame_mode_requested.emit(checked, self.multi_frame_label_input.text().strip())  
-      
-    def _on_complete_multi_frame(self):  
-        # 複数フレームアノテーション完了シグナルを発行  
-        self.multi_frame_btn.setChecked(False)  
-        self._on_multi_frame_clicked(False)
 
     def on_score_threshold_changed(self, value: float):  
         """スコア閾値変更時の処理"""  
@@ -560,3 +514,32 @@ class MenuPanel(QWidget):
         if hasattr(self.parent(), 'video_manager') and self.parent().video_manager:  
             return self.parent().video_manager.get_all_labels()  
         return []
+
+    def _on_batch_add_annotation_clicked(self, checked):  
+        """新規アノテーション一括追加ボタンクリック時の処理"""  
+        # 他のモードを無効化  
+        self.edit_mode_btn.setChecked(False)  
+        # ... 他のモードボタンのsetChecked(False) ...  
+  
+        self.batch_add_annotation_requested.emit(checked)  
+        self.complete_batch_add_btn.setEnabled(checked) # モードONで完了ボタンを有効化  
+  
+    def _on_complete_batch_add_clicked(self):  
+        """追加完了ボタンクリック時の処理"""  
+        # ラベル入力ダイアログを表示  
+        # AnnotationInputDialog はバウンディングボックスを引数に取るため、ダミーのBoundingBoxを渡す  
+        dummy_bbox = BoundingBox(0, 0, 1, 1)  
+        dialog = AnnotationInputDialog(dummy_bbox, self, existing_labels=self.get_all_labels_from_manager())  
+        dialog.setWindowTitle("新規アノテーションのラベルを入力")  
+  
+        if dialog.exec() == QDialog.DialogCode.Accepted:  
+            label = dialog.get_label()  
+            if label:  
+                # MASAAnnotationWidgetに処理を委譲するため、シグナルを発火  
+                # フレーム範囲はMASAAnnotationWidgetから取得される  
+                self.complete_batch_add_requested.emit(label, -1, -1) # start_frame, end_frame はダミー  
+            else:  
+                QMessageBox.warning(self, "入力エラー", "ラベル名を入力してください。")  
+        # モードをOFFにする  
+        self.batch_add_annotation_btn.setChecked(False)  
+        self.complete_batch_add_btn.setEnabled(False)

@@ -22,6 +22,7 @@ class VideoPreviewWidget(QLabel):
       
     def __init__(self, parent=None):  
         super().__init__(parent)  
+        self.batch_add_annotation_mode = False # 新しいモードフラグ
         self.setMinimumSize((int)(2688/2), (int)(1512/2))  
         self.setStyleSheet("border: 2px solid gray; background-color: black;")  
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)  
@@ -248,6 +249,16 @@ class VideoPreviewWidget(QLabel):
       
     def mousePressEvent(self, event):  
         """マウス押下イベント"""  
+        if self.batch_add_annotation_mode and event.button() == Qt.MouseButton.LeftButton:  
+            pos = event.position().toPoint()  
+            # 新規バウンディングボックスの描画を開始  
+            self.bbox_editor.start_new_bbox_drawing(pos)  
+            # 既存のアノテーション選択をクリア  
+            self.bbox_editor.selected_annotation = None  
+            self.bbox_editor.selection_changed.emit(None) # 選択解除を通知  
+            self.update_frame_display() # 表示を更新  
+            return  
+
         if self.edit_mode and event.button() == Qt.MouseButton.LeftButton:  
             pos = event.position().toPoint()  
               
@@ -294,6 +305,12 @@ class VideoPreviewWidget(QLabel):
       
     def mouseMoveEvent(self, event):  
         """マウス移動イベント"""  
+        if self.batch_add_annotation_mode:  
+            pos = event.position().toPoint()  
+            self.bbox_editor.update_new_bbox_drawing(pos)  
+            self.update() # paintEvent をトリガー  
+            return 
+
         if self.edit_mode:  
             pos = event.position().toPoint()  
               
@@ -325,6 +342,11 @@ class VideoPreviewWidget(QLabel):
   
     def mouseReleaseEvent(self, event):  
         """マウス離上イベント"""  
+        if self.batch_add_annotation_mode and event.button() == Qt.MouseButton.LeftButton:  
+            self.bbox_editor.complete_new_bbox_drawing(event.position().toPoint())  
+            self.setCursor(Qt.CursorShape.CrossCursor) # 描画後も十字カーソルを維持  
+            return  
+
         if self.edit_mode:  
             if self.bbox_editor.dragging_bbox or self.bbox_editor.resizing_bbox:  
                 # 編集モードでの既存アノテーションの移動・リサイズ操作完了  
@@ -382,12 +404,26 @@ class VideoPreviewWidget(QLabel):
           
         # BoundingBoxEditor に新規描画中の矩形を描画させる  
         self.bbox_editor.draw_new_bbox_overlay(painter)  
-  
-        # 編集モード外での新規描画中の矩形を描画  
+      
+        # 編集モード外での新規描画中の矩形を描画 (従来のシングルフレームモード用)  
         if self.drawing and not self.current_rect.isEmpty():  
             pen = QPen(QColor(255, 0, 0), 2, Qt.PenStyle.SolidLine)  
             painter.setPen(pen)  
             painter.drawRect(self.current_rect)  
+      
+        # MASAAnnotationWidget.temp_bboxes_for_batch_add にある一時的なBBoxを描画  
+        if self.batch_add_annotation_mode and self.parent() and hasattr(self.parent(), 'temp_bboxes_for_batch_add'):  
+            for frame_id, bbox in self.parent().temp_bboxes_for_batch_add:  
+                if frame_id == self.current_frame_id: # 現在のフレームのBBoxのみ描画  
+                    # ウィジェット座標に変換して描画  
+                    x1_widget = int(bbox.x1 / self.scale_x + self.offset_x)  
+                    y1_widget = int(bbox.y1 / self.scale_y + self.offset_y)  
+                    x2_widget = int(bbox.x2 / self.scale_x + self.offset_x)  
+                    y2_widget = int(bbox.y2 / self.scale_y + self.offset_y)  
+                      
+                    pen = QPen(QColor(0, 255, 255), 2, Qt.PenStyle.DotLine) # シアンの点線  
+                    painter.setPen(pen)  
+                    painter.drawRect(x1_widget, y1_widget, x2_widget - x1_widget, y2_widget - y1_widget)
 
     # 編集モード設定メソッドを追加  
     def set_edit_mode(self, enabled: bool):  
@@ -449,4 +485,19 @@ class VideoPreviewWidget(QLabel):
     def _on_new_bbox_drawing_completed(self, x1, y1, x2, y2):  
         # MASAAnnotationWidget に通知  
         self.bbox_created.emit(x1, y1, x2, y2)  
-        self.setCursor(Qt.CursorShape.PointingHandCursor) # 編集モードのデフォルトカーソルに戻す
+        self.setCursor(Qt.CursorShape.PointingHandCursor) # 
+
+    def set_batch_add_annotation_mode(self, enabled: bool):  
+        """新規アノテーション一括追加モードの設定"""  
+        self.batch_add_annotation_mode = enabled  
+        # 他のモードを無効化  
+        self.edit_mode = False  
+        self.annotation_mode = False  
+        self.multi_frame_mode = False  
+        self.result_view_mode = False  
+          
+        if enabled:  
+            self.setCursor(Qt.CursorShape.CrossCursor) # 十字カーソル  
+        else:  
+            self.setCursor(Qt.CursorShape.ArrowCursor) # デフォルトカーソル  
+        self.update_frame_display()  
