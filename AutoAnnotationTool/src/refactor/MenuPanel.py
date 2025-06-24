@@ -438,12 +438,33 @@ class MenuPanel(QWidget):
         # 選択状態に応じてボタンの有効/無効を更新  
         self._update_edit_controls_state(self.edit_mode_btn.isChecked())  
           
-    def initialize_label_combo(self, existing_labels: List[str]):  
-        """既存のラベルでコンボボックスを初期化"""  
-        self.label_combo.clear()  
-        for label in existing_labels:  
+    def initialize_label_combo(self, labels: List[str]):  
+        """ラベルコンボボックスを初期化"""  
+        # 現在選択されているラベルを一時的に保持  
+        current_selected_label = self.label_combo.currentText()  
+          
+        self.label_combo.blockSignals(True) # シグナルを一時的にブロック  
+        self.label_combo.clear() # 既存のアイテムをクリア  
+          
+        # 新しいラベルを追加  
+        for label in sorted(list(set(labels))): # 重複を排除しソート  
             self.label_combo.addItem(label)  
-        self.label_combo.setEditable(True)  
+          
+        # 以前選択されていたラベルを再設定  
+        if current_selected_label and self.label_combo.findText(current_selected_label) >= 0:  
+            self.label_combo.setCurrentText(current_selected_label)  
+        elif self.current_selected_annotation: # 現在選択中のアノテーションのラベルを優先  
+            index = self.label_combo.findText(self.current_selected_annotation.label)  
+            if index >= 0:  
+                self.label_combo.setCurrentIndex(index)  
+            else:  
+                # もし現在のラベルがリストにない場合は追加して選択  
+                self.label_combo.addItem(self.current_selected_annotation.label)  
+                self.label_combo.setCurrentText(self.current_selected_annotation.label)  
+        elif self.label_combo.count() > 0:  
+            self.label_combo.setCurrentIndex(0) # リストが空でなければ最初の要素を選択  
+              
+        self.label_combo.blockSignals(False) # シグナルブロックを解除
           
     def _on_delete_single_annotation_clicked(self):  
         """選択アノテーション削除ボタンクリック時の処理"""  
