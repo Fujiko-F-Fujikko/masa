@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QFormLayout, QSpinBox  
 )  
 from DataClass import BoundingBox  
-from typing import List, Optional  
+from typing import List  
   
 class AnnotationInputDialog(QDialog):  
     """アノテーション追加ダイアログ（改善版）"""  

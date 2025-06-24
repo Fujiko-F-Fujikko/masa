@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal  
 from PyQt6.QtGui import QFont  
   
-from Dialog import AnnotationInputDialog  
+from AnnotationInputDialog import AnnotationInputDialog  
 from DataClass import BoundingBox, ObjectAnnotation  
 from ConfigManager import ConfigManager  
 from ErrorHandler import ErrorHandler  

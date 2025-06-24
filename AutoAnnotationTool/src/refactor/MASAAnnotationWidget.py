@@ -18,10 +18,9 @@ from AnnotationRepository import AnnotationRepository
 from ExportService import ExportService  
 from ObjectTracker import ObjectTracker  
 from TrackingWorker import TrackingWorker  
-from Dialog import AnnotationInputDialog  
+from AnnotationInputDialog import AnnotationInputDialog  
 from ConfigManager import ConfigManager  
 from ErrorHandler import ErrorHandler  
-from SignalConnector import SignalConnector  
   
 class MASAAnnotationWidget(QWidget):  
     """統合されたMASAアノテーションメインウィジェット（改善版）"""  
@@ -341,7 +340,7 @@ class MASAAnnotationWidget(QWidget):
         """一括追加モードの設定とUIの更新"""  
         if enabled:  
             self.video_preview.set_mode('batch_add')  
-            ErrorHandler.show_info_dialog("新規アノテーション一括追加モードが有効になりました。\n動画プレビュー上でバウンディングボックスを描画してください。", "モード変更")  
+            ErrorHandler.show_info_dialog("新規アノテーション一括追加モードが有効になりました。\n動画プレビュー上でバウンディングボックスを描画してください。\nバウンディングボックスの追加が終わったら追加完了ボタンを押してください。", "モード変更")  
             self.temp_bboxes_for_batch_add.clear()  
         else:  
             self.video_preview.set_mode('view')  
