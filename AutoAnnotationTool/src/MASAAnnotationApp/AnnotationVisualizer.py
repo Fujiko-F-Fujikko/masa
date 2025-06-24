@@ -1,16 +1,16 @@
-import cv2
-import numpy as np
-import colorsys
-from typing import List, Tuple
-from DataClass import ObjectAnnotation
-from VideoAnnotationManager import VideoAnnotationManager
-
+# 改善されたAnnotationVisualizer.py  
+import cv2  
+import numpy as np  
+import colorsys  
+from typing import List, Tuple  
+from DataClass import ObjectAnnotation  
+  
 class AnnotationVisualizer:  
-    """アノテーション可視化クラス"""  
+    """アノテーション可視化クラス（改善版）"""  
       
     def __init__(self):  
         self.colors = self._generate_colors(100)  
-      
+          
     def _generate_colors(self, num_colors: int) -> List[Tuple[int, int, int]]:  
         """オブジェクトID用のカラーパレットを生成"""  
         colors = []  
@@ -19,14 +19,13 @@ class AnnotationVisualizer:
             saturation = 0.7  
             value = 0.9  
               
-            # HSVからRGBに変換  
             r, g, b = colorsys.hsv_to_rgb(hue/360, saturation, value)  
             colors.append((int(r*255), int(g*255), int(b*255)))  
           
         return colors  
       
     def draw_annotations(self, frame: np.ndarray, annotations: List[ObjectAnnotation],   
-                        show_ids: bool = True, show_confidence: bool = True,
+                        show_ids: bool = True, show_confidence: bool = True,  
                         selected_annotation: ObjectAnnotation = None) -> np.ndarray:  
         """フレームにアノテーションを描画（選択表示対応）"""  
         result_frame = frame.copy()  
@@ -34,15 +33,16 @@ class AnnotationVisualizer:
         for annotation in annotations:  
             color = self.colors[annotation.object_id % len(self.colors)]  
               
-            # 選択されたアノテーションは異なる色で表示  
             if selected_annotation and annotation.object_id == selected_annotation.object_id:  
-                color = (255, 255, 0)  # 黄色でハイライト  
-                thickness = 4  
+                color = (0, 255, 255)  # 黄色でハイライト  
+                thickness = 6  
+            elif annotation.is_batch_added:  
+                color = (0, 0, 255)  # バッチ追加されたアノテーションの特別な色  
+                thickness = 4
             else:  
                 color = self.colors[annotation.object_id % len(self.colors)]  
-                # 手動アノテーションは太い線、自動は細い線  
-                thickness = 3 if annotation.is_manual else 2  
-
+                thickness = 4 if annotation.is_manual else 2  # 手動アノテーションは太い線、それ以外は細い線
+              
             # バウンディングボックス座標を整数に変換（四捨五入）  
             pt1 = (int(round(annotation.bbox.x1)), int(round(annotation.bbox.y1)))  
             pt2 = (int(round(annotation.bbox.x2)), int(round(annotation.bbox.y2)))  
@@ -59,7 +59,7 @@ class AnnotationVisualizer:
             if show_ids:  
                 label_text += f" ID:{annotation.object_id}"  
             if show_confidence:  
-                label_text += f" ({annotation.bbox.confidence:.2f})"
+                label_text += f" ({annotation.bbox.confidence:.2f})"  
               
             # テキスト背景  
             (text_width, text_height), _ = cv2.getTextSize(  
@@ -87,14 +87,13 @@ class AnnotationVisualizer:
           
         return result_frame  
       
-    def create_annotation_video(self, video_manager: VideoAnnotationManager,   
+    def create_annotation_video(self, video_manager, annotation_repository,   
                               output_path: str, fps: int = 30):  
         """アノテーション付き動画を作成"""  
-        if not video_manager.frame_annotations:  
+        if not annotation_repository.frame_annotations:  
             print("No annotations to visualize")  
             return  
           
-        # 最初のフレームで動画サイズを取得  
         first_frame = video_manager.get_frame(0)  
         if first_frame is None:  
             print("Cannot read first frame")  
@@ -102,18 +101,16 @@ class AnnotationVisualizer:
           
         height, width = first_frame.shape[:2]  
           
-        # 動画ライターを初期化  
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')  
         out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))  
           
         try:  
-            for frame_id in range(video_manager.total_frames):  
+            for frame_id in range(video_manager.get_total_frames()):  
                 frame = video_manager.get_frame(frame_id)  
                 if frame is None:  
                     continue  
                   
-                # アノテーションを取得して描画  
-                frame_annotation = video_manager.get_frame_annotations(frame_id)  
+                frame_annotation = annotation_repository.get_annotations(frame_id)  
                 if frame_annotation and frame_annotation.objects:  
                     annotated_frame = self.draw_annotations(frame, frame_annotation.objects)  
                 else:  
@@ -122,9 +119,9 @@ class AnnotationVisualizer:
                 out.write(annotated_frame)  
                   
                 if frame_id % 100 == 0:  
-                    print(f"Processed frame {frame_id}/{video_manager.total_frames}")  
+                    print(f"Processed frame {frame_id}/{video_manager.get_total_frames()}")  
               
             print(f"Annotated video saved to {output_path}")  
               
         finally:  
-            out.release()
+            out.release()  

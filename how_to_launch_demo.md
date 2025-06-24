@@ -14,6 +14,8 @@ python demo/video_demo_with_text.py stt/H1125060570339_2025-06-05_10-52-51_2.mp4
 
 ```cmd
 python AutoAnnotationTool/src/VideoAnnotationViewer/VideoAnnotationViewer.py --video stt/H1125060570339_2025-06-05_10-52-51_2.mp4 --json stt_json_outputs/H1125060570339_2025-06-05_10-52-51_2_outputs.json
+
+python AutoAnnotationTool/src/MASAAnnotationApp/MASAAnnotationApp.py --video stt/H1125060570339_2025-06-05_10-52-51_2.mp4 --json stt_json_outputs/H1125060570339_2025-06-05_10-52-51_2_outputs.json
 ```
 
 ## 環境構築
