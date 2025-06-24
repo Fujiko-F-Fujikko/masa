@@ -179,9 +179,7 @@ class MenuPanel(QWidget):
         self.score_threshold_spinbox.setSingleStep(0.1)  
         self.score_threshold_spinbox.setDecimals(2)  
         self.score_threshold_spinbox.setValue(self.config_manager.get_config("score_threshold"))  
-        self.score_threshold_spinbox.valueChanged.connect(  
-            lambda v: self.config_manager.update_config("score_threshold", v)  
-        )  
+        self.score_threshold_spinbox.valueChanged.connect(self._on_display_option_changed)
         score_threshold_layout.addWidget(self.score_threshold_spinbox)  
           
         display_layout.addLayout(score_threshold_layout)  
