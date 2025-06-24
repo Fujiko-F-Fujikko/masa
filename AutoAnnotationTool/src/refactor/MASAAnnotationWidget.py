@@ -415,7 +415,7 @@ class MASAAnnotationWidget(QWidget):
         """アノテーション更新時の処理"""  
         if self.annotation_repository.update_annotation(annotation):  
             self.update_annotation_count()  
-            ErrorHandler.show_info_dialog("アノテーションを更新しました。", "更新完了")  
+            #ErrorHandler.show_info_dialog("アノテーションを更新しました。", "更新完了")  
         else:  
             ErrorHandler.show_warning_dialog("アノテーションの更新に失敗しました。", "エラー")
 
