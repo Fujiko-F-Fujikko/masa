@@ -291,7 +291,7 @@ class MenuPanel(QWidget):
         self.tab_widget.addTab(annotation_tab, "アノテーション")  
           
     @ErrorHandler.handle_with_dialog("File Load Error")  
-    def _on_load_video_clicked(self):  
+    def _on_load_video_clicked(self, _: str):  
         """動画ファイル読み込みボタンのクリックハンドラ"""  
         file_path, _ = QFileDialog.getOpenFileName(  
             self, "Select Video File", "",  
@@ -301,7 +301,7 @@ class MenuPanel(QWidget):
             self.load_video_requested.emit(file_path)  
               
     @ErrorHandler.handle_with_dialog("File Load Error")  
-    def _on_load_json_clicked(self):  
+    def _on_load_json_clicked(self, _: str):  
         """JSONファイル読み込みボタンのクリックハンドラ"""  
         file_path, _ = QFileDialog.getOpenFileName(  
             self, "Select JSON Annotation File", "",  

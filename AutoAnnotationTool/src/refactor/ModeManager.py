@@ -60,11 +60,10 @@ class EditMode(AnnotationMode):
         if event.button() == Qt.MouseButton.LeftButton:  
             pos = event.position().toPoint()  
               
-            # 現在のフレームのアノテーションを取得  
-            frame_annotation = self.widget.video_manager.get_frame_annotations(  
-                self.widget.current_frame_id  
-            )  
-              
+            # 現在のフレームのアノテーションを取得    
+            frame_annotation = self.widget.annotation_repository.get_annotations(
+                self.widget.current_frame_id     
+            )
             # 表示されているアノテーションのみをフィルタリング  
             displayable_annotations = self._get_displayable_annotations(frame_annotation)  
               
