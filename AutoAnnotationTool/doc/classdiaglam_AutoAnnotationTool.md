@@ -1,6 +1,4 @@
-# Class Diaglam
-
-## MASAAnnotationApp
+リファクタリング後のクラス図を以下に示します：
 
 ```mermaid
 classDiagram
@@ -13,145 +11,168 @@ classDiagram
         +run_gui_application()
     }
 
-    %% メインウィジェット
+    %% メインウィジェット（簡素化）
     class MASAAnnotationWidget {
         +menu_panel: MenuPanel
         +video_preview: VideoPreviewWidget
         +video_control: VideoControlPanel
-        +video_manager: VideoAnnotationManager
+        +video_manager: VideoManager
+        +annotation_repository: AnnotationRepository
         +playback_controller: VideoPlaybackController
-        +temp_bboxes_for_batch_add: List
+        +mode_manager: ModeManager
+        +signal_connector: SignalConnector
         +setup_ui()
-        +connect_signals()
         +load_video()
-        +on_bbox_created()
-        +start_tracking()
         +export_annotations()
     }
 
-    %% UIコンポーネント
+    %% 新しいユーティリティクラス
+    class CoordinateTransform {
+        +scale_x: float
+        +scale_y: float
+        +offset_x: int
+        +offset_y: int
+        +image_width: int
+        +image_height: int
+        +widget_to_image(pos)
+        +image_to_widget(x, y)
+        +clip_to_bounds(x, y)
+    }
+
+    class ConfigManager {
+        -_observers: List
+        -_config: MASAConfig
+        +update_config(key, value)
+        +get_config(key)
+        +add_observer(observer)
+        +_notify_observers(key, value)
+    }
+
+    class SignalConnector {
+        +auto_connect(source, target)
+        +connect_by_convention(widget)
+        +disconnect_all(widget)
+    }
+
+    class ErrorHandler {
+        +handle_with_dialog(func)
+        +log_error(error, context)
+        +show_error_dialog(message)
+    }
+
+    %% モード管理（状態パターン）
+    class ModeManager {
+        +current_mode: AnnotationMode
+        +set_mode(mode_type)
+        +handle_mouse_event(event)
+        +get_cursor_shape()
+    }
+
+    class AnnotationMode {
+        <<abstract>>
+        +handle_mouse_press(event)*
+        +handle_mouse_move(event)*
+        +handle_mouse_release(event)*
+        +get_cursor_shape()*
+        +enter_mode()*
+        +exit_mode()*
+    }
+
+    class EditMode {
+        +handle_mouse_press(event)
+        +handle_mouse_move(event)
+        +handle_mouse_release(event)
+        +get_cursor_shape()
+    }
+
+    class BatchAddMode {
+        +handle_mouse_press(event)
+        +handle_mouse_move(event)
+        +handle_mouse_release(event)
+        +get_cursor_shape()
+    }
+
+    class ViewMode {
+        +handle_mouse_press(event)
+        +handle_mouse_move(event)
+        +handle_mouse_release(event)
+        +get_cursor_shape()
+    }
+
+    %% 責務分離されたデータ管理
+    class VideoManager {
+        +video_path: str
+        +video_reader: cv2.VideoCapture
+        +total_frames: int
+        +load_video(path)
+        +get_frame(frame_id)
+        +get_fps()
+    }
+
+    class AnnotationRepository {
+        +frame_annotations: Dict
+        +manual_annotations: Dict
+        +next_object_id: int
+        +add_annotation(annotation)
+        +get_annotations(frame_id)
+        +update_annotation(annotation)
+        +delete_annotation(object_id, frame_id)
+        +delete_by_track_id(track_id)
+        +get_statistics()
+    }
+
+    class ExportService {
+        +export_json(annotations, path)
+        +export_coco(annotations, path)
+        +export_masa_json(annotations, path)
+        +import_json(path)
+    }
+
+    %% 改善されたUIコンポーネント
+    class VideoPreviewWidget {
+        +bbox_editor: BoundingBoxEditor
+        +visualizer: AnnotationVisualizer
+        +coordinate_transform: CoordinateTransform
+        +mode_manager: ModeManager
+        +set_video_manager()
+        +update_frame_display()
+        +handle_mouse_event(event)
+    }
+
+    class BoundingBoxEditor {
+        +coordinate_transform: CoordinateTransform
+        +selected_annotation: ObjectAnnotation
+        +select_annotation_at_position()
+        +start_drag_operation()
+        +draw_selection_overlay()
+    }
+
     class MenuPanel {
+        +config_manager: ConfigManager
         +tab_widget: QTabWidget
-        +edit_mode_btn: QPushButton
-        +label_combo: QComboBox
         +current_selected_annotation: ObjectAnnotation
         +setup_basic_tab()
         +setup_annotation_tab()
         +update_selected_annotation_info()
     }
 
-    class VideoPreviewWidget {
-        +bbox_editor: BoundingBoxEditor
-        +visualizer: AnnotationVisualizer
-        +video_manager: VideoAnnotationManager
-        +annotation_mode: bool
-        +edit_mode: bool
-        +batch_add_annotation_mode: bool
-        +set_video_manager()
-        +update_frame_display()
-        +mousePressEvent()
-    }
-
     class VideoControlPanel {
         +range_slider: RangeSlider
-        +frame_slider: QSlider
-        +total_frames: int
-        +current_frame: int
+        +coordinate_transform: CoordinateTransform
         +set_total_frames()
         +set_current_frame()
         +get_selected_range()
     }
 
-    class RangeSlider {
-        +minimum: int
-        +maximum: int
-        +start_value: int
-        +end_value: int
-        +set_range()
-        +set_values()
-        +get_values()
-    }
-
-    %% 編集・可視化
-    class BoundingBoxEditor {
-        +selected_annotation: ObjectAnnotation
-        +is_editing: bool
-        +dragging_bbox: bool
-        +resizing_bbox: bool
-        +select_annotation_at_position()
-        +start_drag_operation()
-        +draw_selection_overlay()
-    }
-
-    class AnnotationVisualizer {
-        +colors: List[Tuple]
-        +_generate_colors()
-        +draw_annotations()
-        +create_annotation_video()
-    }
-
-    %% データ管理
-    class VideoAnnotationManager {
-        +video_path: str
-        +config: MASAConfig
-        +tracker: ObjectTracker
-        +frame_annotations: Dict[int, FrameAnnotation]
-        +manual_annotations: Dict[int, List[ObjectAnnotation]]
-        +load_video()
-        +get_frame()
-        +add_manual_annotation()
-        +export_annotations()
-        +load_json_annotations()
-    }
-
-    class ObjectTracker {
-        +config: MASAConfig
-        +masa_model: nn.Module
-        +det_model: nn.Module
-        +initialized: bool
-        +initialize()
-        +track_objects()
-        +_convert_track_result_to_annotations()
-    }
-
-    class JSONLoader {
-        +loaded_data: dict
-        +video_name: str
-        +label_mapping: dict
-        +load_json_annotations()
-        +get_video_name()
-        +get_label_mapping()
-    }
-
-    %% 非同期処理
-    class TrackingWorker {
-        +video_manager: VideoAnnotationManager
-        +object_tracker: ObjectTracker
-        +start_frame: int
-        +end_frame: int
-        +assigned_track_id: int
-        +run()
-        +process_tracking_with_progress()
-    }
-
-    class VideoPlaybackController {
-        +video_manager: VideoAnnotationManager
-        +timer: QTimer
-        +current_frame: int
-        +is_playing: bool
-        +fps: float
-        +play()
-        +pause()
-        +next_frame()
-    }
-
-    %% データクラス
+    %% 改善されたデータクラス（バリデーション付き）
     class BoundingBox {
         +x1: float
         +y1: float
         +x2: float
         +y2: float
         +confidence: float
+        +__post_init__()
+        +validate()
         +to_xyxy()
         +area()
     }
@@ -163,98 +184,117 @@ classDiagram
         +frame_id: int
         +is_manual: bool
         +track_confidence: float
+        +__post_init__()
+        +validate()
     }
 
     class FrameAnnotation {
         +frame_id: int
         +frame_path: str
         +objects: List[ObjectAnnotation]
+        +__post_init__()
+        +validate()
     }
 
-    class MASAConfig {
-        +masa_config_path: str
-        +masa_checkpoint_path: str
-        +device: str
-        +score_threshold: float
-        +unified_mode: bool
+    %% その他のクラス（変更なし）
+    class ObjectTracker {
+        +config: MASAConfig
+        +masa_model: nn.Module
+        +initialize()
+        +track_objects()
     }
 
-    %% ダイアログ
-    class AnnotationInputDialog {
-        +bbox: BoundingBox
-        +label_input: QLineEdit
-        +preset_combo: QComboBox
-        +get_label()
+    class TrackingWorker {
+        +annotation_repository: AnnotationRepository
+        +object_tracker: ObjectTracker
+        +run()
+        +process_tracking_with_progress()
     }
 
-    class TrackingSettingsDialog {
-        +total_frames: int
-        +start_frame: int
-        +end_frame_spin: QSpinBox
-        +get_end_frame()
+    class AnnotationVisualizer {
+        +colors: List[Tuple]
+        +draw_annotations()
+        +create_annotation_video()
     }
 
-    %% 関係性
+    class VideoPlaybackController {
+        +video_manager: VideoManager
+        +timer: QTimer
+        +play()
+        +pause()
+        +next_frame()
+    }
+
+    %% 関係性（リファクタリング後）
     MASAAnnotationApp --> MASAAnnotationWidget : contains
     
     MASAAnnotationWidget --> MenuPanel : contains
     MASAAnnotationWidget --> VideoPreviewWidget : contains
     MASAAnnotationWidget --> VideoControlPanel : contains
-    MASAAnnotationWidget --> VideoAnnotationManager : uses
-    MASAAnnotationWidget --> VideoPlaybackController : uses
-    MASAAnnotationWidget --> TrackingWorker : creates
-    MASAAnnotationWidget --> AnnotationInputDialog : creates
+    MASAAnnotationWidget --> VideoManager : uses
+    MASAAnnotationWidget --> AnnotationRepository : uses
+    MASAAnnotationWidget --> ExportService : uses
+    MASAAnnotationWidget --> ModeManager : uses
+    MASAAnnotationWidget --> SignalConnector : uses
+    MASAAnnotationWidget --> ConfigManager : uses
 
     VideoPreviewWidget --> BoundingBoxEditor : contains
     VideoPreviewWidget --> AnnotationVisualizer : contains
-    VideoPreviewWidget --> VideoAnnotationManager : uses
+    VideoPreviewWidget --> CoordinateTransform : uses
+    VideoPreviewWidget --> ModeManager : uses
 
-    VideoControlPanel --> RangeSlider : contains
+    BoundingBoxEditor --> CoordinateTransform : uses
+    VideoControlPanel --> CoordinateTransform : uses
 
-    BoundingBoxEditor --> ObjectAnnotation : manipulates
-    AnnotationVisualizer --> ObjectAnnotation : visualizes
+    ModeManager --> AnnotationMode : manages
+    AnnotationMode <|-- EditMode
+    AnnotationMode <|-- BatchAddMode
+    AnnotationMode <|-- ViewMode
 
-    VideoAnnotationManager --> ObjectTracker : contains
-    VideoAnnotationManager --> JSONLoader : uses
-    VideoAnnotationManager --> FrameAnnotation : manages
-    VideoAnnotationManager --> MASAConfig : uses
+    AnnotationRepository --> FrameAnnotation : manages
+    AnnotationRepository --> ObjectAnnotation : manages
 
+    ExportService --> AnnotationRepository : uses
+
+    MenuPanel --> ConfigManager : uses
+    ConfigManager --> MASAConfig : manages
+
+    TrackingWorker --> AnnotationRepository : uses
     TrackingWorker --> ObjectTracker : uses
-    TrackingWorker --> VideoAnnotationManager : uses
 
-    VideoPlaybackController --> VideoAnnotationManager : uses
-
-    ObjectTracker --> MASAConfig : uses
-    ObjectTracker --> ObjectAnnotation : creates
-
-    JSONLoader --> FrameAnnotation : creates
-    JSONLoader --> ObjectAnnotation : creates
+    VideoPlaybackController --> VideoManager : uses
 
     FrameAnnotation --> ObjectAnnotation : contains
     ObjectAnnotation --> BoundingBox : contains
 
-    MenuPanel --> AnnotationInputDialog : creates
-    MenuPanel --> TrackingSettingsDialog : creates
+    %% エラーハンドリング（全体に適用）
+    ErrorHandler ..> MASAAnnotationWidget : decorates
+    ErrorHandler ..> VideoManager : decorates
+    ErrorHandler ..> AnnotationRepository : decorates
+    ErrorHandler ..> ExportService : decorates
 ```
 
-## 主要な関係性の説明
+## 主要な改善点
 
-### 1. アーキテクチャ階層
-- **MASAAnnotationApp**: アプリケーションのエントリーポイント
-- **MASAAnnotationWidget**: メインコントローラー、全UIコンポーネントを統合
-- **UI Components**: MenuPanel、VideoPreviewWidget、VideoControlPanel
+### 1. **責務の明確化**
+- `VideoAnnotationManager` → `VideoManager` + `AnnotationRepository` + `ExportService`
+- 各クラスが単一責任を持つように分離
 
-### 2. データフロー
-- **VideoAnnotationManager**: 中央データ管理、動画とアノテーションを統合管理
-- **ObjectTracker**: MASA推論エンジン、自動追跡処理
-- **JSONLoader**: 外部データ読み込み
+### 2. **共通機能の統合**
+- `CoordinateTransform`: 座標変換ロジックの一元化
+- `ConfigManager`: 設定管理の統合
+- `ErrorHandler`: エラーハンドリングの統一
 
-### 3. 編集・可視化
-- **BoundingBoxEditor**: バウンディングボックスの直接編集
-- **AnnotationVisualizer**: アノテーション結果の可視化
+### 3. **状態管理の改善**
+- `ModeManager` + `AnnotationMode`: 状態パターンによるモード管理
+- 複数のモードフラグを統一的に管理
 
-### 4. 非同期処理
-- **TrackingWorker**: バックグラウンドでの重い追跡処理
-- **VideoPlaybackController**: 動画再生制御
+### 4. **シグナル接続の簡素化**
+- `SignalConnector`: 命名規則に基づく自動接続
+- 冗長なシグナル接続コードを削減
 
-このアーキテクチャにより、MASAの自動追跡機能と手動アノテーション機能を統合した効率的なデータセット作成ツールが実現されています。
+### 5. **データ検証の強化**
+- 全データクラスに `validate()` メソッドを追加
+- `__post_init__()` での自動検証
+
+この改善により、コードの可読性、保守性、拡張性が大幅に向上し、重複コードが削減されます。
