@@ -539,7 +539,6 @@ class MenuPanel(QWidget):
         existing_labels = self.parent().annotation_repository.get_all_labels()   
         dialog = AnnotationInputDialog(None, self, existing_labels=existing_labels) # bboxは不要なのでNone  
         dialog.setWindowTitle("一括追加アノテーションの共通ラベルを選択")  
-        dialog.set_label_text("一括追加するアノテーションの共通ラベルを選択してください:")  
   
         if dialog.exec() == QDialog.DialogCode.Accepted:  
             assigned_label = dialog.get_label()  

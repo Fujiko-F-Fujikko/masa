@@ -191,31 +191,15 @@ class MASAAnnotationWidget(QWidget):
           
         start_frame, end_frame = self.video_control.get_selected_range()  
           
-        # バッチ追加モードからの呼び出しの場合  
-        if assigned_track_id != -1: # -1はダミー値  
-            # temp_bboxes_for_batch_add に含まれるアノテーションのラベルを assigned_label で上書き  
-            for frame_id, ann in self.temp_bboxes_for_batch_add:  
-                ann.label = assigned_label # ラベルを上書き  
-            initial_annotations_for_worker = [ann for frame_id, ann in self.temp_bboxes_for_batch_add]  
-            new_track_id = assigned_track_id  
-            label_for_tracking = assigned_label  
-        else:  
-            # 通常の自動追跡の場合  
-            if not self.annotation_repository.manual_annotations:  
-                ErrorHandler.show_warning_dialog("Please add manual annotations first", "Warning")  
-                return  
-              
-            first_manual_frame_id = min(self.annotation_repository.manual_annotations.keys())  
-            initial_annotations_for_worker = [  
-                ann for ann in self.annotation_repository.manual_annotations[first_manual_frame_id]  
-            ]  
-            new_track_id = self.annotation_repository.get_next_object_id()  
-              
-            if initial_annotations_for_worker:  
-                label_for_tracking = initial_annotations_for_worker[0].label  
-            else:  
-                label_for_tracking = "unknown"  
-              
+        # temp_bboxes_for_batch_add に含まれるアノテーションのラベルを assigned_label で上書き  
+        initial_annotations_for_worker = []  
+        for frame_id, ann_obj in self.temp_bboxes_for_batch_add:  
+            ann_obj.label = assigned_label # ラベルを上書き  
+            initial_annotations_for_worker.append((frame_id, ann_obj.bbox)) # (frame_id, BoundingBox) のタプルを追加  
+
+        new_track_id = assigned_track_id  
+        label_for_tracking = assigned_label  
+        
         frame_count = end_frame - start_frame + 1  
         reply = QMessageBox.question(  
             self, "Confirm Tracking",  

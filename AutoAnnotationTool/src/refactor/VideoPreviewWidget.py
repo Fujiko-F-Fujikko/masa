@@ -271,12 +271,10 @@ class VideoPreviewWidget(QLabel):
 
     def clear_temp_batch_annotations(self):  
         """一時的なバッチ追加アノテーションを設定"""  
-        print("clear_temp_batch_annotations.")
         self.temp_batch_annotations.clear()  
         self.update_frame_display() # 更新を反映
 
     def add_temp_batch_annotation(self, annotation: ObjectAnnotation):  
         """一時的なバッチ追加アノテーションを設定"""  
-        print("add_temp_batch_annotation:", annotation)
         self.temp_batch_annotations.append(annotation)  
         self.update_frame_display() # 更新を反映
