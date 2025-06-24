@@ -2,7 +2,6 @@
 from PyQt6.QtCore import QThread, pyqtSignal  
 from typing import List, Tuple, Optional, Dict  
 import numpy as np  
-import torch  
 from DataClass import ObjectAnnotation, BoundingBox  
 from ObjectTracker import ObjectTracker  
 from AnnotationRepository import AnnotationRepository  
@@ -21,6 +20,7 @@ class TrackingWorker(QThread):
                  initial_annotations: List[Tuple[int, BoundingBox]],  
                  assigned_track_id: int,  
                  assigned_label: str,  
+                 video_width: int, video_height: int,
                  parent=None):  
         super().__init__(parent)  
         self.video_manager = video_manager  
@@ -32,6 +32,8 @@ class TrackingWorker(QThread):
         self.assigned_track_id = assigned_track_id  
         self.assigned_label = assigned_label  
         self.max_used_track_id = assigned_track_id # 追跡中に使用された最大IDを記録  
+        self.video_width = video_width  
+        self.video_height = video_height  
           
     @ErrorHandler.handle_with_dialog("Tracking Worker Error")  
     def run(self):  
@@ -58,7 +60,8 @@ class TrackingWorker(QThread):
                 ObjectAnnotation(  
                     object_id=-1, # MASAモデルが新しいトラックとして扱うように-1を設定  
                     frame_id=frame_id,  
-                    bbox=bbox,  
+                    bbox=self.normalize_bbox_coords(  
+                        bbox.x1, bbox.y1, bbox.x2, bbox.y2),
                     label=self.assigned_label,  
                     is_manual=True,  
                     track_confidence=1.0  
@@ -104,3 +107,25 @@ class TrackingWorker(QThread):
                 self.error_occurred.emit(f"Error tracking frame {frame_id}: {e}")  
                 continue  
         return results
+
+    def normalize_bbox_coords(self, x1: int, y1: int, x2: int, y2: int) -> BoundingBox:  
+        """  
+        ピクセル座標を0.0-1.0の範囲に正規化し、BoundingBoxオブジェクトとして返す。  
+        """  
+        if self.video_width == 0 or self.video_height == 0:  
+            # エラーハンドリングまたはデフォルト値の提供  
+            return BoundingBox(0.0, 0.0, 0.0, 0.0)  
+  
+        # 0.0-1.0の範囲に正規化  
+        norm_x1 = x1 / self.video_width  
+        norm_y1 = y1 / self.video_height  
+        norm_x2 = x2 / self.video_width  
+        norm_y2 = y2 / self.video_height  
+          
+        # 妥当な範囲にクランプ  
+        norm_x1 = max(0.0, min(1.0, norm_x1))  
+        norm_y1 = max(0.0, min(1.0, norm_y1))  
+        norm_x2 = max(0.0, min(1.0, norm_x2))  
+        norm_y2 = max(0.0, min(1.0, norm_y2))  
+          
+        return BoundingBox(norm_x1, norm_y1, norm_x2, norm_y2)  

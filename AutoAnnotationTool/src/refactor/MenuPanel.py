@@ -26,7 +26,7 @@ class MenuPanel(QWidget):
     edit_mode_requested = pyqtSignal(bool)  
     batch_add_mode_requested = pyqtSignal(bool)  
       
-    tracking_requested = pyqtSignal(int, int, int, str) # start_frame, end_frame, assigned_track_id, assigned_label  
+    tracking_requested = pyqtSignal(int, str) # assigned_track_id, assigned_label  
       
     label_change_requested = pyqtSignal(object, str)  # annotation, new_label  
     delete_single_annotation_requested = pyqtSignal(object) # ObjectAnnotation  
@@ -555,7 +555,7 @@ class MenuPanel(QWidget):
   
             # MASAAnnotationWidgetに追跡開始を要求  
             # assigned_track_id は MASAAnnotationWidget 側で割り当てられるため、ここではダミー値 -1 を渡す  
-            self.tracking_requested.emit(start_frame, end_frame, -1, assigned_label)  
+            self.tracking_requested.emit(-1, assigned_label)  
               
             # UIをリセット  
             self.batch_add_annotation_btn.setChecked(False)  

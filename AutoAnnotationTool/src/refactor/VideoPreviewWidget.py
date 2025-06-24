@@ -1,7 +1,7 @@
 # 改善されたVideoPreviewWidget.py  
 import cv2  
 import numpy as np  
-from typing import Any
+from typing import Any, List
 from PyQt6.QtWidgets import QLabel, QSizePolicy  
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QRect  
 from PyQt6.QtGui import QPixmap, QImage, QPainter, QPen, QColor  
@@ -11,6 +11,7 @@ from BoundingBoxEditor import BoundingBoxEditor
 from CoordinateTransform import CoordinateTransform  
 from ModeManager import ModeManager  
 from ConfigManager import ConfigManager
+from DataClass import ObjectAnnotation
 
 class VideoPreviewWidget(QLabel):  
     """統合された動画プレビューウィジェット（改善版）"""  
@@ -53,7 +54,9 @@ class VideoPreviewWidget(QLabel):
         self.score_threshold = 0.2   
         
         self._updating_frame = False # 再帰防止フラグ  
-          
+        
+        self.temp_batch_annotations: List[ObjectAnnotation] = []
+
         self._connect_signals()  
           
     def _connect_signals(self):  
@@ -88,11 +91,16 @@ class VideoPreviewWidget(QLabel):
         """AnnotationRepositoryを設定"""  
         self.annotation_repository = annotation_repository  
   
-    def set_mode(self, mode_type: str):  
+    def set_mode(self, mode_name: str):  
         """モードを設定"""  
-        self.mode_manager.set_mode(mode_type)  
-        self.update_frame_display() # モード変更時に表示を更新  
-          
+        if self.mode_manager:  
+            self.mode_manager.set_mode(mode_name)  
+            self.update_frame_display() # モード変更時に表示を更新  
+
+
+        else:  
+            print("Error: ModeManager not set in VideoPreviewWidget.")
+
     def set_display_options(self, show_manual: bool, show_auto: bool,   
                            show_ids: bool, show_confidence: bool, score_threshold: float = 0.2):  
         """表示オプションの設定"""  
@@ -151,8 +159,14 @@ class VideoPreviewWidget(QLabel):
                 if (annotation.is_manual and self.show_manual_annotations) or \
                    (not annotation.is_manual and self.show_auto_annotations):  
                     annotations_to_show.append(annotation)  
-              
-            if annotations_to_show:  
+
+            # 一時的なバッチ追加アノテーションを追加  
+            # 現在のフレームに属する一時アノテーションのみを描画  
+            annotations_to_show.extend([  
+                ann for ann in self.temp_batch_annotations if ann.frame_id == self.current_frame_id  
+            ])  
+
+            if annotations_to_show:
                 self.current_frame = self.visualizer.draw_annotations(  
                     self.current_frame, annotations_to_show,  
                     show_ids=self.show_ids,  
@@ -254,3 +268,15 @@ class VideoPreviewWidget(QLabel):
         super().resizeEvent(event)  
         if self.current_frame is not None:  
             self.update_frame_display()  
+
+    def clear_temp_batch_annotations(self):  
+        """一時的なバッチ追加アノテーションを設定"""  
+        print("clear_temp_batch_annotations.")
+        self.temp_batch_annotations.clear()  
+        self.update_frame_display() # 更新を反映
+
+    def add_temp_batch_annotation(self, annotation: ObjectAnnotation):  
+        """一時的なバッチ追加アノテーションを設定"""  
+        print("add_temp_batch_annotation:", annotation)
+        self.temp_batch_annotations.append(annotation)  
+        self.update_frame_display() # 更新を反映

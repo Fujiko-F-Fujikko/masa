@@ -1,11 +1,11 @@
 # ModeManager.py  
 from abc import ABC, abstractmethod  
-from PyQt6.QtCore import Qt, QObject, pyqtSignal  
+from PyQt6.QtCore import Qt, QRect
 from PyQt6.QtGui import QMouseEvent
-from typing import Optional  
 
 from DataClass import ObjectAnnotation
 from ErrorHandler import ErrorHandler
+from BoundingBoxEditor import BoundingBox
   
 class AnnotationMode(ABC):  
     """アノテーションモードの抽象基底クラス"""  
@@ -156,24 +156,29 @@ class BatchAddMode(AnnotationMode):
     def handle_mouse_release(self, event: QMouseEvent):  
         if event.button() == Qt.MouseButton.LeftButton:  
             self.end_point = event.position().toPoint()  
+            self.drawing_new_bbox = False # BatchAddModeではdrawing_new_bboxフラグは不要ですが、EditModeとの整合性を保つため残します
             self.widget.bbox_editor.complete_new_bbox_drawing(  
                 event.position().toPoint()  
             )  
             self.widget.setCursor(Qt.CursorShape.CrossCursor)  
 
-  
-            x1 = min(self.start_point.x(), self.end_point.x())  
-            y1 = min(self.start_point.y(), self.end_point.y())  
-            x2 = max(self.start_point.x(), self.end_point.x())  
-            y2 = max(self.start_point.y(), self.end_point.y())  
-            
+            # BoundingBoxEditor::complete_new_bbox_drawingと同じ処理
+            final_rect = QRect(self.start_point, event.position().toPoint()).normalized()  
+              
+            # ウィジェット座標を画像座標に変換  
+            x1, y1 = self.widget.coordinate_transform.widget_to_image(final_rect.topLeft())  
+            x2, y2 = self.widget.coordinate_transform.widget_to_image(final_rect.bottomRight())  
+              
+            # 画像境界内にクリップ  
+            x1, y1 = self.widget.coordinate_transform.clip_to_bounds(x1, y1)  
+            x2, y2 = self.widget.coordinate_transform.clip_to_bounds(x2, y2)  
+
             # 有効なバウンディングボックスかチェック  
             if abs(x2 - x1) <= 10 or abs(y2 - y1) <= 10:  
               return  # バウンディングボックスが小さすぎる場合は無視
+            
+            bbox = BoundingBox(x1, y1, x2, y2)
 
-            # 描画されたバウンディングボックスを正規化  
-            bbox = self.widget.bbox_editor.normalize_bbox_coords(x1, y1, x2, y2)  
-              
             # ラベル入力ダイアログは出さない (削除)  
             # ここで仮のラベルを設定  
             temp_label = "batch_temp" # 仮のラベル  
@@ -192,41 +197,41 @@ class BatchAddMode(AnnotationMode):
             self.widget.parent.temp_bboxes_for_batch_add.append(  
                 (self.widget.current_frame_id, annotation) # ObjectAnnotationを直接追加  
             )  
+            # MASAAnnotationWidgetのtemp_bboxes_for_batch_addにも追加（追跡開始時に使用するため）  
+            self.widget.add_temp_batch_annotation(annotation)
+
             self.widget.update_frame_display()  
             ErrorHandler.show_info_dialog(f"バウンディングボックスを追加しました。ラベル: {temp_label}", "追加完了")  
 
     def get_cursor_shape(self) -> Qt.CursorShape:  
         return Qt.CursorShape.CrossCursor  
   
-class ModeManager(QObject):  
-    """モード管理クラス"""  
-      
-    mode_changed = pyqtSignal(str)  # モード名  
-      
-    def __init__(self, widget):  
-        super().__init__()  
-        self.widget = widget  
-        self.current_mode: Optional[AnnotationMode] = None  
+class ModeManager:  
+    """現在のアノテーションモードを管理し、マウスイベントを適切なモードに委譲するクラス"""  
+
+    def __init__(self, video_preview_widget):  
+        self.video_preview_widget = video_preview_widget  
         self.modes = {  
-            'view': ViewMode(widget),  
-            'edit': EditMode(widget),  
-            'batch_add': BatchAddMode(widget)  
+            'view': ViewMode(video_preview_widget),  
+            'edit': EditMode(video_preview_widget),  
+            'batch_add': BatchAddMode(video_preview_widget)  
         }  
-      
-    def set_mode(self, mode_type: str):  
-        """モードを設定"""  
-        if mode_type not in self.modes:  
-            raise ValueError(f"Unknown mode: {mode_type}")  
-          
-        # 現在のモードを終了  
-        if self.current_mode:  
-            self.current_mode.exit_mode()  
-          
-        # 新しいモードを開始  
-        self.current_mode = self.modes[mode_type]  
-        self.current_mode.enter_mode()  
-        self.mode_changed.emit(mode_type)  
-      
+        self._current_mode_name = 'view' # 初期モード名  
+        self.current_mode = self.modes[self._current_mode_name]  
+  
+    def set_mode(self, mode_name: str):  
+        if mode_name in self.modes:  
+            self._current_mode_name = mode_name  
+            self.current_mode = self.modes[mode_name]  
+            self.current_mode.enter_mode()  
+
+        else:  
+            raise ValueError(f"Unknown mode: {mode_name}")  
+  
+    @property  
+    def current_mode_name(self) -> str:  
+        return self._current_mode_name  
+    
     def handle_mouse_event(self, event_type: str, event: QMouseEvent):  
         """マウスイベントを現在のモードに委譲"""  
         if not self.current_mode:  

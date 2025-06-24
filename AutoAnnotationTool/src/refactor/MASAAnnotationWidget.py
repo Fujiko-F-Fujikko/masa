@@ -183,7 +183,7 @@ class MASAAnnotationWidget(QWidget):
             ErrorHandler.show_info_dialog(f"Annotations exported to {file_path}", "Export Complete")  
 
     @ErrorHandler.handle_with_dialog("Tracking Error")  
-    def start_tracking(self, dummy_start_frame: int, dummy_end_frame: int, assigned_track_id: int, assigned_label: str):  
+    def start_tracking(self,  assigned_track_id: int, assigned_label: str):  
         """自動追跡を開始"""  
         if not self.video_manager:  
             ErrorHandler.show_warning_dialog("Please load a video file first", "Warning")  
@@ -227,7 +227,11 @@ class MASAAnnotationWidget(QWidget):
           
         if reply == QMessageBox.StandardButton.Yes:  
             self.menu_panel.update_tracking_progress("Tracking in progress...")  
-              
+        
+            # 動画の幅と高さを取得  
+            video_width = self.video_manager.get_video_width()  
+            video_height = self.video_manager.get_video_height()  
+        
             self.tracking_worker = TrackingWorker(  
                 self.video_manager,  
                 self.annotation_repository,  
@@ -236,7 +240,8 @@ class MASAAnnotationWidget(QWidget):
                 end_frame,  
                 initial_annotations_for_worker,  
                 new_track_id,  
-                label_for_tracking  
+                label_for_tracking,
+                video_width, video_height
             )  
             self.tracking_worker.tracking_completed.connect(self.on_tracking_completed)  
             self.tracking_worker.progress_updated.connect(self.on_tracking_progress)  
@@ -246,6 +251,7 @@ class MASAAnnotationWidget(QWidget):
             # バッチ追加モードの場合はUIをリセット  
             if assigned_track_id != -1:  
                 self.temp_bboxes_for_batch_add.clear()  
+                self.video_preview.clear_temp_batch_annotations() # ここもクリア
                 self.video_preview.set_mode('edit') # 編集モードに戻す  
                 self.menu_panel.batch_add_annotation_btn.setChecked(False)  
                 self.menu_panel.complete_batch_add_btn.setEnabled(False)  
@@ -293,30 +299,41 @@ class MASAAnnotationWidget(QWidget):
         bbox = BoundingBox(x1, y1, x2, y2)  
         current_frame = self.video_control.current_frame  
           
-        # ラベル入力ダイアログを表示  
-        dialog = AnnotationInputDialog(bbox, self, existing_labels=self.annotation_repository.get_all_labels())  
-        if dialog.exec() == QDialog.DialogCode.Accepted:  
-            label = dialog.get_label()  
-            if label:  
-                annotation = ObjectAnnotation(  
-                    object_id=-1, # 新規IDを意味  
-                    frame_id=current_frame,  
-                    bbox=bbox,  
-                    label=label,  
-                    is_manual=True,  
-                    track_confidence=1.0  
-                )  
-                self.annotation_repository.add_annotation(annotation)  
-                self.update_annotation_count()  
-                ErrorHandler.show_info_dialog(f"Added annotation: {label} at frame {current_frame}", "Annotation Added")  
-                  
-                # 新規作成されたアノテーションを選択状態にする  
-                self.video_preview.bbox_editor.selected_annotation = annotation  
-                self.video_preview.bbox_editor.selection_changed.emit(annotation)  
-                self.video_preview.update_frame_display()  
-            else:  
-                ErrorHandler.show_warning_dialog("Label cannot be empty.", "Input Error")  
-                  
+        # 現在のモードがEditModeの場合のみラベル入力ダイアログを表示  
+        if self.video_preview.mode_manager.current_mode_name == 'edit': # current_mode_name を使用  
+            dialog = AnnotationInputDialog(bbox, self, existing_labels=self.annotation_repository.get_all_labels())  
+            if dialog.exec() == QDialog.DialogCode.Accepted:  
+                label = dialog.get_label()  
+                if label:  
+                    annotation = ObjectAnnotation(  
+                        object_id=-1, # 新規IDを意味  
+                        frame_id=current_frame,  
+                        bbox=bbox,  
+                        label=label,  
+                        is_manual=True,  
+                        track_confidence=1.0,  
+                        is_batch_added=False # 通常の手動アノテーション  
+                    )  
+                    self.annotation_repository.add_annotation(annotation)  
+                    self.update_annotation_count()  
+                    ErrorHandler.show_info_dialog(f"Added annotation: {label} at frame {current_frame}", "Annotation Added")  
+                      
+                    self.video_preview.bbox_editor.selected_annotation = annotation  
+                    self.video_preview.bbox_editor.selection_changed.emit(annotation)  
+                    self.video_preview.update_frame_display()  
+
+                else:  
+                    ErrorHandler.show_warning_dialog("Label cannot be empty.", "Input Error")  
+        elif self.video_preview.mode_manager.current_mode_name == 'batch_add':  
+            # BatchAddModeの場合、ラベル入力ダイアログは表示しない  
+            # BatchAddModeで既に仮のラベルが設定されているはずなので、ここでは何もしない  
+            # ただし、temp_bboxes_for_batch_addへの追加はBatchAddMode内で直接行われるため、  
+            # ここでは何もしないか、エラーログを出す  
+            ErrorHandler.show_warning_dialog("BatchAddMode中にbbox_createdが呼び出されましたが、処理はスキップされました。", "Warning")  
+        else:  
+            # その他のモードの場合（予期しないケース）  
+            ErrorHandler.show_warning_dialog("不明なモードでbbox_createdが呼び出されました。", "Warning")
+
     def on_frame_changed(self, frame_id: int):  
         """フレーム変更時の処理"""  
         self.video_control.set_current_frame(frame_id)  
@@ -327,6 +344,7 @@ class MASAAnnotationWidget(QWidget):
         if enabled:  
             self.video_preview.set_mode('edit')  
             self.video_control.range_slider.setVisible(True)  
+            self.video_preview.clear_temp_batch_annotations() # 他のモードに切り替える際もクリア
             ErrorHandler.show_info_dialog("編集モードが有効になりました。", "モード変更")  
         else:  
             self.video_preview.set_mode('view')  
@@ -339,6 +357,7 @@ class MASAAnnotationWidget(QWidget):
         """一括追加モードの設定とUIの更新"""  
         if enabled:  
             self.video_preview.set_mode('batch_add')  
+            self.video_preview.clear_temp_batch_annotations() # バッチ追加モード開始時に一時リストをクリア
             ErrorHandler.show_info_dialog("新規アノテーション一括追加モードが有効になりました。\n動画プレビュー上でバウンディングボックスを描画してください。\nバウンディングボックスの追加が終わったら追加完了ボタンを押してください。", "モード変更")  
             self.temp_bboxes_for_batch_add.clear()  
         else:  
