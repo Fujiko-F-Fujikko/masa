@@ -94,7 +94,7 @@ class TrackingWorker(QThread):
                       
                     self.max_used_track_id = max(self.max_used_track_id, ann.object_id)  
                     ann.label = self.assigned_label # ラベルを上書き  
-                    ann.is_manual = False # 自動追跡結果としてマーク  
+                    ann.is_manual = True # 手動追跡結果としてマーク  
                     final_annotations_for_frame.append(ann)  
                   
                 results[frame_id] = final_annotations_for_frame  
