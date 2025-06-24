@@ -201,7 +201,6 @@ class BatchAddMode(AnnotationMode):
             self.widget.add_temp_batch_annotation(annotation)
 
             self.widget.update_frame_display()  
-            ErrorHandler.show_info_dialog(f"バウンディングボックスを追加しました。ラベル: {temp_label}", "追加完了")  
 
     def get_cursor_shape(self) -> Qt.CursorShape:  
         return Qt.CursorShape.CrossCursor  

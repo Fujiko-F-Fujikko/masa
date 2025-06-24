@@ -313,7 +313,8 @@ class MASAAnnotationWidget(QWidget):
             # BatchAddModeで既に仮のラベルが設定されているはずなので、ここでは何もしない  
             # ただし、temp_bboxes_for_batch_addへの追加はBatchAddMode内で直接行われるため、  
             # ここでは何もしないか、エラーログを出す  
-            ErrorHandler.show_warning_dialog("BatchAddMode中にbbox_createdが呼び出されましたが、処理はスキップされました。", "Warning")  
+            #ErrorHandler.show_warning_dialog("BatchAddMode中にbbox_createdが呼び出されましたが、処理はスキップされました。", "Warning")  
+            pass
         else:  
             # その他のモードの場合（予期しないケース）  
             ErrorHandler.show_warning_dialog("不明なモードでbbox_createdが呼び出されました。", "Warning")
