@@ -157,36 +157,31 @@ class MASAAnnotationWidget(QWidget):
           
         file_dialog_title = f"Save {format.upper()} Annotations"  
         default_filename = f"annotations.{format}"  
-        if format == "masa_json":  
-            default_filename = "masa_annotations.json"  
-          
         file_path, _ = QFileDialog.getSaveFileName(  
             self, file_dialog_title, default_filename,  
             "JSON Files (*.json);;All Files (*)"  
         )  
           
         if file_path:  
-            if format == "json":  
-                self.export_service.export_json(  
-                    self.annotation_repository.frame_annotations,  
-                    self.video_manager.video_path,  
-                    file_path  
-                )  
-            elif format == "masa_json":  
+            if format == "masa_json":  
                 self.export_service.export_masa_json(  
                     self.annotation_repository.frame_annotations,  
                     self.video_manager.video_path,  
                     file_path  
                 )  
-            elif format == "coco":  
+            elif format == "coco_json":  
                 self.export_service.export_coco(  
                     self.annotation_repository.frame_annotations,  
                     self.video_manager.video_path,  
                     file_path,  
                     self.video_manager  
                 )  
+            else:  
+                ErrorHandler.show_error_dialog(f"Unsupported export format: {format}", "Error")  
+                return
+
             ErrorHandler.show_info_dialog(f"Annotations exported to {file_path}", "Export Complete")  
-              
+
     @ErrorHandler.handle_with_dialog("Tracking Error")  
     def start_tracking(self, dummy_start_frame: int, dummy_end_frame: int, assigned_track_id: int, assigned_label: str):  
         """自動追跡を開始"""  

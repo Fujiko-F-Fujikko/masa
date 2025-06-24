@@ -58,8 +58,9 @@ class ObjectAnnotation:
       
     def validate(self):  
         """アノテーションの妥当性をチェック"""  
-        if self.object_id < 0:  
-            raise ValueError(f"Invalid object_id: {self.object_id}")  
+        # object_idは-1も来得る
+        #if self.object_id < 0:  
+        #    raise ValueError(f"Invalid object_id: {self.object_id}")  
         if not self.label or not self.label.strip():  
             raise ValueError("Label cannot be empty")  
         if self.frame_id < 0:  

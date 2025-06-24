@@ -100,14 +100,9 @@ class MenuPanel(QWidget):
         self.save_masa_json_btn.clicked.connect(lambda: self.export_requested.emit("masa_json"))  
         self.save_masa_json_btn.setEnabled(False)  
         file_layout.addWidget(self.save_masa_json_btn)  
-          
-        self.save_json_btn = QPushButton("カスタムJSONを保存")  
-        self.save_json_btn.clicked.connect(lambda: self.export_requested.emit("json"))  
-        self.save_json_btn.setEnabled(False)  
-        file_layout.addWidget(self.save_json_btn)  
-          
+      
         self.save_coco_json_btn = QPushButton("COCO JSONを保存")  
-        self.save_coco_json_btn.clicked.connect(lambda: self.export_requested.emit("coco"))  
+        self.save_coco_json_btn.clicked.connect(lambda: self.export_requested.emit("coco_json"))  
         self.save_coco_json_btn.setEnabled(False)  
         file_layout.addWidget(self.save_coco_json_btn)  
           
@@ -277,12 +272,7 @@ class MenuPanel(QWidget):
           
         self.tracking_progress_label = QLabel("")  
         tracking_layout.addWidget(self.tracking_progress_label)  
-          
-        self.start_tracking_btn = QPushButton("自動追跡開始")  
-        self.start_tracking_btn.setEnabled(False)  
-        self.start_tracking_btn.clicked.connect(self._on_start_tracking_clicked)  
-        tracking_layout.addWidget(self.start_tracking_btn)  
-          
+
         tracking_group.setLayout(tracking_layout)  
         layout.addWidget(tracking_group)  
           
@@ -314,7 +304,6 @@ class MenuPanel(QWidget):
         """JSON情報を更新"""  
         filename = Path(json_path).name  
         self.json_info_label.setText(f"{filename}\n{annotation_count} annotations loaded")  
-        self.save_json_btn.setEnabled(True)  
         self.save_masa_json_btn.setEnabled(True)  
         self.save_coco_json_btn.setEnabled(True)  
           
@@ -331,7 +320,6 @@ class MenuPanel(QWidget):
         self.delete_track_btn.setEnabled(enabled and self.current_selected_annotation is not None)  
         self.propagate_label_btn.setEnabled(enabled and self.current_selected_annotation is not None)  
         self.batch_add_annotation_btn.setEnabled(enabled)  
-        self.start_tracking_btn.setEnabled(enabled) # 編集モードで追跡開始ボタンを有効化  
           
         # 一括追加モードが有効な場合は完了ボタンも制御  
         if self.batch_add_annotation_btn.isChecked():  
@@ -534,9 +522,3 @@ class MenuPanel(QWidget):
           
         self.batch_add_annotation_btn.setChecked(False)  
         self.complete_batch_add_btn.setEnabled(False)  
-
-    def _on_start_tracking_clicked(self):  
-        """自動追跡開始ボタンクリック時の処理"""  
-        # MASAAnnotationWidgetに処理を委譲するため、シグナルを発火  
-        # start_frame, end_frame, assigned_track_id, assigned_label はMASAAnnotationWidget側で決定されるためダミー値を渡す  
-        self.tracking_requested.emit(-1, -1, -1, "")
