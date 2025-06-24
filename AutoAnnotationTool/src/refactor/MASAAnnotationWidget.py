@@ -196,7 +196,7 @@ class MASAAnnotationWidget(QWidget):
         if assigned_track_id != -1: # -1はダミー値  
             initial_annotations_for_worker = self.temp_bboxes_for_batch_add  
             new_track_id = assigned_track_id  
-            label_for_tracking = assigned_label  
+            label_for_tracking = assigned_label # assigned_labelをそのまま使用  
         else:  
             # 通常の自動追跡の場合  
             if not self.annotation_repository.manual_annotations:  
@@ -204,13 +204,21 @@ class MASAAnnotationWidget(QWidget):
                 return  
               
             # 最初のフレームの手動アノテーションを初期アノテーションとして使用  
+            # ここでObjectAnnotationからラベルを取得するように修正  
             first_manual_frame_id = min(self.annotation_repository.manual_annotations.keys())  
             initial_annotations_for_worker = [  
                 (first_manual_frame_id, ann.bbox)   
                 for ann in self.annotation_repository.manual_annotations[first_manual_frame_id]  
             ]  
             new_track_id = self.annotation_repository.get_next_object_id()  
-            label_for_tracking = initial_annotations_for_worker[0][1].label if initial_annotations_for_worker else "unknown"  
+              
+            # ここを修正: initial_annotations_for_worker は (frame_id, BoundingBox) のリストなので、  
+            # ラベルは assigned_label を使うか、または manual_annotations から取得する必要があります。  
+            # ここでは、manual_annotations から取得するようにします。  
+            if self.annotation_repository.manual_annotations[first_manual_frame_id]:  
+                label_for_tracking = self.annotation_repository.manual_annotations[first_manual_frame_id][0].label  
+            else:  
+                label_for_tracking = "unknown"  
               
         frame_count = end_frame - start_frame + 1  
         reply = QMessageBox.question(  
