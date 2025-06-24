@@ -1,8 +1,11 @@
 # ModeManager.py  
 from abc import ABC, abstractmethod  
 from PyQt6.QtCore import Qt, QObject, pyqtSignal  
-from PyQt6.QtGui import QMouseEvent  
+from PyQt6.QtGui import QMouseEvent
 from typing import Optional  
+
+from DataClass import ObjectAnnotation
+from ErrorHandler import ErrorHandler
   
 class AnnotationMode(ABC):  
     """アノテーションモードの抽象基底クラス"""  
@@ -116,7 +119,7 @@ class EditMode(AnnotationMode):
                 self.widget.setCursor(Qt.CursorShape.PointingHandCursor)  
       
     def get_cursor_shape(self) -> Qt.CursorShape:  
-        return Qt.CursorShape.PointingHandCursor  
+        return Qt.CursorShape.CrossCursor  
       
     def _get_displayable_annotations(self, frame_annotation):  
         """表示可能なアノテーションをフィルタリング"""  
@@ -132,27 +135,66 @@ class EditMode(AnnotationMode):
   
 class BatchAddMode(AnnotationMode):  
     """一括追加モード"""  
+    def __init__(self, widget):  
+        super().__init__(widget)  
+        self.start_point = None  
+        self.end_point = None  
       
     def handle_mouse_press(self, event: QMouseEvent):  
         if event.button() == Qt.MouseButton.LeftButton:  
-            pos = event.position().toPoint()  
-            self.widget.bbox_editor.start_new_bbox_drawing(pos)  
+            self.start_point = event.position().toPoint()  
+            self.widget.bbox_editor.start_new_bbox_drawing(self.start_point)  
             self.widget.bbox_editor.selected_annotation = None  
             self.widget.bbox_editor.selection_changed.emit(None)  
             self.widget.update_frame_display()  
-      
-    def handle_mouse_move(self, event: QMouseEvent):  
-        pos = event.position().toPoint()  
-        self.widget.bbox_editor.update_new_bbox_drawing(pos)  
+
+    def handle_mouse_move(self, event: QMouseEvent): 
+        self.end_point = event.position().toPoint()  
+        self.widget.bbox_editor.update_new_bbox_drawing(self.end_point)  
         self.widget.update()  
       
     def handle_mouse_release(self, event: QMouseEvent):  
         if event.button() == Qt.MouseButton.LeftButton:  
+            self.end_point = event.position().toPoint()  
             self.widget.bbox_editor.complete_new_bbox_drawing(  
                 event.position().toPoint()  
             )  
             self.widget.setCursor(Qt.CursorShape.CrossCursor)  
-      
+
+  
+            x1 = min(self.start_point.x(), self.end_point.x())  
+            y1 = min(self.start_point.y(), self.end_point.y())  
+            x2 = max(self.start_point.x(), self.end_point.x())  
+            y2 = max(self.start_point.y(), self.end_point.y())  
+            
+            # 有効なバウンディングボックスかチェック  
+            if abs(x2 - x1) <= 10 or abs(y2 - y1) <= 10:  
+              return  # バウンディングボックスが小さすぎる場合は無視
+
+            # 描画されたバウンディングボックスを正規化  
+            bbox = self.widget.bbox_editor.normalize_bbox_coords(x1, y1, x2, y2)  
+              
+            # ラベル入力ダイアログは出さない (削除)  
+            # ここで仮のラベルを設定  
+            temp_label = "batch_temp" # 仮のラベル  
+  
+            # ObjectAnnotationを作成し、temp_bboxes_for_batch_addに追加  
+            # is_batch_added フラグを True に設定  
+            annotation = ObjectAnnotation(  
+                object_id=-1, # 仮のID、後で割り当てられる  
+                frame_id=self.widget.current_frame_id,  
+                bbox=bbox,  
+                label=temp_label, # 仮のラベルを使用  
+                is_manual=True, # 手動で追加されたものとして扱う  
+                track_confidence=1.0,  
+                is_batch_added=True # バッチ追加されたアノテーションとしてマーク  
+            )  
+            self.widget.parent.temp_bboxes_for_batch_add.append(  
+                (self.widget.current_frame_id, annotation) # ObjectAnnotationを直接追加  
+            )  
+            self.widget.update_frame_display()  
+            ErrorHandler.show_info_dialog(f"バウンディングボックスを追加しました。ラベル: {temp_label}", "追加完了")  
+
     def get_cursor_shape(self) -> Qt.CursorShape:  
         return Qt.CursorShape.CrossCursor  
   

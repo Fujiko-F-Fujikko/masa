@@ -23,6 +23,7 @@ class VideoPreviewWidget(QLabel):
       
     def __init__(self, parent=None):  
         super().__init__(parent)  
+        self.parent = parent
         self.setMinimumSize(640, 480) # 適切なデフォルトサイズ  
         self.setStyleSheet("border: 2px solid gray; background-color: black;")  
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)  
@@ -39,7 +40,9 @@ class VideoPreviewWidget(QLabel):
         self.bbox_editor = BoundingBoxEditor(self)  
         self.coordinate_transform = CoordinateTransform() # CoordinateTransformを使用  
         self.mode_manager = ModeManager(self) # ModeManagerを使用  
-          
+        self.bbox_editor = BoundingBoxEditor(self) # BoundingBoxEditorのインスタンス  
+        self.bbox_editor.set_editing_mode(False) # 初期状態は編集モードOFF 
+
         self.config_manager = None # ConfigManagerへの参照を追加  
           
         # 表示オプションはConfigManagerから取得するように変更  

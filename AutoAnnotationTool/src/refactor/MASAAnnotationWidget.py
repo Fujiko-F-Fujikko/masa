@@ -54,7 +54,7 @@ class MASAAnnotationWidget(QWidget):
           
         right_layout = QVBoxLayout()  
           
-        self.video_preview = VideoPreviewWidget()  
+        self.video_preview = VideoPreviewWidget(self)  
         right_layout.addWidget(self.video_preview)  
           
         self.video_control = VideoControlPanel()  
@@ -189,34 +189,30 @@ class MASAAnnotationWidget(QWidget):
             ErrorHandler.show_warning_dialog("Please load a video file first", "Warning")  
             return  
           
-        # 編集モードがONの場合のみ範囲選択スライダーが有効なので、直接範囲を取得  
         start_frame, end_frame = self.video_control.get_selected_range()  
           
         # バッチ追加モードからの呼び出しの場合  
         if assigned_track_id != -1: # -1はダミー値  
-            initial_annotations_for_worker = self.temp_bboxes_for_batch_add  
+            # temp_bboxes_for_batch_add に含まれるアノテーションのラベルを assigned_label で上書き  
+            for frame_id, ann in self.temp_bboxes_for_batch_add:  
+                ann.label = assigned_label # ラベルを上書き  
+            initial_annotations_for_worker = [ann for frame_id, ann in self.temp_bboxes_for_batch_add]  
             new_track_id = assigned_track_id  
-            label_for_tracking = assigned_label # assigned_labelをそのまま使用  
+            label_for_tracking = assigned_label  
         else:  
             # 通常の自動追跡の場合  
             if not self.annotation_repository.manual_annotations:  
                 ErrorHandler.show_warning_dialog("Please add manual annotations first", "Warning")  
                 return  
               
-            # 最初のフレームの手動アノテーションを初期アノテーションとして使用  
-            # ここでObjectAnnotationからラベルを取得するように修正  
             first_manual_frame_id = min(self.annotation_repository.manual_annotations.keys())  
             initial_annotations_for_worker = [  
-                (first_manual_frame_id, ann.bbox)   
-                for ann in self.annotation_repository.manual_annotations[first_manual_frame_id]  
+                ann for ann in self.annotation_repository.manual_annotations[first_manual_frame_id]  
             ]  
             new_track_id = self.annotation_repository.get_next_object_id()  
               
-            # ここを修正: initial_annotations_for_worker は (frame_id, BoundingBox) のリストなので、  
-            # ラベルは assigned_label を使うか、または manual_annotations から取得する必要があります。  
-            # ここでは、manual_annotations から取得するようにします。  
-            if self.annotation_repository.manual_annotations[first_manual_frame_id]:  
-                label_for_tracking = self.annotation_repository.manual_annotations[first_manual_frame_id][0].label  
+            if initial_annotations_for_worker:  
+                label_for_tracking = initial_annotations_for_worker[0].label  
             else:  
                 label_for_tracking = "unknown"  
               

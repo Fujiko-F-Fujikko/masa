@@ -50,6 +50,19 @@ class VideoManager:
         """総フレーム数を取得"""  
         return self.total_frames  
       
+
+    def get_video_width(self) -> int:  
+        """動画の幅を返す"""  
+        if self.video_reader and self.video_reader.isOpened():  
+            return int(self.video_reader.get(cv2.CAP_PROP_FRAME_WIDTH))  
+        return 0  
+  
+    def get_video_height(self) -> int:  
+        """動画の高さを返す"""  
+        if self.video_reader and self.video_reader.isOpened():  
+            return int(self.video_reader.get(cv2.CAP_PROP_FRAME_HEIGHT))  
+        return 0
+
     def release(self):  
         """リソースを解放"""  
         if self.video_reader:  

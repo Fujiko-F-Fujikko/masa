@@ -20,8 +20,9 @@ class AnnotationInputDialog(QDialog):
     def setup_ui(self, existing_labels: List[str] = None):  
         layout = QVBoxLayout()  
           
-        bbox_info_label = QLabel(f"BBox: ({self.bbox.x1:.2f}, {self.bbox.y1:.2f}) - ({self.bbox.x2:.2f}, {self.bbox.y2:.2f})")  
-        layout.addWidget(bbox_info_label)  
+        if self.bbox is not None:
+            bbox_info_label = QLabel(f"BBox: ({self.bbox.x1:.2f}, {self.bbox.y1:.2f}) - ({self.bbox.x2:.2f}, {self.bbox.y2:.2f})")  
+            layout.addWidget(bbox_info_label)  
           
         label_layout = QHBoxLayout()  
         label_layout.addWidget(QLabel("ラベル:"))  

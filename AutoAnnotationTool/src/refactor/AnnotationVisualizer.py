@@ -34,11 +34,14 @@ class AnnotationVisualizer:
             color = self.colors[annotation.object_id % len(self.colors)]  
               
             if selected_annotation and annotation.object_id == selected_annotation.object_id:  
-                color = (255, 255, 0)  # 黄色でハイライト  
-                thickness = 4  
+                color = (0, 255, 255)  # 黄色でハイライト  
+                thickness = 6  
+            elif annotation.is_batch_added:  
+                color = (0, 0, 255)  # バッチ追加されたアノテーションの特別な色  
+                thickness = 4
             else:  
                 color = self.colors[annotation.object_id % len(self.colors)]  
-                thickness = 3 if annotation.is_manual else 2  # 手動アノテーションは太い線、それ以外は細い線
+                thickness = 4 if annotation.is_manual else 2  # 手動アノテーションは太い線、それ以外は細い線
               
             # バウンディングボックス座標を整数に変換（四捨五入）  
             pt1 = (int(round(annotation.bbox.x1)), int(round(annotation.bbox.y1)))  

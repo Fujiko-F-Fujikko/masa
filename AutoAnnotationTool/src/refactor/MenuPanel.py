@@ -527,19 +527,38 @@ class MenuPanel(QWidget):
         self.complete_batch_add_btn.setEnabled(checked)  
           
     def _on_complete_batch_add_clicked(self):  
-        """追加完了ボタンクリック時の処理"""  
-        # ラベル入力ダイアログを表示  
-        dialog = AnnotationInputDialog(BoundingBox(0, 0, 1, 1), self, existing_labels=self.get_all_labels_from_manager())  
-        dialog.setWindowTitle("新規アノテーションのラベルを入力")  
-          
+        """一括追加完了ボタンクリック時の処理"""  
+        # temp_bboxes_for_batch_add が空でないことを確認  
+        if not self.parent().temp_bboxes_for_batch_add:  
+            ErrorHandler.show_warning_dialog("追加するアノテーションがありません。", "警告")  
+            return  
+  
+        # 共通ラベル入力ダイアログを表示  
+        # 既存のラベルリストを取得  
+        # MASAAnnotationWidgetのannotation_repositoryからラベルを取得  
+        existing_labels = self.parent().annotation_repository.get_all_labels()   
+        dialog = AnnotationInputDialog(None, self, existing_labels=existing_labels) # bboxは不要なのでNone  
+        dialog.setWindowTitle("一括追加アノテーションの共通ラベルを選択")  
+        dialog.set_label_text("一括追加するアノテーションの共通ラベルを選択してください:")  
+  
         if dialog.exec() == QDialog.DialogCode.Accepted:  
-            label = dialog.get_label()  
-            if label:  
-                # MASAAnnotationWidgetに処理を委譲するため、シグナルを発火  
-                # フレーム範囲はMASAAnnotationWidgetから取得される  
-                self.tracking_requested.emit(-1, -1, -1, label) # ダミー値でシグナルを発火  
-            else:  
-                ErrorHandler.show_warning_dialog("ラベル名を入力してください。", "入力エラー")  
-          
-        self.batch_add_annotation_btn.setChecked(False)  
-        self.complete_batch_add_btn.setEnabled(False)  
+            assigned_label = dialog.get_label()  
+            if not assigned_label:  
+                ErrorHandler.show_warning_dialog("ラベルが選択されていません。", "Warning")  
+                return  
+  
+            # 追跡範囲の取得  
+            start_frame, end_frame = self.parent().video_control.get_selected_range()  
+            if start_frame == -1 or end_frame == -1:  
+                ErrorHandler.show_warning_dialog("追跡範囲が選択されていません。", "Warning")  
+                return  
+  
+            # MASAAnnotationWidgetに追跡開始を要求  
+            # assigned_track_id は MASAAnnotationWidget 側で割り当てられるため、ここではダミー値 -1 を渡す  
+            self.tracking_requested.emit(start_frame, end_frame, -1, assigned_label)  
+              
+            # UIをリセット  
+            self.batch_add_annotation_btn.setChecked(False)  
+            self.complete_batch_add_btn.setEnabled(False)  
+        else:  
+            ErrorHandler.show_info_dialog("ラベル選択がキャンセルされました。", "Info")  
