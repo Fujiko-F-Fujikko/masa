@@ -133,3 +133,8 @@ venus_run.sh
 
 
 
+# venv dir
+venv/
+
+# source
+stt*/
