@@ -3,11 +3,12 @@ import cv2
 from typing import Dict, List, Optional, Tuple  
 from PyQt6.QtWidgets import (  
     QWidget, QHBoxLayout, QVBoxLayout, QDialog,  
-    QMessageBox, QFileDialog  
+    QMessageBox, QFileDialog, QPushButton, QApplication 
 )  
-from PyQt6.QtCore import Qt  
+from PyQt6.QtGui import QKeyEvent
+from PyQt6.QtCore import Qt, QObject, QEvent  
   
-from DataClass import BoundingBox, MASAConfig, ObjectAnnotation  
+from DataClass import BoundingBox, ObjectAnnotation  
 from MenuPanel import MenuPanel  
 from VideoControlPanel import VideoControlPanel  
 from VideoPreviewWidget import VideoPreviewWidget  
@@ -22,21 +23,40 @@ from AnnotationInputDialog import AnnotationInputDialog
 from ConfigManager import ConfigManager  
 from ErrorHandler import ErrorHandler  
   
+
+# QtのデフォルトではSpaceキーでボタンクリックだが、Enterキーに変更する
+class ButtonKeyEventFilter(QObject):  
+    def eventFilter(self, obj, event):  
+        if isinstance(obj, QPushButton) and event.type() == QEvent.Type.KeyPress:  
+            if event.key() == Qt.Key.Key_Space:  
+                # Spaceキーを無効化  
+                return True  
+            elif event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:  
+                # Enterキーでクリック  
+                obj.click()  
+                return True  
+        return super().eventFilter(obj, event)  
+
 class MASAAnnotationWidget(QWidget):  
     """統合されたMASAアノテーションメインウィジェット（改善版）"""  
       
     def __init__(self, parent=None):  
         super().__init__(parent)  
-          
+
+        # キーボードフォーカスを有効にする  
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)  
+        self.setFocus()
+        # イベントフィルターを作成してアプリケーションに適用  
+        self.button_filter = ButtonKeyEventFilter()  
+        QApplication.instance().installEventFilter(self.button_filter)
+
         self.config_manager = ConfigManager()  
         self.video_manager: Optional[VideoManager] = None  
         self.annotation_repository = AnnotationRepository()  
         self.export_service = ExportService()  
-        # ObjectTrackerにはMASAモデル関連のConfigのみを渡す  
-        self.object_tracker = ObjectTracker(self.config_manager.get_full_config(config_type="masa"))   
+        self.object_tracker = ObjectTracker(self.config_manager.get_full_config(config_type="masa")) # ObjectTrackerにはMASAモデル関連のConfigのみを渡す
         self.playback_controller: Optional[VideoPlaybackController] = None  
         self.tracking_worker: Optional[TrackingWorker] = None  
-          
         self.temp_bboxes_for_batch_add: List[Tuple[int, BoundingBox]] = []  
           
         self.setup_ui()  
@@ -466,3 +486,26 @@ class MASAAnnotationWidget(QWidget):
         stats = self.annotation_repository.get_statistics()  
         self.menu_panel.update_annotation_count(stats["total"], stats["manual"])  
         self.menu_panel.initialize_label_combo(self.annotation_repository.get_all_labels())
+
+    def keyPressEvent(self, event: QKeyEvent):  
+        """キーボードショートカットの処理"""  
+        if event.key() == Qt.Key.Key_Space:  
+            # Spaceキー：再生・一時停止の切り替え  
+            if self.playback_controller and self.playback_controller.is_playing:  
+                self.pause_playback()  
+            else:  
+                self.start_playback()  
+            event.accept()  
+              
+        elif event.key() == Qt.Key.Key_Left:  
+            # 左キー：前のフレームに移動  
+            self.video_control.prev_frame()  
+            event.accept()  
+              
+        elif event.key() == Qt.Key.Key_Right:  
+            # 右キー：次のフレームに移動  
+            self.video_control.next_frame()  
+            event.accept()  
+              
+        else:  
+            super().keyPressEvent(event)
