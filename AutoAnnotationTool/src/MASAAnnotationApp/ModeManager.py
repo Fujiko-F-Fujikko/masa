@@ -144,33 +144,32 @@ class BatchAddMode(AnnotationMode):
         if event.button() == Qt.MouseButton.LeftButton:  
             pos = event.position().toPoint()  
               
-            # 現在のフレームのアノテーションを取得（一時的なバッチ追加アノテーションも含む）  
-            frame_annotation = self.widget.annotation_repository.get_annotations(  
-                self.widget.current_frame_id  
-            )  
-            # 表示されているアノテーションのみをフィルタリング  
-            displayable_annotations = self._get_displayable_annotations(frame_annotation)  
+            # BatchAddMode中は一時的なバッチアノテーションのみを選択対象とする  
+            current_mode = self.widget.mode_manager.current_mode_name  
               
-            # 一時的なバッチ追加アノテーションも含める  
-            temp_annotations = getattr(self.widget, 'temp_batch_annotations', [])  
-            all_annotations = displayable_annotations + temp_annotations  
-              
-            # アノテーション選択を試行  
-            selected = self.widget.bbox_editor.select_annotation_at_position(  
-                pos, all_annotations  
-            )  
-              
-            if selected:  
-                operation_type = self.widget.bbox_editor.start_drag_operation(pos)  
-                if operation_type != "none":  
-                    return  
-            else:  
-                # 新規バウンディングボックスの作成を開始  
-                self.start_point = pos  
-                self.widget.bbox_editor.start_new_bbox_drawing(self.start_point)  
-                self.widget.bbox_editor.selected_annotation = None  
-                self.widget.bbox_editor.selection_changed.emit(None)  
-                self.widget.update_frame_display()  
+            if current_mode == 'batch_add':  
+                # BatchAddMode: 一時的なバッチアノテーションのみを対象  
+                temp_annotations = [  
+                    ann for ann in self.widget.temp_batch_annotations   
+                    if ann.frame_id == self.widget.current_frame_id  
+                ]  
+                  
+                # アノテーション選択を試行（一時アノテーションのみ）  
+                selected = self.widget.bbox_editor.select_annotation_at_position(  
+                    pos, temp_annotations  
+                )  
+                  
+                if selected:  
+                    operation_type = self.widget.bbox_editor.start_drag_operation(pos)  
+                    if operation_type != "none":  
+                        return  
+                else:  
+                    # 新規バウンディングボックスの作成を開始  
+                    self.start_point = pos  
+                    self.widget.bbox_editor.start_new_bbox_drawing(self.start_point)  
+                    self.widget.bbox_editor.selected_annotation = None  
+                    self.widget.bbox_editor.selection_changed.emit(None)  
+                    self.widget.update_frame_display()
   
     def handle_mouse_move(self, event: QMouseEvent):  
         pos = event.position().toPoint()  
