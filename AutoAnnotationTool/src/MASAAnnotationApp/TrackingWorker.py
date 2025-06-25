@@ -99,7 +99,7 @@ class TrackingWorker(QThread):
                 final_annotations_for_frame = []  
                 for ann in tracked_annotations:  
                     # 単一物体なので、IDは常に統一  
-                    ann.object_id = self.assigned_track_id  
+                    ann.object_id = ann.object_id + self.assigned_track_id  
                     ann.label = self.assigned_label  
                     ann.is_manual = True  
                     final_annotations_for_frame.append(ann)  

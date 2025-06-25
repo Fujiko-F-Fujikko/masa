@@ -611,9 +611,12 @@ class MenuPanel(QWidget):
                 ErrorHandler.show_warning_dialog("追跡範囲が選択されていません。", "Warning")  
                 return  
   
+            # AnnotationRepositoryから現在のTrack IDの最大値を取得  
+            # MASAAnnotationWidgetのannotation_repositoryにアクセス  
+            current_max_track_id = self.parent().annotation_repository.next_object_id  
             # MASAAnnotationWidgetに追跡開始を要求  
-            # assigned_track_id は MASAAnnotationWidget 側で割り当てられるため、ここではダミー値 -1 を渡す  
-            self.tracking_requested.emit(-1, assigned_label)  
+            # assigned_track_id は バッチ追加で追加されるアノテーションのTrack IDの始まりののインデックスになる。
+            self.tracking_requested.emit(current_max_track_id, assigned_label)  
               
             # UIをリセット  
             self.batch_add_annotation_btn.setChecked(False)  
