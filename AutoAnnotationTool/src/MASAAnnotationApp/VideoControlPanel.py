@@ -1,7 +1,7 @@
 # 改善されたVideoControlPanel.py  
 from PyQt6.QtWidgets import (  
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,  
-    QPushButton, QSlider  
+    QPushButton, QSlider, QLineEdit  
 )  
 from PyQt6.QtCore import Qt, pyqtSignal  
 from RangeSlider import RangeSlider  
@@ -33,7 +33,6 @@ class VideoControlPanel(QWidget):
         self.range_slider = RangeSlider()  
         self.range_slider.range_changed.connect(self.on_range_changed)  
         self.range_slider.current_frame_changed.connect(self.on_range_frame_preview)  
-        layout.addWidget(QLabel("Frame Range:"))  
         layout.addWidget(self.range_slider)  
           
         control_layout = QHBoxLayout()  
@@ -54,6 +53,25 @@ class VideoControlPanel(QWidget):
         control_layout.addWidget(self.next_btn)  
           
         layout.addLayout(control_layout)  
+
+        # フレーム番号入力機能を追加  
+        jump_layout = QHBoxLayout()  
+        jump_layout.addWidget(QLabel("Jump to frame:"))  
+          
+        self.frame_input = QLineEdit()  
+        self.frame_input.setPlaceholderText("Frame number")  
+        self.frame_input.setMaximumWidth(100)  
+        self.frame_input.returnPressed.connect(self.jump_to_frame)  
+        jump_layout.addWidget(self.frame_input)  
+          
+        self.jump_btn = QPushButton("Go")  
+        self.jump_btn.setMaximumWidth(40)  
+        self.jump_btn.clicked.connect(self.jump_to_frame)  
+        jump_layout.addWidget(self.jump_btn)  
+          
+        jump_layout.addStretch()  # 右側に余白を追加  
+        layout.addLayout(jump_layout) 
+
         self.setLayout(layout)  
           
     def on_range_frame_preview(self, frame_id: int):  
@@ -108,3 +126,25 @@ class VideoControlPanel(QWidget):
     def get_selected_range(self) -> tuple:  
         """選択された範囲を取得"""  
         return self.range_slider.get_values()  
+
+    def jump_to_frame(self):  
+        """指定されたフレーム番号にジャンプ"""  
+        try:  
+            frame_text = self.frame_input.text().strip()  
+            if not frame_text:  
+                return  
+                  
+            target_frame = int(frame_text)  
+              
+            # フレーム番号の範囲チェック  
+            if target_frame < 0:  
+                target_frame = 0  
+            elif target_frame >= self.total_frames:  
+                target_frame = self.total_frames - 1  
+                  
+            self.set_current_frame(target_frame)  
+            self.frame_input.clear()  # 入力をクリア  
+              
+        except ValueError:  
+            # 無効な入力の場合は何もしない  
+            self.frame_input.clear()
