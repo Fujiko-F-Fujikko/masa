@@ -489,23 +489,39 @@ class MASAAnnotationWidget(QWidget):
 
     def keyPressEvent(self, event: QKeyEvent):  
         """キーボードショートカットの処理"""  
+        # フォーカスされたウィジェットを取得  
+        focused_widget = self.focusWidget()  
+          
+        if isinstance(focused_widget, QPushButton):  
+            if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:  
+                # Enterキーでボタンをクリック  
+                focused_widget.click()  
+                event.accept()  
+                return  
+            elif event.key() == Qt.Key.Key_Space:  
+                # Spaceキーの場合は何もしない（デフォルト動作を無効化）  
+                event.accept()  
+                return  
+          
+        # 既存のショートカット処理  
         if event.key() == Qt.Key.Key_Space:  
-            # Spaceキー：再生・一時停止の切り替え  
+            # 動画再生・一時停止の処理  
             if self.playback_controller and self.playback_controller.is_playing:  
                 self.pause_playback()  
             else:  
                 self.start_playback()  
             event.accept()  
-              
         elif event.key() == Qt.Key.Key_Left:  
-            # 左キー：前のフレームに移動  
             self.video_control.prev_frame()  
             event.accept()  
-              
         elif event.key() == Qt.Key.Key_Right:  
-            # 右キー：次のフレームに移動  
             self.video_control.next_frame()  
             event.accept()  
-              
+        elif event.key() == Qt.Key.Key_D:  
+            # Dキー：トラック一括削除  
+            if (self.menu_panel.current_selected_annotation and   
+                self.menu_panel.delete_track_btn.isEnabled()):  
+                self.menu_panel._on_delete_track_clicked()  
+            event.accept()  
         else:  
             super().keyPressEvent(event)
