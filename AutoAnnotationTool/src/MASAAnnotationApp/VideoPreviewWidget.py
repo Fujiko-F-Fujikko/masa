@@ -179,8 +179,9 @@ class VideoPreviewWidget(QLabel):
                 selected_annotation=self.bbox_editor.selected_annotation  
             )  
           
-        # 編集モードの場合、選択オーバーレイを描画  
-        if self.mode_manager.current_mode == self.mode_manager.modes['edit']:  
+        # 編集モードまたはBatchAddModeの場合、選択オーバーレイを描画  
+        current_mode = self.mode_manager.current_mode_name  
+        if current_mode in ['edit', 'batch_add']:  
             self.current_frame = self.bbox_editor.draw_selection_overlay(self.current_frame)  
               
         self._display_frame_on_widget(self.current_frame)
