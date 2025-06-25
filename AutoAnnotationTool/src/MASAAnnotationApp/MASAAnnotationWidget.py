@@ -122,6 +122,11 @@ class MASAAnnotationWidget(QWidget):
     @ErrorHandler.handle_with_dialog("Video Load Error")  
     def load_video(self, file_path: str):  
         """動画ファイルを読み込み"""  
+        # 既存のVideoManagerがあれば解放  
+        if self.video_manager:  
+            self.video_manager.release() 
+            self.video_manager = None  
+
         self.video_manager = VideoManager(file_path)  
         if self.video_manager.load_video():  
             self.playback_controller = VideoPlaybackController(self.video_manager)  
@@ -445,9 +450,15 @@ class MASAAnnotationWidget(QWidget):
                   "2. 追加したいフレーム範囲を指定して下さい。\n"
                   "3. 実行ボタンを押してください。", "モード変更")  
             self.temp_bboxes_for_batch_add.clear()  
+            # 再生中の場合は停止  
+            if self.playback_controller and self.playback_controller.is_playing:  
+                self.playback_controller.pause()  
         else:  
             self.video_preview.set_mode('view')  
             ErrorHandler.show_info_dialog("新規アノテーション一括追加モードが無効になりました。", "モード変更")  
+            # モード終了時に再生を停止し、タイマーを確実に停止  
+            if self.playback_controller:  
+                self.playback_controller.stop() # stopメソッドでタイマーを停止し、フレームをリセット  
         self.video_preview.bbox_editor.set_editing_mode(enabled)  
         self.video_preview.update_frame_display()
 

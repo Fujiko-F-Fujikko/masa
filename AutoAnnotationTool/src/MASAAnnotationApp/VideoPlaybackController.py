@@ -42,9 +42,12 @@ class VideoPlaybackController(QObject):
       
     def stop(self):  
         """停止"""  
-        self.pause()  
+        if self.is_playing:  
+            self.timer.stop()  
+            self.is_playing = False  
         self.current_frame = 0  
         self.frame_updated.emit(self.current_frame)  
+        self.playback_finished.emit() # 再生終了シグナルも発行
       
     def next_frame(self):  
         """次のフレームに進む"""  
