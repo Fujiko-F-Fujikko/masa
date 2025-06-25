@@ -327,28 +327,38 @@ class MASAAnnotationWidget(QWidget):
     def set_edit_mode(self, enabled: bool):  
         """編集モードの設定とUIの更新"""  
         if enabled:  
+            # BatchAddModeがONの場合はOFFにする  
+            if self.menu_panel.batch_add_annotation_btn.isChecked():  
+                self.menu_panel.batch_add_annotation_btn.setChecked(False)  
+                self.set_batch_add_mode(False)  
+              
             self.video_preview.set_mode('edit')  
             self.video_control.range_slider.setVisible(True)  
-            self.video_preview.clear_temp_batch_annotations() # 他のモードに切り替える際もクリア
+            self.video_preview.clear_temp_batch_annotations()  
             ErrorHandler.show_info_dialog("編集モードが有効になりました。", "モード変更")  
         else:  
             self.video_preview.set_mode('view')  
             self.video_control.range_slider.setVisible(False)  
             ErrorHandler.show_info_dialog("編集モードが無効になりました。", "モード変更")  
         self.video_preview.bbox_editor.set_editing_mode(enabled)  
-        self.video_preview.update_frame_display()
-
+        self.video_preview.update_frame_display()  
+      
     def set_batch_add_mode(self, enabled: bool):  
         """一括追加モードの設定とUIの更新"""  
         if enabled:  
+            # EditModeがONの場合はOFFにする  
+            if self.menu_panel.edit_mode_btn.isChecked():  
+                self.menu_panel.edit_mode_btn.setChecked(False)  
+                self.set_edit_mode(False)  
+              
             self.video_preview.set_mode('batch_add')  
-            self.video_preview.bbox_editor.set_editing_mode(True)
-            self.video_preview.clear_temp_batch_annotations() # バッチ追加モード開始時に一時リストをクリア
+            self.video_preview.clear_temp_batch_annotations()  
             ErrorHandler.show_info_dialog("新規アノテーション一括追加モードが有効になりました。\n動画プレビュー上でバウンディングボックスを描画してください。\nバウンディングボックスの追加が終わったら追加完了ボタンを押してください。", "モード変更")  
             self.temp_bboxes_for_batch_add.clear()  
         else:  
             self.video_preview.set_mode('view')  
             ErrorHandler.show_info_dialog("新規アノテーション一括追加モードが無効になりました。", "モード変更")  
+        self.video_preview.bbox_editor.set_editing_mode(enabled)  
         self.video_preview.update_frame_display()
 
     def on_label_change_requested(self, annotation: ObjectAnnotation, new_label: str):  

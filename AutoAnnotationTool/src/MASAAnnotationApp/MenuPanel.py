@@ -273,9 +273,9 @@ class MenuPanel(QWidget):
         """  
         self.batch_add_annotation_btn = QPushButton("新規アノテーション一括追加")  
         self.batch_add_annotation_btn.setCheckable(True)  
+        self.batch_add_annotation_btn.setEnabled(True)  
         self.batch_add_annotation_btn.setStyleSheet(batch_add_button_style)
         self.batch_add_annotation_btn.clicked.connect(self._on_batch_add_annotation_clicked)  
-        self.batch_add_annotation_btn.setEnabled(False)  
         tracking_layout.addWidget(self.batch_add_annotation_btn)  
           
         self.complete_batch_add_btn = QPushButton("追加完了")  
@@ -325,9 +325,18 @@ class MenuPanel(QWidget):
           
     def _on_edit_mode_clicked(self, checked: bool):  
         """編集モードボタンクリック時の処理"""  
+        if checked:  
+            # BatchAddModeがONの場合はOFFにして無効化  
+            if self.batch_add_annotation_btn.isChecked():  
+                self.batch_add_annotation_btn.setChecked(False)  
+            self.batch_add_annotation_btn.setEnabled(False)  
+        else:  
+            # EditModeがOFFになった時はBatchAddModeボタンを有効化  
+            self.batch_add_annotation_btn.setEnabled(True)  
+          
         self.edit_mode_requested.emit(checked)  
         self._update_edit_controls_state(checked)  
-          
+
     def _update_edit_controls_state(self, enabled: bool):  
         """編集関連コントロールの有効/無効を切り替える"""  
         self.label_combo.setEnabled(enabled)  
@@ -335,14 +344,7 @@ class MenuPanel(QWidget):
         self.delete_single_annotation_btn.setEnabled(enabled and self.current_selected_annotation is not None)  
         self.delete_track_btn.setEnabled(enabled and self.current_selected_annotation is not None)  
         self.propagate_label_btn.setEnabled(enabled and self.current_selected_annotation is not None)  
-        self.batch_add_annotation_btn.setEnabled(enabled)  
-          
-        # 一括追加モードが有効な場合は完了ボタンも制御  
-        if self.batch_add_annotation_btn.isChecked():  
-            self.complete_batch_add_btn.setEnabled(enabled)  
-        else:  
-            self.complete_batch_add_btn.setEnabled(False)  
-              
+
     def update_video_info(self, video_path: str, total_frames: int):  
         """動画情報を更新"""  
         filename = Path(video_path).name  
@@ -539,9 +541,18 @@ class MenuPanel(QWidget):
       
     def _on_batch_add_annotation_clicked(self, checked: bool):  
         """新規アノテーション一括追加ボタンクリック時の処理"""  
-        self.batch_add_mode_requested.emit(checked)  
-        self.complete_batch_add_btn.setEnabled(checked)  
+        if checked:  
+            # EditModeがONの場合はOFFにして無効化  
+            if self.edit_mode_btn.isChecked():  
+                self.edit_mode_btn.setChecked(False)  
+            self.edit_mode_btn.setEnabled(False)  
+        else:  
+            # BatchAddModeがOFFになった時はEditModeボタンを有効化  
+            self.edit_mode_btn.setEnabled(True)  
           
+        self.batch_add_mode_requested.emit(checked)  
+        self.complete_batch_add_btn.setEnabled(checked)
+
     def _on_complete_batch_add_clicked(self):  
         """一括追加完了ボタンクリック時の処理"""  
         # temp_bboxes_for_batch_add が空でないことを確認  
