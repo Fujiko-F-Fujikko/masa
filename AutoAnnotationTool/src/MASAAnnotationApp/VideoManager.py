@@ -1,6 +1,7 @@
 # VideoManager.py  
 import cv2  
 import numpy as np  
+import threading
 from typing import Optional  
 from ErrorHandler import ErrorHandler  
   
@@ -12,6 +13,7 @@ class VideoManager:
         self.video_reader: Optional[cv2.VideoCapture] = None  
         self.total_frames = 0  
         self.fps = 30.0  
+        self.lock = threading.Lock()
       
     @ErrorHandler.handle_with_dialog("Video Loading Error")  
     def load_video(self) -> bool:  
@@ -36,11 +38,13 @@ class VideoManager:
           
         if not (0 <= frame_id < self.total_frames):  
             return None  
-          
-        self.video_reader.set(cv2.CAP_PROP_POS_FRAMES, frame_id)  
-        ret, frame = self.video_reader.read()  
-          
-        return frame if ret else None  
+        
+        with self.lock: # ロックを取得
+            self.video_reader.set(cv2.CAP_PROP_POS_FRAMES, frame_id)  
+            ret, frame = self.video_reader.read()  
+            if not ret:  
+                return None  
+            return frame
       
     def get_fps(self) -> float:  
         """FPSを取得"""  

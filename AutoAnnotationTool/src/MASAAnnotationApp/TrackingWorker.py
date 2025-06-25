@@ -46,27 +46,31 @@ class TrackingWorker(QThread):
             ErrorHandler.log_error(e, "TrackingWorker.run")  
       
     def process_tracking_with_progress(self) -> Dict[int, List[ObjectAnnotation]]:  
-        """進捗報告付きの追跡処理"""  
+        """進捗報告付きの追跡処理（単一物体版）"""  
         results = {}  
         total_frames = self.end_frame - self.start_frame + 1  
           
         text_prompt = self.assigned_label  
           
+        # 単一物体なので、すべての初期アノテーションに統一されたIDを付与  
         initial_object_annotations_map = {}  
         for frame_id, bbox in self.initial_annotations:  
             if frame_id not in initial_object_annotations_map:  
                 initial_object_annotations_map[frame_id] = []  
+              
             initial_object_annotations_map[frame_id].append(  
                 ObjectAnnotation(  
-                    object_id=-1, # MASAモデルが新しいトラックとして扱うように-1を設定  
+                    object_id=self.assigned_track_id,  # 統一されたIDを使用  
                     frame_id=frame_id,  
-                    bbox=self.normalize_bbox_coords(  
-                        bbox.x1, bbox.y1, bbox.x2, bbox.y2),
+                    bbox=self.normalize_bbox_coords(bbox.x1, bbox.y1, bbox.x2, bbox.y2),  
                     label=self.assigned_label,  
                     is_manual=True,  
                     track_confidence=1.0  
                 )  
             )  
+          
+        # 前フレームの追跡結果を保持  
+        previous_frame_annotations = []  
           
         for i, frame_id in enumerate(range(self.start_frame, self.end_frame + 1)):  
             self.progress_updated.emit(i + 1, total_frames)  
@@ -77,7 +81,13 @@ class TrackingWorker(QThread):
                 continue  
               
             try:  
+                # 現在フレームの初期アノテーションを取得  
                 current_frame_initial_annotations = initial_object_annotations_map.get(frame_id, [])  
+                  
+                # 前フレームの結果がある場合は、それを優先的に使用  
+                # これにより物体の連続性が保たれる  
+                if previous_frame_annotations:  
+                    current_frame_initial_annotations = previous_frame_annotations  
                   
                 tracked_annotations = self.object_tracker.track_objects(  
                     frame=frame_image,  
@@ -88,24 +98,22 @@ class TrackingWorker(QThread):
                   
                 final_annotations_for_frame = []  
                 for ann in tracked_annotations:  
-                    # MASAモデルが生成したIDに基準IDを加算してオフセット  
-                    # 新規ID (-1) の場合は、assigned_track_idをそのまま使用  
-                    if ann.object_id == -1:  
-                        ann.object_id = self.assigned_track_id  
-                    else:  
-                        ann.object_id = ann.object_id + self.assigned_track_id  
-                      
-                    self.max_used_track_id = max(self.max_used_track_id, ann.object_id)  
-                    ann.label = self.assigned_label # ラベルを上書き  
-                    ann.is_manual = True # 手動追跡結果としてマーク  
+                    # 単一物体なので、IDは常に統一  
+                    ann.object_id = ann.object_id + self.assigned_track_id  
+                    ann.label = self.assigned_label  
+                    ann.is_manual = True  
                     final_annotations_for_frame.append(ann)  
                   
                 results[frame_id] = final_annotations_for_frame  
+                  
+                # 次フレームのために現在の結果を保存  
+                previous_frame_annotations = final_annotations_for_frame.copy()  
                   
             except Exception as e:  
                 ErrorHandler.log_error(e, f"Tracking frame {frame_id}")  
                 self.error_occurred.emit(f"Error tracking frame {frame_id}: {e}")  
                 continue  
+                  
         return results
 
     def normalize_bbox_coords(self, x1: int, y1: int, x2: int, y2: int) -> BoundingBox:  

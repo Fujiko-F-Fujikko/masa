@@ -3,11 +3,12 @@ import cv2
 from typing import Dict, List, Optional, Tuple  
 from PyQt6.QtWidgets import (  
     QWidget, QHBoxLayout, QVBoxLayout, QDialog,  
-    QMessageBox, QFileDialog  
+    QMessageBox, QFileDialog, QPushButton, QApplication 
 )  
-from PyQt6.QtCore import Qt  
+from PyQt6.QtGui import QKeyEvent
+from PyQt6.QtCore import Qt, QObject, QEvent  
   
-from DataClass import BoundingBox, MASAConfig, ObjectAnnotation  
+from DataClass import BoundingBox, ObjectAnnotation  
 from MenuPanel import MenuPanel  
 from VideoControlPanel import VideoControlPanel  
 from VideoPreviewWidget import VideoPreviewWidget  
@@ -21,22 +22,43 @@ from TrackingWorker import TrackingWorker
 from AnnotationInputDialog import AnnotationInputDialog  
 from ConfigManager import ConfigManager  
 from ErrorHandler import ErrorHandler  
+from COCOExportWorker import COCOExportWorker
+from TrackingResultConfirmDialog import TrackingResultConfirmDialog
   
+
+# QtのデフォルトではSpaceキーでボタンクリックだが、Enterキーに変更する
+class ButtonKeyEventFilter(QObject):  
+    def eventFilter(self, obj, event):  
+        if isinstance(obj, QPushButton) and event.type() == QEvent.Type.KeyPress:  
+            if event.key() == Qt.Key.Key_Space:  
+                # Spaceキーを無効化  
+                return True  
+            elif event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:  
+                # Enterキーでクリック  
+                obj.click()  
+                return True  
+        return super().eventFilter(obj, event)  
+
 class MASAAnnotationWidget(QWidget):  
     """統合されたMASAアノテーションメインウィジェット（改善版）"""  
       
     def __init__(self, parent=None):  
         super().__init__(parent)  
-          
+
+        # キーボードフォーカスを有効にする  
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)  
+        self.setFocus()
+        # イベントフィルターを作成してアプリケーションに適用  
+        self.button_filter = ButtonKeyEventFilter()  
+        QApplication.instance().installEventFilter(self.button_filter)
+
         self.config_manager = ConfigManager()  
         self.video_manager: Optional[VideoManager] = None  
         self.annotation_repository = AnnotationRepository()  
         self.export_service = ExportService()  
-        # ObjectTrackerにはMASAモデル関連のConfigのみを渡す  
-        self.object_tracker = ObjectTracker(self.config_manager.get_full_config(config_type="masa"))   
+        self.object_tracker = ObjectTracker(self.config_manager.get_full_config(config_type="masa")) # ObjectTrackerにはMASAモデル関連のConfigのみを渡す
         self.playback_controller: Optional[VideoPlaybackController] = None  
         self.tracking_worker: Optional[TrackingWorker] = None  
-          
         self.temp_bboxes_for_batch_add: List[Tuple[int, BoundingBox]] = []  
           
         self.setup_ui()  
@@ -100,6 +122,11 @@ class MASAAnnotationWidget(QWidget):
     @ErrorHandler.handle_with_dialog("Video Load Error")  
     def load_video(self, file_path: str):  
         """動画ファイルを読み込み"""  
+        # 既存のVideoManagerがあれば解放  
+        if self.video_manager:  
+            self.video_manager.release() 
+            self.video_manager = None  
+
         self.video_manager = VideoManager(file_path)  
         if self.video_manager.load_video():  
             self.playback_controller = VideoPlaybackController(self.video_manager)  
@@ -154,33 +181,88 @@ class MASAAnnotationWidget(QWidget):
         if not self.video_manager:  
             ErrorHandler.show_warning_dialog("Video not loaded. Cannot export video-related metadata.", "Warning")  
             return  
-          
+
+        # タイムスタンプ付きのデフォルトファイル名を生成  
+        from datetime import datetime  
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  
+        default_filename = f"annotations_{timestamp}.{format}" 
+
         file_dialog_title = f"Save {format.upper()} Annotations"  
-        default_filename = f"annotations.{format}"  
         file_path, _ = QFileDialog.getSaveFileName(  
             self, file_dialog_title, default_filename,  
             "JSON Files (*.json);;All Files (*)"  
         )  
           
         if file_path:  
-            if format == "masa_json":  
+            if format == "masa":  
                 self.export_service.export_masa_json(  
                     self.annotation_repository.frame_annotations,  
                     self.video_manager.video_path,  
                     file_path  
                 )  
-            elif format == "coco_json":  
-                self.export_service.export_coco(  
-                    self.annotation_repository.frame_annotations,  
+            elif format == "coco":  
+                # 進捗表示を開始  
+                self.menu_panel.update_export_progress("Exporting COCO JSON...")  
+                  
+                # スコア閾値でフィルタリングされたアノテーションを作成  
+                filtered_annotations = self._filter_annotations_by_score_threshold() 
+                # ワーカースレッドでエクスポート実行  
+                self.export_worker = COCOExportWorker(  
+                    self.export_service,  
+                    filtered_annotations,  # スコア閾値でフィルタリング済み  
                     self.video_manager.video_path,  
                     file_path,  
                     self.video_manager  
                 )  
+                self.export_worker.progress_updated.connect(self.on_export_progress)  
+                self.export_worker.export_completed.connect(self.on_export_completed)  
+                self.export_worker.error_occurred.connect(self.on_export_error)  
+                self.export_worker.start()  
             else:  
                 ErrorHandler.show_error_dialog(f"Unsupported export format: {format}", "Error")  
                 return
 
             ErrorHandler.show_info_dialog(f"Annotations exported to {file_path}", "Export Complete")  
+
+    def _filter_annotations_by_score_threshold(self):  
+        """現在の表示設定のスコア閾値でアノテーションをフィルタリング"""  
+        filtered_frame_annotations = {}  
+        score_threshold = self.video_preview.score_threshold  
+          
+        for frame_id, frame_annotation in self.annotation_repository.frame_annotations.items():  
+            if frame_annotation and frame_annotation.objects:  
+                filtered_objects = []  
+                for annotation in frame_annotation.objects:  
+                    # スコア閾値チェック  
+                    if annotation.bbox.confidence >= score_threshold:  
+                        filtered_objects.append(annotation)  
+                  
+                if filtered_objects:  
+                    # 新しいFrameAnnotationオブジェクトを作成  
+                    from DataClass import FrameAnnotation  
+                    filtered_frame_annotation = FrameAnnotation(  
+                        frame_id=frame_annotation.frame_id,  
+                        frame_path=frame_annotation.frame_path,  
+                        objects=filtered_objects  
+                    )  
+                    filtered_frame_annotations[frame_id] = filtered_frame_annotation  
+          
+        return filtered_frame_annotations
+
+    def on_export_progress(self, current: int, total: int):  
+        """エクスポート進捗更新"""  
+        progress_percent = (current / total) * 100  
+        progress_text = f"Exporting... {current}/{total} ({progress_percent:.1f}%)"  
+        self.menu_panel.update_export_progress(progress_text)  
+      
+    def on_export_completed(self):  
+        """エクスポート完了時の処理"""  
+        self.menu_panel.update_export_progress("Export completed!")  
+      
+    def on_export_error(self, error_message: str):  
+        """エクスポートエラー時の処理"""  
+        self.menu_panel.update_export_progress("")  
+        ErrorHandler.show_error_dialog(f"Export failed: {error_message}", "Export Error")
 
     @ErrorHandler.handle_with_dialog("Tracking Error")  
     def start_tracking(self,  assigned_track_id: int, assigned_label: str):  
@@ -233,12 +315,16 @@ class MASAAnnotationWidget(QWidget):
             self.tracking_worker.start()  
               
             # バッチ追加モードの場合はUIをリセット  
-            if assigned_track_id != -1:  
+            if self.video_preview.mode_manager.current_mode_name == 'batch_add':  
+                # tmpアノテーションをクリア
                 self.temp_bboxes_for_batch_add.clear()  
-                self.video_preview.clear_temp_batch_annotations() # ここもクリア
-                self.video_preview.set_mode('edit') # 編集モードに戻す  
+                self.video_preview.clear_temp_batch_annotations()
+                # 編集モードに切り替え
+                self.video_preview.set_mode('edit') 
                 self.menu_panel.batch_add_annotation_btn.setChecked(False)  
-                self.menu_panel.complete_batch_add_btn.setEnabled(False)  
+                self.menu_panel.execute_batch_add_btn.setEnabled(False)  
+                self.menu_panel.edit_mode_btn.setChecked(True)
+                self.menu_panel.edit_mode_btn.setEnabled(True)
                 self.video_preview.update_frame_display()
 
     def on_tracking_progress(self, current_frame: int, total_frames: int):  
@@ -248,30 +334,38 @@ class MASAAnnotationWidget(QWidget):
         self.menu_panel.update_tracking_progress(progress_text)  
           
     def on_tracking_completed(self, results: Dict[int, List[ObjectAnnotation]]):  
-        """追跡完了時の処理"""  
-        added_count = 0  
-        for frame_id, annotations_list in results.items():  
-            for ann in annotations_list:  
-                self.annotation_repository.add_annotation(ann)  
-                added_count += 1  
+        """追跡完了時の処理（確認ダイアログ付き）"""  
+        self.menu_panel.update_tracking_progress("Tracking completed. Waiting for confirmation...")  
           
-        self.menu_panel.update_tracking_progress(f"Completed! {added_count} annotations added.")  
-        self.update_annotation_count()  
-        self.video_preview.update_frame_display()  
+        # 確認ダイアログを表示  
+        dialog = TrackingResultConfirmDialog(results, self.video_manager, self)  
           
-        # AnnotationRepositoryのnext_object_idを更新  
-        if hasattr(self.tracking_worker, 'max_used_track_id'):  
-            self.annotation_repository.next_object_id = max(  
-                self.annotation_repository.next_object_id,  
-                self.tracking_worker.max_used_track_id + 1  
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.approved:  
+            # ユーザーが承認した場合のみ追加  
+            added_count = 0  
+            # dialog.tracking_results にはユーザーが削除した後のアノテーションが含まれる  
+            final_results_to_add = dialog.tracking_results   
+  
+            for frame_id, annotations in final_results_to_add.items():  
+                for annotation in annotations:  
+                    if self.annotation_repository.add_annotation(annotation):  
+                        added_count += 1  
+              
+            self.update_annotation_count()  
+            self.video_preview.update_frame_display()  
+              
+            ErrorHandler.show_info_dialog(  
+                f"追跡が完了しました。{added_count}個のアノテーションを追加しました。",  
+                "Tracking Complete"  
             )  
-          
-        ErrorHandler.show_info_dialog(  
-            f"Automatic tracking completed successfully!\n"  
-            f"Added {added_count} annotations.\n"  
-            f"You can now view results in Edit Mode.",  
-            "Tracking Complete"  
-        )  
+            self.menu_panel.update_tracking_progress("Tracking completed and annotations added!")  
+        else:  
+            # ユーザーが破棄を選択した場合  
+            ErrorHandler.show_info_dialog(  
+                "追跡結果を破棄しました。",  
+                "Tracking Cancelled"  
+            )  
+            self.menu_panel.update_tracking_progress("Tracking results discarded.")
           
     def on_tracking_error(self, message: str):  
         """追跡エラー時の処理"""  
@@ -309,10 +403,7 @@ class MASAAnnotationWidget(QWidget):
                 else:  
                     ErrorHandler.show_warning_dialog("Label cannot be empty.", "Input Error")  
         elif self.video_preview.mode_manager.current_mode_name == 'batch_add':  
-            # BatchAddModeの場合、ラベル入力ダイアログは表示しない  
-            # BatchAddModeで既に仮のラベルが設定されているはずなので、ここでは何もしない  
-            # ただし、temp_bboxes_for_batch_addへの追加はBatchAddMode内で直接行われるため、  
-            # ここでは何もしないか、エラーログを出す  
+            # BatchAddModeの場合、ラベル入力ダイアログは表示しない(正常動作)  
             #ErrorHandler.show_warning_dialog("BatchAddMode中にbbox_createdが呼び出されましたが、処理はスキップされました。", "Warning")  
             pass
         else:  
@@ -327,27 +418,48 @@ class MASAAnnotationWidget(QWidget):
     def set_edit_mode(self, enabled: bool):  
         """編集モードの設定とUIの更新"""  
         if enabled:  
+            # BatchAddModeがONの場合はOFFにする  
+            if self.menu_panel.batch_add_annotation_btn.isChecked():  
+                self.menu_panel.batch_add_annotation_btn.setChecked(False)  
+                self.set_batch_add_mode(False)  
+              
             self.video_preview.set_mode('edit')  
-            self.video_control.range_slider.setVisible(True)  
-            self.video_preview.clear_temp_batch_annotations() # 他のモードに切り替える際もクリア
+            self.video_control.range_slider.setVisible(False)  
+            self.video_preview.clear_temp_batch_annotations()  
             ErrorHandler.show_info_dialog("編集モードが有効になりました。", "モード変更")  
         else:  
             self.video_preview.set_mode('view')  
             self.video_control.range_slider.setVisible(False)  
             ErrorHandler.show_info_dialog("編集モードが無効になりました。", "モード変更")  
         self.video_preview.bbox_editor.set_editing_mode(enabled)  
-        self.video_preview.update_frame_display()
-
+        self.video_preview.update_frame_display()  
+      
     def set_batch_add_mode(self, enabled: bool):  
         """一括追加モードの設定とUIの更新"""  
         if enabled:  
+            # EditModeがONの場合はOFFにする  
+            if self.menu_panel.edit_mode_btn.isChecked():  
+                self.menu_panel.edit_mode_btn.setChecked(False)  
+                self.set_edit_mode(False)  
+              
             self.video_preview.set_mode('batch_add')  
-            self.video_preview.clear_temp_batch_annotations() # バッチ追加モード開始時に一時リストをクリア
-            ErrorHandler.show_info_dialog("新規アノテーション一括追加モードが有効になりました。\n動画プレビュー上でバウンディングボックスを描画してください。\nバウンディングボックスの追加が終わったら追加完了ボタンを押してください。", "モード変更")  
+            self.video_control.range_slider.setVisible(True)
+            self.video_preview.clear_temp_batch_annotations()  
+            ErrorHandler.show_info_dialog("新規アノテーション一括追加モードが有効になりました。\n"
+                  "1. 動画プレビュー上でバウンディングボックスを描画してください。\n"
+                  "2. 追加したいフレーム範囲を指定して下さい。\n"
+                  "3. 実行ボタンを押してください。", "モード変更")  
             self.temp_bboxes_for_batch_add.clear()  
+            # 再生中の場合は停止  
+            if self.playback_controller and self.playback_controller.is_playing:  
+                self.playback_controller.pause()  
         else:  
             self.video_preview.set_mode('view')  
             ErrorHandler.show_info_dialog("新規アノテーション一括追加モードが無効になりました。", "モード変更")  
+            # モード終了時に再生を停止し、タイマーを確実に停止  
+            if self.playback_controller:  
+                self.playback_controller.stop() # stopメソッドでタイマーを停止し、フレームをリセット  
+        self.video_preview.bbox_editor.set_editing_mode(enabled)  
         self.video_preview.update_frame_display()
 
     def on_label_change_requested(self, annotation: ObjectAnnotation, new_label: str):  
@@ -365,6 +477,8 @@ class MASAAnnotationWidget(QWidget):
     def on_delete_annotation_requested(self, annotation: ObjectAnnotation):  
         """単一アノテーション削除要求時の処理"""  
         if self.annotation_repository.delete_annotation(annotation.object_id, annotation.frame_id):  
+            self.video_preview.bbox_editor.selected_annotation = None  
+            self.video_preview.bbox_editor.selection_changed.emit(None)  
             ErrorHandler.show_info_dialog("アノテーションを削除しました。", "削除完了")  
             self.update_annotation_count()  
             self.video_preview.update_frame_display()  
@@ -375,6 +489,8 @@ class MASAAnnotationWidget(QWidget):
         """Track IDによる一括削除要求時の処理"""  
         deleted_count = self.annotation_repository.delete_by_track_id(track_id)  
         if deleted_count > 0:  
+            self.video_preview.bbox_editor.selected_annotation = None  
+            self.video_preview.bbox_editor.selection_changed.emit(None)  
             ErrorHandler.show_info_dialog(f"Track ID '{track_id}' のアノテーションを {deleted_count} 件削除しました。", "削除完了")  
             self.update_annotation_count()  
             self.video_preview.update_frame_display()  
@@ -421,11 +537,15 @@ class MASAAnnotationWidget(QWidget):
 
     def on_annotation_updated(self, annotation: ObjectAnnotation):  
         """アノテーション更新時の処理"""  
+        # 一時的なバッチアノテーションの場合は、アノテーションリポジトリ更新をスキップ  
+        if hasattr(annotation, 'is_batch_added') and annotation.is_batch_added:  
+            self.update_annotation_count()  
+            return  
+          
         if self.annotation_repository.update_annotation(annotation):  
             self.update_annotation_count()  
-            #ErrorHandler.show_info_dialog("アノテーションを更新しました。", "更新完了")  
         else:  
-            ErrorHandler.show_warning_dialog("アノテーションの更新に失敗しました。", "エラー")
+            ErrorHandler.show_warning_dialog("アノテーションの更新に失敗しました。", "Error")
 
     def on_range_selection_changed(self, start_frame: int, end_frame: int):  
         """範囲選択変更時の処理"""  
@@ -447,3 +567,42 @@ class MASAAnnotationWidget(QWidget):
         stats = self.annotation_repository.get_statistics()  
         self.menu_panel.update_annotation_count(stats["total"], stats["manual"])  
         self.menu_panel.initialize_label_combo(self.annotation_repository.get_all_labels())
+
+    def keyPressEvent(self, event: QKeyEvent):  
+        """キーボードショートカットの処理"""  
+        # フォーカスされたウィジェットを取得  
+        focused_widget = self.focusWidget()  
+          
+        if isinstance(focused_widget, QPushButton):  
+            if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:  
+                # Enterキーでボタンをクリック  
+                focused_widget.click()  
+                event.accept()  
+                return  
+            elif event.key() == Qt.Key.Key_Space:  
+                # Spaceキーの場合は何もしない（デフォルト動作を無効化）  
+                event.accept()  
+                return  
+          
+        # 既存のショートカット処理  
+        if event.key() == Qt.Key.Key_Space:  
+            # 動画再生・一時停止の処理  
+            if self.playback_controller and self.playback_controller.is_playing:  
+                self.pause_playback()  
+            else:  
+                self.start_playback()  
+            event.accept()  
+        elif event.key() == Qt.Key.Key_Left:  
+            self.video_control.prev_frame()  
+            event.accept()  
+        elif event.key() == Qt.Key.Key_Right:  
+            self.video_control.next_frame()  
+            event.accept()  
+        elif event.key() == Qt.Key.Key_D:  
+            # Dキー：トラック一括削除  
+            if (self.menu_panel.current_selected_annotation and   
+                self.menu_panel.delete_track_btn.isEnabled()):  
+                self.menu_panel._on_delete_track_clicked()  
+            event.accept()  
+        else:  
+            super().keyPressEvent(event)

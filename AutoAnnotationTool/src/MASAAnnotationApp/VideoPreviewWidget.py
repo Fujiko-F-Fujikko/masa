@@ -24,7 +24,7 @@ class VideoPreviewWidget(QLabel):
       
     def __init__(self, parent=None):  
         super().__init__(parent)  
-        self.parent = parent
+        self.parent_ma_widget = parent
         self.setMinimumSize(640, 480) # 適切なデフォルトサイズ  
         self.setStyleSheet("border: 2px solid gray; background-color: black;")  
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)  
@@ -131,54 +131,60 @@ class VideoPreviewWidget(QLabel):
         """フレーム表示を更新"""  
         if not self.video_manager or not self.annotation_repository:  
             return  
-          
+              
         frame = self.video_manager.get_frame(self.current_frame_id)  
         if frame is None:  
             return  
-          
+              
         self.current_frame = frame.copy()  
           
         # 座標変換パラメータを更新  
         self.coordinate_transform.update_transform(  
-            self.original_width / self.width(), # 仮のスケール計算  
-            self.original_height / self.height(), # 仮のスケール計算  
-            0, 0, # オフセットは後で計算  
+            self.original_width / self.width(),  
+            self.original_height / self.height(),  
+            0, 0,  
             self.original_width, self.original_height  
         )  
           
-        # BoundingBoxEditorに座標変換オブジェクトを設定  
         self.bbox_editor.set_coordinate_transform(self.coordinate_transform)  
           
-        # アノテーションを描画  
-        frame_annotation = self.annotation_repository.get_annotations(self.current_frame_id)  
-        if frame_annotation and frame_annotation.objects:  
-            annotations_to_show = []  
-            for annotation in frame_annotation.objects:  
-                if annotation.bbox.confidence < self.score_threshold:  
-                    continue  
-                if (annotation.is_manual and self.show_manual_annotations) or \
-                   (not annotation.is_manual and self.show_auto_annotations):  
-                    annotations_to_show.append(annotation)  
-
-            # 一時的なバッチ追加アノテーションを追加  
-            # 現在のフレームに属する一時アノテーションのみを描画  
+        annotations_to_show = []  
+          
+        # モードに応じてアノテーションを選択  
+        current_mode = self.mode_manager.current_mode_name  
+          
+        if current_mode == 'edit':  
+            # EditMode: リポジトリのアノテーションのみ表示  
+            frame_annotation = self.annotation_repository.get_annotations(self.current_frame_id)  
+            if frame_annotation and frame_annotation.objects:  
+                for annotation in frame_annotation.objects:  
+                    if annotation.bbox.confidence < self.score_threshold:  
+                        continue  
+                    if (annotation.is_manual and self.show_manual_annotations) or \
+                      (not annotation.is_manual and self.show_auto_annotations):  
+                        annotations_to_show.append(annotation)  
+                          
+        elif current_mode == 'batch_add':  
+            # BatchAddMode: 一時的なバッチアノテーションのみ表示  
             annotations_to_show.extend([  
                 ann for ann in self.temp_batch_annotations if ann.frame_id == self.current_frame_id  
             ])  
-
-            if annotations_to_show:
-                self.current_frame = self.visualizer.draw_annotations(  
-                    self.current_frame, annotations_to_show,  
-                    show_ids=self.show_ids,  
-                    show_confidence=self.show_confidence,  
-                    selected_annotation=self.bbox_editor.selected_annotation  
-                )  
-                  
-        # 編集モードの場合、選択オーバーレイを描画  
-        if self.mode_manager.current_mode == self.mode_manager.modes['edit']:  
+          
+        # アノテーションを描画  
+        if annotations_to_show:  
+            self.current_frame = self.visualizer.draw_annotations(  
+                self.current_frame, annotations_to_show,  
+                show_ids=self.show_ids,  
+                show_confidence=self.show_confidence,  
+                selected_annotation=self.bbox_editor.selected_annotation  
+            )  
+          
+        # 編集モードまたはBatchAddModeの場合、選択オーバーレイを描画  
+        current_mode = self.mode_manager.current_mode_name  
+        if current_mode in ['edit', 'batch_add']:  
             self.current_frame = self.bbox_editor.draw_selection_overlay(self.current_frame)  
               
-        self._display_frame_on_widget(self.current_frame)  
+        self._display_frame_on_widget(self.current_frame)
           
     def _display_frame_on_widget(self, frame: np.ndarray):  
         """フレームをウィジェットに表示"""  

@@ -61,10 +61,34 @@ class MenuPanel(QWidget):
         layout.addWidget(title_label)  
           
         self.tab_widget = QTabWidget()  
+        # タブのスタイルを設定  
+        tab_style = """  
+            QTabWidget::pane {  
+                border: 2px solid #ccc;  
+                background-color: white;  
+            }  
+            QTabBar::tab {  
+                background-color: #e0e0e0;  
+                border: 1px solid #ccc;  
+                padding: 8px 16px;  
+                margin-right: 2px;  
+                font-weight: bold;  
+            }  
+            QTabBar::tab:selected {  
+                background-color: #4CAF50;  
+                color: white;  
+                border-bottom: 2px solid #4CAF50;  
+            }  
+            QTabBar::tab:hover {  
+                background-color: #f0f0f0;  
+            }  
+        """  
+        self.tab_widget.setStyleSheet(tab_style)  
+        layout.addWidget(self.tab_widget)  
+
         self.setup_basic_tab()  
         self.setup_annotation_tab()  
           
-        layout.addWidget(self.tab_widget)  
         self.setLayout(layout)  
           
     def _connect_config_signals(self):  
@@ -97,12 +121,12 @@ class MenuPanel(QWidget):
         file_layout.addWidget(self.load_json_btn)  
           
         self.save_masa_json_btn = QPushButton("MASA JSONを保存")  
-        self.save_masa_json_btn.clicked.connect(lambda: self.export_requested.emit("masa_json"))  
+        self.save_masa_json_btn.clicked.connect(lambda: self.export_requested.emit("masa"))  
         self.save_masa_json_btn.setEnabled(False)  
         file_layout.addWidget(self.save_masa_json_btn)  
       
         self.save_coco_json_btn = QPushButton("COCO JSONを保存")  
-        self.save_coco_json_btn.clicked.connect(lambda: self.export_requested.emit("coco_json"))  
+        self.save_coco_json_btn.clicked.connect(lambda: self.export_requested.emit("coco"))  
         self.save_coco_json_btn.setEnabled(False)  
         file_layout.addWidget(self.save_coco_json_btn)  
           
@@ -110,6 +134,10 @@ class MenuPanel(QWidget):
         self.json_info_label.setWordWrap(True)  
         file_layout.addWidget(self.json_info_label)  
           
+        # エクスポート進捗表示ラベルを追加  
+        self.export_progress_label = QLabel("")  
+        file_layout.addWidget(self.export_progress_label)  
+
         file_group.setLayout(file_layout)  
         layout.addWidget(file_group)  
           
@@ -183,8 +211,8 @@ class MenuPanel(QWidget):
           
         layout.addStretch()  
         basic_tab.setLayout(layout)  
-        self.tab_widget.addTab(basic_tab, "基本設定")  
-          
+        self.tab_widget.addTab(basic_tab, "⚙️ 基本設定")  
+    
     def setup_annotation_tab(self):  
         annotation_tab = QWidget()  
         layout = QVBoxLayout()  
@@ -201,6 +229,7 @@ class MenuPanel(QWidget):
         edit_group = QGroupBox("アノテーション編集")  
         edit_layout = QVBoxLayout()  
           
+        # EditModeボタン用
         edit_button_style = """  
             QPushButton {  
                 background-color: #f0f0f0;  
@@ -255,17 +284,32 @@ class MenuPanel(QWidget):
         # 自動追跡グループ  
         tracking_group = QGroupBox("自動追跡")  
         tracking_layout = QVBoxLayout()  
-          
+        
+
+        # BatchAddModeボタン用
+        batch_add_button_style = """  
+            QPushButton {  
+                background-color: #f0f0f0;  
+                border: 2px solid #ccc;  
+                padding: 5px;  
+            }  
+            QPushButton:checked {  
+                background-color: #87CEEB;
+                border: 2px solid #4682B4;
+                font-weight: bold;  
+            }  
+        """  
         self.batch_add_annotation_btn = QPushButton("新規アノテーション一括追加")  
         self.batch_add_annotation_btn.setCheckable(True)  
+        self.batch_add_annotation_btn.setEnabled(True)  
+        self.batch_add_annotation_btn.setStyleSheet(batch_add_button_style)
         self.batch_add_annotation_btn.clicked.connect(self._on_batch_add_annotation_clicked)  
-        self.batch_add_annotation_btn.setEnabled(False)  
         tracking_layout.addWidget(self.batch_add_annotation_btn)  
           
-        self.complete_batch_add_btn = QPushButton("追加完了")  
-        self.complete_batch_add_btn.setEnabled(False)  
-        self.complete_batch_add_btn.clicked.connect(self._on_complete_batch_add_clicked)  
-        tracking_layout.addWidget(self.complete_batch_add_btn)  
+        self.execute_batch_add_btn = QPushButton("実行")  
+        self.execute_batch_add_btn.setEnabled(False)  
+        self.execute_batch_add_btn.clicked.connect(self._on_complete_batch_add_clicked)  
+        tracking_layout.addWidget(self.execute_batch_add_btn)  
           
         self.range_info_label = QLabel("範囲: 未選択")  
         tracking_layout.addWidget(self.range_info_label)  
@@ -278,8 +322,8 @@ class MenuPanel(QWidget):
           
         layout.addStretch()  
         annotation_tab.setLayout(layout)  
-        self.tab_widget.addTab(annotation_tab, "アノテーション")  
-          
+        self.tab_widget.addTab(annotation_tab, "📝 アノテーション")  
+    
     @ErrorHandler.handle_with_dialog("File Load Error")  
     def _on_load_video_clicked(self, _: str):  
         """動画ファイル読み込みボタンのクリックハンドラ"""  
@@ -306,12 +350,25 @@ class MenuPanel(QWidget):
         self.json_info_label.setText(f"{filename}\n{annotation_count} annotations loaded")  
         self.save_masa_json_btn.setEnabled(True)  
         self.save_coco_json_btn.setEnabled(True)  
-          
+
+    def update_export_progress(self, message: str):  
+        """エクスポート進捗を更新"""  
+        self.export_progress_label.setText(message)
+
     def _on_edit_mode_clicked(self, checked: bool):  
         """編集モードボタンクリック時の処理"""  
+        if checked:  
+            # BatchAddModeがONの場合はOFFにして無効化  
+            if self.batch_add_annotation_btn.isChecked():  
+                self.batch_add_annotation_btn.setChecked(False)  
+            self.batch_add_annotation_btn.setEnabled(False)  
+        else:  
+            # EditModeがOFFになった時はBatchAddModeボタンを有効化  
+            self.batch_add_annotation_btn.setEnabled(True)  
+          
         self.edit_mode_requested.emit(checked)  
         self._update_edit_controls_state(checked)  
-          
+
     def _update_edit_controls_state(self, enabled: bool):  
         """編集関連コントロールの有効/無効を切り替える"""  
         self.label_combo.setEnabled(enabled)  
@@ -319,14 +376,7 @@ class MenuPanel(QWidget):
         self.delete_single_annotation_btn.setEnabled(enabled and self.current_selected_annotation is not None)  
         self.delete_track_btn.setEnabled(enabled and self.current_selected_annotation is not None)  
         self.propagate_label_btn.setEnabled(enabled and self.current_selected_annotation is not None)  
-        self.batch_add_annotation_btn.setEnabled(enabled)  
-          
-        # 一括追加モードが有効な場合は完了ボタンも制御  
-        if self.batch_add_annotation_btn.isChecked():  
-            self.complete_batch_add_btn.setEnabled(enabled)  
-        else:  
-            self.complete_batch_add_btn.setEnabled(False)  
-              
+
     def update_video_info(self, video_path: str, total_frames: int):  
         """動画情報を更新"""  
         filename = Path(video_path).name  
@@ -523,9 +573,18 @@ class MenuPanel(QWidget):
       
     def _on_batch_add_annotation_clicked(self, checked: bool):  
         """新規アノテーション一括追加ボタンクリック時の処理"""  
-        self.batch_add_mode_requested.emit(checked)  
-        self.complete_batch_add_btn.setEnabled(checked)  
+        if checked:  
+            # EditModeがONの場合はOFFにして無効化  
+            if self.edit_mode_btn.isChecked():  
+                self.edit_mode_btn.setChecked(False)  
+            self.edit_mode_btn.setEnabled(False)  
+        else:  
+            # BatchAddModeがOFFになった時はEditModeボタンを有効化  
+            self.edit_mode_btn.setEnabled(True)  
           
+        self.batch_add_mode_requested.emit(checked)  
+        self.execute_batch_add_btn.setEnabled(checked)
+
     def _on_complete_batch_add_clicked(self):  
         """一括追加完了ボタンクリック時の処理"""  
         # temp_bboxes_for_batch_add が空でないことを確認  
@@ -552,12 +611,15 @@ class MenuPanel(QWidget):
                 ErrorHandler.show_warning_dialog("追跡範囲が選択されていません。", "Warning")  
                 return  
   
+            # AnnotationRepositoryから現在のTrack IDの最大値を取得  
+            # MASAAnnotationWidgetのannotation_repositoryにアクセス  
+            current_max_track_id = self.parent().annotation_repository.next_object_id  
             # MASAAnnotationWidgetに追跡開始を要求  
-            # assigned_track_id は MASAAnnotationWidget 側で割り当てられるため、ここではダミー値 -1 を渡す  
-            self.tracking_requested.emit(-1, assigned_label)  
+            # assigned_track_id は バッチ追加で追加されるアノテーションのTrack IDの始まりののインデックスになる。
+            self.tracking_requested.emit(current_max_track_id, assigned_label)  
               
             # UIをリセット  
             self.batch_add_annotation_btn.setChecked(False)  
-            self.complete_batch_add_btn.setEnabled(False)  
+            self.execute_batch_add_btn.setEnabled(False)  
         else:  
             ErrorHandler.show_info_dialog("ラベル選択がキャンセルされました。", "Info")  
