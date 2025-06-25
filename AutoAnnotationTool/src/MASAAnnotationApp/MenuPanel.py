@@ -302,10 +302,10 @@ class MenuPanel(QWidget):
         self.batch_add_annotation_btn.clicked.connect(self._on_batch_add_annotation_clicked)  
         tracking_layout.addWidget(self.batch_add_annotation_btn)  
           
-        self.complete_batch_add_btn = QPushButton("追加完了")  
-        self.complete_batch_add_btn.setEnabled(False)  
-        self.complete_batch_add_btn.clicked.connect(self._on_complete_batch_add_clicked)  
-        tracking_layout.addWidget(self.complete_batch_add_btn)  
+        self.execute_batch_add_btn = QPushButton("実行")  
+        self.execute_batch_add_btn.setEnabled(False)  
+        self.execute_batch_add_btn.clicked.connect(self._on_complete_batch_add_clicked)  
+        tracking_layout.addWidget(self.execute_batch_add_btn)  
           
         self.range_info_label = QLabel("範囲: 未選択")  
         tracking_layout.addWidget(self.range_info_label)  
@@ -575,7 +575,7 @@ class MenuPanel(QWidget):
             self.edit_mode_btn.setEnabled(True)  
           
         self.batch_add_mode_requested.emit(checked)  
-        self.complete_batch_add_btn.setEnabled(checked)
+        self.execute_batch_add_btn.setEnabled(checked)
 
     def _on_complete_batch_add_clicked(self):  
         """一括追加完了ボタンクリック時の処理"""  
@@ -609,6 +609,6 @@ class MenuPanel(QWidget):
               
             # UIをリセット  
             self.batch_add_annotation_btn.setChecked(False)  
-            self.complete_batch_add_btn.setEnabled(False)  
+            self.execute_batch_add_btn.setEnabled(False)  
         else:  
             ErrorHandler.show_info_dialog("ラベル選択がキャンセルされました。", "Info")  

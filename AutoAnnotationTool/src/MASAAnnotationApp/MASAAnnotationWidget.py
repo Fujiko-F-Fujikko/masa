@@ -333,7 +333,7 @@ class MASAAnnotationWidget(QWidget):
                 self.set_batch_add_mode(False)  
               
             self.video_preview.set_mode('edit')  
-            self.video_control.range_slider.setVisible(True)  
+            self.video_control.range_slider.setVisible(False)  
             self.video_preview.clear_temp_batch_annotations()  
             ErrorHandler.show_info_dialog("編集モードが有効になりました。", "モード変更")  
         else:  
@@ -352,8 +352,12 @@ class MASAAnnotationWidget(QWidget):
                 self.set_edit_mode(False)  
               
             self.video_preview.set_mode('batch_add')  
+            self.video_control.range_slider.setVisible(True)
             self.video_preview.clear_temp_batch_annotations()  
-            ErrorHandler.show_info_dialog("新規アノテーション一括追加モードが有効になりました。\n動画プレビュー上でバウンディングボックスを描画してください。\nバウンディングボックスの追加が終わったら追加完了ボタンを押してください。", "モード変更")  
+            ErrorHandler.show_info_dialog("新規アノテーション一括追加モードが有効になりました。\n"
+                  "1. 動画プレビュー上でバウンディングボックスを描画してください。\n"
+                  "2. 追加したいフレーム範囲を指定して下さい。\n"
+                  "3. 実行ボタンを押してください。", "モード変更")  
             self.temp_bboxes_for_batch_add.clear()  
         else:  
             self.video_preview.set_mode('view')  
