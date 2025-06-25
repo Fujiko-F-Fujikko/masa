@@ -23,6 +23,7 @@ from AnnotationInputDialog import AnnotationInputDialog
 from ConfigManager import ConfigManager  
 from ErrorHandler import ErrorHandler  
 from COCOExportWorker import COCOExportWorker
+from TrackingResultConfirmDialog import TrackingResultConfirmDialog
   
 
 # QtのデフォルトではSpaceキーでボタンクリックだが、Enterキーに変更する
@@ -309,12 +310,16 @@ class MASAAnnotationWidget(QWidget):
             self.tracking_worker.start()  
               
             # バッチ追加モードの場合はUIをリセット  
-            if assigned_track_id != -1:  
+            if self.video_preview.mode_manager.current_mode_name == 'batch_add':  
+                # tmpアノテーションをクリア
                 self.temp_bboxes_for_batch_add.clear()  
-                self.video_preview.clear_temp_batch_annotations() # ここもクリア
-                self.video_preview.set_mode('edit') # 編集モードに戻す  
+                self.video_preview.clear_temp_batch_annotations()
+                # 編集モードに切り替え
+                self.video_preview.set_mode('edit') 
                 self.menu_panel.batch_add_annotation_btn.setChecked(False)  
-                self.menu_panel.complete_batch_add_btn.setEnabled(False)  
+                self.menu_panel.execute_batch_add_btn.setEnabled(False)  
+                self.menu_panel.edit_mode_btn.setChecked(True)
+                self.menu_panel.edit_mode_btn.setEnabled(True)
                 self.video_preview.update_frame_display()
 
     def on_tracking_progress(self, current_frame: int, total_frames: int):  
@@ -324,30 +329,38 @@ class MASAAnnotationWidget(QWidget):
         self.menu_panel.update_tracking_progress(progress_text)  
           
     def on_tracking_completed(self, results: Dict[int, List[ObjectAnnotation]]):  
-        """追跡完了時の処理"""  
-        added_count = 0  
-        for frame_id, annotations_list in results.items():  
-            for ann in annotations_list:  
-                self.annotation_repository.add_annotation(ann)  
-                added_count += 1  
+        """追跡完了時の処理（確認ダイアログ付き）"""  
+        self.menu_panel.update_tracking_progress("Tracking completed. Waiting for confirmation...")  
           
-        self.menu_panel.update_tracking_progress(f"Completed! {added_count} annotations added.")  
-        self.update_annotation_count()  
-        self.video_preview.update_frame_display()  
+        # 確認ダイアログを表示  
+        dialog = TrackingResultConfirmDialog(results, self.video_manager, self)  
           
-        # AnnotationRepositoryのnext_object_idを更新  
-        if hasattr(self.tracking_worker, 'max_used_track_id'):  
-            self.annotation_repository.next_object_id = max(  
-                self.annotation_repository.next_object_id,  
-                self.tracking_worker.max_used_track_id + 1  
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.approved:  
+            # ユーザーが承認した場合のみ追加  
+            added_count = 0  
+            # dialog.tracking_results にはユーザーが削除した後のアノテーションが含まれる  
+            final_results_to_add = dialog.tracking_results   
+  
+            for frame_id, annotations in final_results_to_add.items():  
+                for annotation in annotations:  
+                    if self.annotation_repository.add_annotation(annotation):  
+                        added_count += 1  
+              
+            self.update_annotation_count()  
+            self.video_preview.update_frame_display()  
+              
+            ErrorHandler.show_info_dialog(  
+                f"追跡が完了しました。{added_count}個のアノテーションを追加しました。",  
+                "Tracking Complete"  
             )  
-          
-        ErrorHandler.show_info_dialog(  
-            f"Automatic tracking completed successfully!\n"  
-            f"Added {added_count} annotations.\n"  
-            f"You can now view results in Edit Mode.",  
-            "Tracking Complete"  
-        )  
+            self.menu_panel.update_tracking_progress("Tracking completed and annotations added!")  
+        else:  
+            # ユーザーが破棄を選択した場合  
+            ErrorHandler.show_info_dialog(  
+                "追跡結果を破棄しました。",  
+                "Tracking Cancelled"  
+            )  
+            self.menu_panel.update_tracking_progress("Tracking results discarded.")
           
     def on_tracking_error(self, message: str):  
         """追跡エラー時の処理"""  
