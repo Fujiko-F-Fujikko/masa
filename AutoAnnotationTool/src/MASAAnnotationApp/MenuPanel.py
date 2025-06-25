@@ -201,6 +201,7 @@ class MenuPanel(QWidget):
         edit_group = QGroupBox("アノテーション編集")  
         edit_layout = QVBoxLayout()  
           
+        # EditModeボタン用
         edit_button_style = """  
             QPushButton {  
                 background-color: #f0f0f0;  
@@ -255,9 +256,24 @@ class MenuPanel(QWidget):
         # 自動追跡グループ  
         tracking_group = QGroupBox("自動追跡")  
         tracking_layout = QVBoxLayout()  
-          
+        
+
+        # BatchAddModeボタン用
+        batch_add_button_style = """  
+            QPushButton {  
+                background-color: #f0f0f0;  
+                border: 2px solid #ccc;  
+                padding: 5px;  
+            }  
+            QPushButton:checked {  
+                background-color: #87CEEB;
+                border: 2px solid #4682B4;
+                font-weight: bold;  
+            }  
+        """  
         self.batch_add_annotation_btn = QPushButton("新規アノテーション一括追加")  
         self.batch_add_annotation_btn.setCheckable(True)  
+        self.batch_add_annotation_btn.setStyleSheet(batch_add_button_style)
         self.batch_add_annotation_btn.clicked.connect(self._on_batch_add_annotation_clicked)  
         self.batch_add_annotation_btn.setEnabled(False)  
         tracking_layout.addWidget(self.batch_add_annotation_btn)  
