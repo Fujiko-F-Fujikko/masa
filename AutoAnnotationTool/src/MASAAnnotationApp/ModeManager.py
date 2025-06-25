@@ -242,7 +242,7 @@ class BatchAddMode(AnnotationMode):
                     track_confidence=1.0,  
                     is_batch_added=True  # バッチ追加されたアノテーションとしてマーク  
                 )  
-                self.widget.parent().temp_bboxes_for_batch_add.append(  
+                self.widget.parent_ma_widget.temp_bboxes_for_batch_add.append(  
                     (self.widget.current_frame_id, annotation)  
                 )  
                 # MASAAnnotationWidgetのtemp_bboxes_for_batch_addにも追加  
