@@ -190,8 +190,11 @@ class MASAAnnotationWidget(QWidget):
                     file_path  
                 )  
             elif format == "coco_json":  
+                # スコア閾値でフィルタリングされたアノテーションを作成  
+                filtered_annotations = self._filter_annotations_by_score_threshold() 
+
                 self.export_service.export_coco(  
-                    self.annotation_repository.frame_annotations,  
+                    filtered_annotations,  
                     self.video_manager.video_path,  
                     file_path,  
                     self.video_manager  
@@ -201,6 +204,31 @@ class MASAAnnotationWidget(QWidget):
                 return
 
             ErrorHandler.show_info_dialog(f"Annotations exported to {file_path}", "Export Complete")  
+
+    def _filter_annotations_by_score_threshold(self):  
+        """現在の表示設定のスコア閾値でアノテーションをフィルタリング"""  
+        filtered_frame_annotations = {}  
+        score_threshold = self.video_preview.score_threshold  
+          
+        for frame_id, frame_annotation in self.annotation_repository.frame_annotations.items():  
+            if frame_annotation and frame_annotation.objects:  
+                filtered_objects = []  
+                for annotation in frame_annotation.objects:  
+                    # スコア閾値チェック  
+                    if annotation.bbox.confidence >= score_threshold:  
+                        filtered_objects.append(annotation)  
+                  
+                if filtered_objects:  
+                    # 新しいFrameAnnotationオブジェクトを作成  
+                    from DataClass import FrameAnnotation  
+                    filtered_frame_annotation = FrameAnnotation(  
+                        frame_id=frame_annotation.frame_id,  
+                        frame_path=frame_annotation.frame_path,  
+                        objects=filtered_objects  
+                    )  
+                    filtered_frame_annotations[frame_id] = filtered_frame_annotation  
+          
+        return filtered_frame_annotations
 
     @ErrorHandler.handle_with_dialog("Tracking Error")  
     def start_tracking(self,  assigned_track_id: int, assigned_label: str):  
@@ -329,10 +357,7 @@ class MASAAnnotationWidget(QWidget):
                 else:  
                     ErrorHandler.show_warning_dialog("Label cannot be empty.", "Input Error")  
         elif self.video_preview.mode_manager.current_mode_name == 'batch_add':  
-            # BatchAddModeの場合、ラベル入力ダイアログは表示しない  
-            # BatchAddModeで既に仮のラベルが設定されているはずなので、ここでは何もしない  
-            # ただし、temp_bboxes_for_batch_addへの追加はBatchAddMode内で直接行われるため、  
-            # ここでは何もしないか、エラーログを出す  
+            # BatchAddModeの場合、ラベル入力ダイアログは表示しない(正常動作)  
             #ErrorHandler.show_warning_dialog("BatchAddMode中にbbox_createdが呼び出されましたが、処理はスキップされました。", "Warning")  
             pass
         else:  
