@@ -121,12 +121,12 @@ class MenuPanel(QWidget):
         file_layout.addWidget(self.load_json_btn)  
           
         self.save_masa_json_btn = QPushButton("MASA JSONを保存")  
-        self.save_masa_json_btn.clicked.connect(lambda: self.export_requested.emit("masa_json"))  
+        self.save_masa_json_btn.clicked.connect(lambda: self.export_requested.emit("masa"))  
         self.save_masa_json_btn.setEnabled(False)  
         file_layout.addWidget(self.save_masa_json_btn)  
       
         self.save_coco_json_btn = QPushButton("COCO JSONを保存")  
-        self.save_coco_json_btn.clicked.connect(lambda: self.export_requested.emit("coco_json"))  
+        self.save_coco_json_btn.clicked.connect(lambda: self.export_requested.emit("coco"))  
         self.save_coco_json_btn.setEnabled(False)  
         file_layout.addWidget(self.save_coco_json_btn)  
           
@@ -134,6 +134,10 @@ class MenuPanel(QWidget):
         self.json_info_label.setWordWrap(True)  
         file_layout.addWidget(self.json_info_label)  
           
+        # エクスポート進捗表示ラベルを追加  
+        self.export_progress_label = QLabel("")  
+        file_layout.addWidget(self.export_progress_label)  
+
         file_group.setLayout(file_layout)  
         layout.addWidget(file_group)  
           
@@ -346,7 +350,11 @@ class MenuPanel(QWidget):
         self.json_info_label.setText(f"{filename}\n{annotation_count} annotations loaded")  
         self.save_masa_json_btn.setEnabled(True)  
         self.save_coco_json_btn.setEnabled(True)  
-          
+
+    def update_export_progress(self, message: str):  
+        """エクスポート進捗を更新"""  
+        self.export_progress_label.setText(message)
+
     def _on_edit_mode_clicked(self, checked: bool):  
         """編集モードボタンクリック時の処理"""  
         if checked:  

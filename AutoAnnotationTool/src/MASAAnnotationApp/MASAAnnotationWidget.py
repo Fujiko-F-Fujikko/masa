@@ -22,6 +22,7 @@ from TrackingWorker import TrackingWorker
 from AnnotationInputDialog import AnnotationInputDialog  
 from ConfigManager import ConfigManager  
 from ErrorHandler import ErrorHandler  
+from COCOExportWorker import COCOExportWorker
   
 
 # QtのデフォルトではSpaceキーでボタンクリックだが、Enterキーに変更する
@@ -174,31 +175,43 @@ class MASAAnnotationWidget(QWidget):
         if not self.video_manager:  
             ErrorHandler.show_warning_dialog("Video not loaded. Cannot export video-related metadata.", "Warning")  
             return  
-          
+
+        # タイムスタンプ付きのデフォルトファイル名を生成  
+        from datetime import datetime  
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  
+        default_filename = f"annotations_{timestamp}.{format}" 
+
         file_dialog_title = f"Save {format.upper()} Annotations"  
-        default_filename = f"annotations.{format}"  
         file_path, _ = QFileDialog.getSaveFileName(  
             self, file_dialog_title, default_filename,  
             "JSON Files (*.json);;All Files (*)"  
         )  
           
         if file_path:  
-            if format == "masa_json":  
+            if format == "masa":  
                 self.export_service.export_masa_json(  
                     self.annotation_repository.frame_annotations,  
                     self.video_manager.video_path,  
                     file_path  
                 )  
-            elif format == "coco_json":  
+            elif format == "coco":  
+                # 進捗表示を開始  
+                self.menu_panel.update_export_progress("Exporting COCO JSON...")  
+                  
                 # スコア閾値でフィルタリングされたアノテーションを作成  
                 filtered_annotations = self._filter_annotations_by_score_threshold() 
-
-                self.export_service.export_coco(  
-                    filtered_annotations,  
+                # ワーカースレッドでエクスポート実行  
+                self.export_worker = COCOExportWorker(  
+                    self.export_service,  
+                    filtered_annotations,  # スコア閾値でフィルタリング済み  
                     self.video_manager.video_path,  
                     file_path,  
                     self.video_manager  
                 )  
+                self.export_worker.progress_updated.connect(self.on_export_progress)  
+                self.export_worker.export_completed.connect(self.on_export_completed)  
+                self.export_worker.error_occurred.connect(self.on_export_error)  
+                self.export_worker.start()  
             else:  
                 ErrorHandler.show_error_dialog(f"Unsupported export format: {format}", "Error")  
                 return
@@ -229,6 +242,21 @@ class MASAAnnotationWidget(QWidget):
                     filtered_frame_annotations[frame_id] = filtered_frame_annotation  
           
         return filtered_frame_annotations
+
+    def on_export_progress(self, current: int, total: int):  
+        """エクスポート進捗更新"""  
+        progress_percent = (current / total) * 100  
+        progress_text = f"Exporting... {current}/{total} ({progress_percent:.1f}%)"  
+        self.menu_panel.update_export_progress(progress_text)  
+      
+    def on_export_completed(self):  
+        """エクスポート完了時の処理"""  
+        self.menu_panel.update_export_progress("Export completed!")  
+      
+    def on_export_error(self, error_message: str):  
+        """エクスポートエラー時の処理"""  
+        self.menu_panel.update_export_progress("")  
+        ErrorHandler.show_error_dialog(f"Export failed: {error_message}", "Export Error")
 
     @ErrorHandler.handle_with_dialog("Tracking Error")  
     def start_tracking(self,  assigned_track_id: int, assigned_label: str):  
