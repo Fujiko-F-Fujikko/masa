@@ -400,6 +400,8 @@ class MASAAnnotationWidget(QWidget):
     def on_delete_annotation_requested(self, annotation: ObjectAnnotation):  
         """単一アノテーション削除要求時の処理"""  
         if self.annotation_repository.delete_annotation(annotation.object_id, annotation.frame_id):  
+            self.video_preview.bbox_editor.selected_annotation = None  
+            self.video_preview.bbox_editor.selection_changed.emit(None)  
             ErrorHandler.show_info_dialog("アノテーションを削除しました。", "削除完了")  
             self.update_annotation_count()  
             self.video_preview.update_frame_display()  
@@ -410,6 +412,8 @@ class MASAAnnotationWidget(QWidget):
         """Track IDによる一括削除要求時の処理"""  
         deleted_count = self.annotation_repository.delete_by_track_id(track_id)  
         if deleted_count > 0:  
+            self.video_preview.bbox_editor.selected_annotation = None  
+            self.video_preview.bbox_editor.selection_changed.emit(None)  
             ErrorHandler.show_info_dialog(f"Track ID '{track_id}' のアノテーションを {deleted_count} 件削除しました。", "削除完了")  
             self.update_annotation_count()  
             self.video_preview.update_frame_display()  

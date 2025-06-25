@@ -19,7 +19,6 @@ class BoundingBoxEditor(QObject):
       
     def __init__(self, parent=None):  
         super().__init__(parent)  
-        self.parent_widget = parent  # 親ウィジェット（VideoPreviewWidgetなど）
           
         # 編集状態  
         self.selected_annotation = None  
