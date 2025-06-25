@@ -10,42 +10,6 @@ class ExportService:
     """アノテーションエクスポート専用クラス"""  
       
     @ErrorHandler.handle_with_dialog("Export Error")  
-    def export_json(self, annotations: Dict[int, FrameAnnotation],   
-                   video_path: str, output_path: str):  
-        """カスタムJSON形式でエクスポート"""  
-        export_data = {  
-            "video_path": video_path,  
-            "total_frames": len(annotations),  
-            "annotations": {}  
-        }  
-          
-        for frame_id, frame_annotation in annotations.items():  
-            export_data["annotations"][str(frame_id)] = {  
-                "frame_id": frame_annotation.frame_id,  
-                "objects": [  
-                    {  
-                        "object_id": obj.object_id,  
-                        "label": obj.label,  
-                        "bbox": {  
-                            "x1": obj.bbox.x1,  
-                            "y1": obj.bbox.y1,  
-                            "x2": obj.bbox.x2,  
-                            "y2": obj.bbox.y2,  
-                            "confidence": obj.bbox.confidence  
-                        },  
-                        "is_manual": obj.is_manual,  
-                        "track_confidence": obj.track_confidence  
-                    }  
-                    for obj in frame_annotation.objects  
-                ]  
-            }  
-          
-        with open(output_path, 'w', encoding='utf-8') as f:  
-            json.dump(export_data, f, indent=2, ensure_ascii=False)  
-          
-        print(f"Annotations exported to {output_path}")  
-      
-    @ErrorHandler.handle_with_dialog("Export Error")  
     def export_coco_with_progress(self, frame_annotations, video_path, file_path, video_manager, progress_callback=None):  
         """進捗付きCOCO JSONエクスポート"""  
         # COCO形式の基本構造を初期化  
