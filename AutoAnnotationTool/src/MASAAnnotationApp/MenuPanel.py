@@ -61,10 +61,34 @@ class MenuPanel(QWidget):
         layout.addWidget(title_label)  
           
         self.tab_widget = QTabWidget()  
+        # タブのスタイルを設定  
+        tab_style = """  
+            QTabWidget::pane {  
+                border: 2px solid #ccc;  
+                background-color: white;  
+            }  
+            QTabBar::tab {  
+                background-color: #e0e0e0;  
+                border: 1px solid #ccc;  
+                padding: 8px 16px;  
+                margin-right: 2px;  
+                font-weight: bold;  
+            }  
+            QTabBar::tab:selected {  
+                background-color: #4CAF50;  
+                color: white;  
+                border-bottom: 2px solid #4CAF50;  
+            }  
+            QTabBar::tab:hover {  
+                background-color: #f0f0f0;  
+            }  
+        """  
+        self.tab_widget.setStyleSheet(tab_style)  
+        layout.addWidget(self.tab_widget)  
+
         self.setup_basic_tab()  
         self.setup_annotation_tab()  
           
-        layout.addWidget(self.tab_widget)  
         self.setLayout(layout)  
           
     def _connect_config_signals(self):  
@@ -183,8 +207,8 @@ class MenuPanel(QWidget):
           
         layout.addStretch()  
         basic_tab.setLayout(layout)  
-        self.tab_widget.addTab(basic_tab, "基本設定")  
-          
+        self.tab_widget.addTab(basic_tab, "⚙️ 基本設定")  
+    
     def setup_annotation_tab(self):  
         annotation_tab = QWidget()  
         layout = QVBoxLayout()  
@@ -294,8 +318,8 @@ class MenuPanel(QWidget):
           
         layout.addStretch()  
         annotation_tab.setLayout(layout)  
-        self.tab_widget.addTab(annotation_tab, "アノテーション")  
-          
+        self.tab_widget.addTab(annotation_tab, "📝 アノテーション")  
+    
     @ErrorHandler.handle_with_dialog("File Load Error")  
     def _on_load_video_clicked(self, _: str):  
         """動画ファイル読み込みボタンのクリックハンドラ"""  
