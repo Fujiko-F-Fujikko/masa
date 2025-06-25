@@ -342,6 +342,7 @@ class MASAAnnotationWidget(QWidget):
         """一括追加モードの設定とUIの更新"""  
         if enabled:  
             self.video_preview.set_mode('batch_add')  
+            self.video_preview.bbox_editor.set_editing_mode(True)
             self.video_preview.clear_temp_batch_annotations() # バッチ追加モード開始時に一時リストをクリア
             ErrorHandler.show_info_dialog("新規アノテーション一括追加モードが有効になりました。\n動画プレビュー上でバウンディングボックスを描画してください。\nバウンディングボックスの追加が終わったら追加完了ボタンを押してください。", "モード変更")  
             self.temp_bboxes_for_batch_add.clear()  
@@ -421,11 +422,15 @@ class MASAAnnotationWidget(QWidget):
 
     def on_annotation_updated(self, annotation: ObjectAnnotation):  
         """アノテーション更新時の処理"""  
+        # 一時的なバッチアノテーションの場合は、アノテーションリポジトリ更新をスキップ  
+        if hasattr(annotation, 'is_batch_added') and annotation.is_batch_added:  
+            self.update_annotation_count()  
+            return  
+          
         if self.annotation_repository.update_annotation(annotation):  
             self.update_annotation_count()  
-            #ErrorHandler.show_info_dialog("アノテーションを更新しました。", "更新完了")  
         else:  
-            ErrorHandler.show_warning_dialog("アノテーションの更新に失敗しました。", "エラー")
+            ErrorHandler.show_warning_dialog("アノテーションの更新に失敗しました。", "Error")
 
     def on_range_selection_changed(self, start_frame: int, end_frame: int):  
         """範囲選択変更時の処理"""  

@@ -89,14 +89,9 @@ class TrackingWorker(QThread):
                 final_annotations_for_frame = []  
                 for ann in tracked_annotations:  
                     # MASAモデルが生成したIDに基準IDを加算してオフセット  
-                    # 新規ID (-1) の場合は、assigned_track_idをそのまま使用  
-                    if ann.object_id == -1:  
-                        ann.object_id = self.assigned_track_id  
-                    else:  
-                        ann.object_id = ann.object_id + self.assigned_track_id  
-                      
+                    ann.object_id = ann.object_id + self.assigned_track_id  
                     self.max_used_track_id = max(self.max_used_track_id, ann.object_id)  
-                    ann.label = self.assigned_label # ラベルを上書き  
+                    #ann.label = self.assigned_label # ラベルを上書き  
                     ann.is_manual = True # 手動追跡結果としてマーク  
                     final_annotations_for_frame.append(ann)  
                   
