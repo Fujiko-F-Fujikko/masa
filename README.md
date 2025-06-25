@@ -1,3 +1,8 @@
+# Notice
+
+このリポジトリは[masa](https://github.com/siyuanliii/masa/tree/main)を使った自動アノテーションツールです。
+詳しくは[README](AutoAnnotationTool/README.md)参照。
+
 <p align="center">
     <img src="docs/imgs/MASA_white_bg.png" alt="Image" width="500" height="100%" />
 </p>
