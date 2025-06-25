@@ -48,3 +48,11 @@
     6. ユーザーは、バウンディングボックスの追加が終わったら「追加完了」ボタンをクリックする。
     7. 手順2-3で指定したバウンディングボックスに対する共通のラベルを指定するため、ラベル入力ダイアログをだす（追加）
     8. 確認ダイアログが表示され、ユーザーがOKをクリックすると処理が開始される。（（現状のままでOK）
+
+## 実装に使用した deepwiki chat
+
+* masa1: https://deepwiki.com/search/demovideodemowithtextpy_fd472fef-1364-4289-837b-b3768310252f
+* masa2: https://deepwiki.com/search/masa-2-pyqt6-300_c3c2a440-d121-4311-a6a9-43addadd56e0
+* masa3: https://deepwiki.com/search/demovideodemowithtextpy-import_4e1187b6-5ca5-4626-93a5-fc55c6f7bc70
+* masa4: https://deepwiki.com/search/demovideodemowithtextpy-import_0d8d6843-e42f-4971-8b71-25d5c486b7e4
+* masa5: https://deepwiki.com/search/masaannotationappbatchaddmodeb_f2c91336-aa02-4c1c-95cd-c4b830021104
