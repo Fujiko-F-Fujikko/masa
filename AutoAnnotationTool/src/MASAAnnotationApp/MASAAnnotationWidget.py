@@ -479,7 +479,7 @@ class MASAAnnotationWidget(QWidget):
             ErrorHandler.show_info_dialog("新規アノテーション一括追加モードが無効になりました。", "モード変更")  
             # モード終了時に再生を停止し、タイマーを確実に停止  
             if self.playback_controller:  
-                self.playback_controller.stop() # stopメソッドでタイマーを停止し、フレームをリセット  
+                self.playback_controller.pause() 
         self.video_preview.bbox_editor.set_editing_mode(enabled)  
         self.video_preview.update_frame_display()
 
