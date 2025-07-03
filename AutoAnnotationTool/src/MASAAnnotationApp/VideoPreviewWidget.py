@@ -122,6 +122,12 @@ class VideoPreviewWidget(QLabel):
         self._updating_frame = True  
         try:  
             self.current_frame_id = max(0, min(frame_id, self.video_manager.get_total_frames() - 1))  
+   
+            # フレーム変更時に選択状態をクリア  
+            if self.bbox_editor.selected_annotation:  
+                self.bbox_editor.selected_annotation = None  
+                self.bbox_editor.selection_changed.emit(None) 
+
             self.update_frame_display()  
             self.frame_changed.emit(self.current_frame_id)  
         finally:  
