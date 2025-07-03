@@ -285,7 +285,6 @@ class MenuPanel(QWidget):
         tracking_group = QGroupBox("自動追跡")  
         tracking_layout = QVBoxLayout()  
         
-
         # BatchAddModeボタン用
         batch_add_button_style = """  
             QPushButton {  
@@ -306,6 +305,12 @@ class MenuPanel(QWidget):
         self.batch_add_annotation_btn.clicked.connect(self._on_batch_add_annotation_clicked)  
         tracking_layout.addWidget(self.batch_add_annotation_btn)  
           
+        self.tracking_status_label = QLabel("Loading MASA models...")  
+        tracking_layout.addWidget(self.tracking_status_label)  
+        
+        self.tracking_progress_label = QLabel("")  
+        tracking_layout.addWidget(self.tracking_progress_label)
+
         self.execute_batch_add_btn = QPushButton("実行")  
         self.execute_batch_add_btn.setEnabled(False)  
         self.execute_batch_add_btn.clicked.connect(self._on_complete_batch_add_clicked)  
@@ -623,3 +628,11 @@ class MenuPanel(QWidget):
             self.execute_batch_add_btn.setEnabled(False)  
         else:  
             ErrorHandler.show_info_dialog("ラベル選択がキャンセルされました。", "Info")  
+
+    def set_tracking_enabled(self, enabled: bool):  
+        """トラッキング機能の有効/無効を設定"""  
+        self.execute_batch_add_btn.setEnabled(enabled)  
+        if not enabled:  
+            self.tracking_status_label.setText("Loading MASA models...")  
+        else:  
+            self.tracking_status_label.setText("Ready for tracking")

@@ -1,5 +1,3 @@
-import os  
-import cv2  
 from typing import Dict, List, Optional, Tuple  
 from PyQt6.QtWidgets import (  
     QWidget, QHBoxLayout, QVBoxLayout, QDialog,  
@@ -17,7 +15,7 @@ from VideoPlaybackController import VideoPlaybackController
 from VideoManager import VideoManager  
 from AnnotationRepository import AnnotationRepository  
 from ExportService import ExportService  
-from ObjectTracker import ObjectTracker  
+from ModelInitializationWorker import ModelInitializationWorker
 from TrackingWorker import TrackingWorker  
 from AnnotationInputDialog import AnnotationInputDialog  
 from ConfigManager import ConfigManager  
@@ -52,17 +50,27 @@ class MASAAnnotationWidget(QWidget):
         self.button_filter = ButtonKeyEventFilter()  
         QApplication.instance().installEventFilter(self.button_filter)
 
-        self.config_manager = ConfigManager()  
+        self.config_manager = ConfigManager() 
         self.video_manager: Optional[VideoManager] = None  
         self.annotation_repository = AnnotationRepository()  
         self.export_service = ExportService()  
-        self.object_tracker = ObjectTracker(self.config_manager.get_full_config(config_type="masa")) # ObjectTrackerにはMASAモデル関連のConfigのみを渡す
         self.playback_controller: Optional[VideoPlaybackController] = None  
         self.tracking_worker: Optional[TrackingWorker] = None  
         self.temp_bboxes_for_batch_add: List[Tuple[int, BoundingBox]] = []  
-          
+
+        self.object_tracker = None # 初期化を遅延
+        # バックグラウンドでObjectTracker初期化を開始  
+        self.model_initialization_worker = ModelInitializationWorker(self.config_manager)  
+        self.model_initialization_worker.initialization_completed.connect(  
+            self.on_model_initialization_completed  
+        )  
+        self.model_initialization_worker.initialization_failed.connect(  
+            self.on_model_initialization_failed  
+        )  
+        self.model_initialization_worker.start()            
+
         self.setup_ui()  
-        self._connect_signals()  
+        self._connect_signals()
           
     def setup_ui(self):  
         """UIの初期設定"""  
@@ -267,6 +275,18 @@ class MASAAnnotationWidget(QWidget):
     @ErrorHandler.handle_with_dialog("Tracking Error")  
     def start_tracking(self,  assigned_track_id: int, assigned_label: str):  
         """自動追跡を開始"""  
+        if not self.object_tracker:  
+            ErrorHandler.show_warning_dialog("MASA models are still loading. Please wait.", "Warning")  
+            return  
+        
+        # ObjectTrackerの実際の初期化（まだされていない場合）  
+        if not self.object_tracker.initialized:  
+            try:  
+                self.object_tracker.initialize()  
+            except Exception as e:  
+                ErrorHandler.show_error_dialog(f"Failed to initialize MASA models: {str(e)}", "Initialization Error")  
+                return  
+
         if not self.video_manager:  
             ErrorHandler.show_warning_dialog("Please load a video file first", "Warning")  
             return  
@@ -567,6 +587,17 @@ class MASAAnnotationWidget(QWidget):
         stats = self.annotation_repository.get_statistics()  
         self.menu_panel.update_annotation_count(stats["total"], stats["manual"])  
         self.menu_panel.initialize_label_combo(self.annotation_repository.get_all_labels())
+
+    def on_model_initialization_completed(self, object_tracker):  
+        """モデル初期化完了時の処理"""  
+        self.object_tracker = object_tracker  
+        self.menu_panel.set_tracking_enabled(True)  # トラッキング機能を有効化  
+        print("MASA models loaded successfully")
+    
+    def on_model_initialization_failed(self, error_message):  
+        """モデル初期化失敗時の処理"""  
+        ErrorHandler.show_error_dialog(f"Failed to initialize MASA models: {error_message}", "Initialization Error")  
+        self.menu_panel.set_tracking_enabled(False)  # トラッキング機能を無効化
 
     def keyPressEvent(self, event: QKeyEvent):  
         """キーボードショートカットの処理"""  
