@@ -5,10 +5,10 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,  
     QPushButton, QGroupBox, QCheckBox, QLineEdit,  
     QMessageBox, QTabWidget, QComboBox, QFileDialog,  
-    QDoubleSpinBox, QDialog  
+    QDoubleSpinBox, QDialog,
 )  
-from PyQt6.QtCore import Qt, pyqtSignal  
-from PyQt6.QtGui import QFont  
+from PyQt6.QtCore import Qt, pyqtSignal, QEvent  
+from PyQt6.QtGui import QFont, QKeyEvent
   
 from AnnotationInputDialog import AnnotationInputDialog  
 from DataClass import BoundingBox, ObjectAnnotation  
@@ -277,10 +277,29 @@ class MenuPanel(QWidget):
         self.propagate_label_btn.setEnabled(False)  
         self.propagate_label_btn.clicked.connect(self._on_propagate_label_clicked)  
         edit_layout.addWidget(self.propagate_label_btn)  
-          
+
         edit_group.setLayout(edit_layout)  
         layout.addWidget(edit_group)  
           
+
+        # Undo/Redoグループ
+        undo_redo_group = QGroupBox("Undo/Redo")  
+        undo_redo_layout = QHBoxLayout()  
+        
+        self.undo_btn = QPushButton("Undo (Ctrl+Z)")  
+        self.undo_btn.setEnabled(False)  
+        self.undo_btn.clicked.connect(self._on_undo_clicked)  
+        undo_redo_layout.addWidget(self.undo_btn)  
+        
+        self.redo_btn = QPushButton("Redo (Ctrl+Y)")  
+        self.redo_btn.setEnabled(False)  
+        self.redo_btn.clicked.connect(self._on_redo_clicked)  
+        undo_redo_layout.addWidget(self.redo_btn)  
+        
+        undo_redo_group.setLayout(undo_redo_layout)  
+        layout.addWidget(undo_redo_group)  
+
+
         # 自動追跡グループ  
         tracking_group = QGroupBox("自動追跡")  
         tracking_layout = QVBoxLayout()  
@@ -636,3 +655,30 @@ class MenuPanel(QWidget):
             self.tracking_status_label.setText("Loading MASA models...")  
         else:  
             self.tracking_status_label.setText("Ready for tracking")
+
+    def _on_undo_clicked(self):  
+        """Undoボタンクリック時の処理"""  
+        if hasattr(self.parent(), 'command_manager'):  
+            self.parent().keyPressEvent(QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier))  
+    
+    def _on_redo_clicked(self):  
+        """Redoボタンクリック時の処理"""  
+        if hasattr(self.parent(), 'command_manager'):  
+            self.parent().keyPressEvent(QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Y, Qt.KeyboardModifier.ControlModifier))  
+    
+    def update_undo_redo_buttons(self, command_manager):  
+        """Undo/Redoボタンの状態を更新"""  
+        if hasattr(self, 'undo_btn') and hasattr(self, 'redo_btn'):  
+            self.undo_btn.setEnabled(command_manager.can_undo())  
+            self.redo_btn.setEnabled(command_manager.can_redo())  
+            
+            # ツールチップに次の操作の説明を表示  
+            if command_manager.can_undo():  
+                self.undo_btn.setToolTip(f"Undo: {command_manager.get_undo_description()}")  
+            else:  
+                self.undo_btn.setToolTip("Undo (Ctrl+Z)")  
+                
+            if command_manager.can_redo():  
+                self.redo_btn.setToolTip(f"Redo: {command_manager.get_redo_description()}")  
+            else:  
+                self.redo_btn.setToolTip("Redo (Ctrl+Y)")

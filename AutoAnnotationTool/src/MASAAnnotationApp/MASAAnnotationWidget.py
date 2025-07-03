@@ -1,75 +1,71 @@
-from typing import Dict, List, Optional, Tuple  
-from PyQt6.QtWidgets import (  
-    QWidget, QHBoxLayout, QVBoxLayout, QDialog,  
-    QMessageBox, QFileDialog, QPushButton, QApplication 
-)  
-from PyQt6.QtGui import QKeyEvent
-from PyQt6.QtCore import Qt, QObject, QEvent  
+# MASAAnnotationWidget.py
+import os    
+import cv2    
+from typing import Dict, List, Optional, Tuple    
+from PyQt6.QtWidgets import (    
+    QWidget, QHBoxLayout, QVBoxLayout, QDialog,    
+    QMessageBox, QFileDialog, QPushButton, QApplication   
+)    
+from PyQt6.QtGui import QKeyEvent  
+from PyQt6.QtCore import Qt, QObject, QEvent    
+    
+from DataClass import BoundingBox, ObjectAnnotation    
+from MenuPanel import MenuPanel    
+from VideoControlPanel import VideoControlPanel    
+from VideoPreviewWidget import VideoPreviewWidget    
+from VideoPlaybackController import VideoPlaybackController    
+    
+from VideoManager import VideoManager    
+from AnnotationRepository import AnnotationRepository    
+from ExportService import ExportService    
+from ObjectTracker import ObjectTracker    
+from TrackingWorker import TrackingWorker    
+from AnnotationInputDialog import AnnotationInputDialog    
+from ConfigManager import ConfigManager    
+from ErrorHandler import ErrorHandler    
+from COCOExportWorker import COCOExportWorker  
+from TrackingResultConfirmDialog import TrackingResultConfirmDialog  
+from CommandPattern import CommandManager, AddAnnotationCommand, DeleteAnnotationCommand, DeleteTrackCommand, UpdateLabelCommand, UpdateLabelByTrackCommand, UpdateBoundingBoxCommand 
   
-from DataClass import BoundingBox, ObjectAnnotation  
-from MenuPanel import MenuPanel  
-from VideoControlPanel import VideoControlPanel  
-from VideoPreviewWidget import VideoPreviewWidget  
-from VideoPlaybackController import VideoPlaybackController  
+# QtのデフォルトではSpaceキーでボタンクリックだが、Enterキーに変更する  
+class ButtonKeyEventFilter(QObject):    
+    def eventFilter(self, obj, event):    
+        if isinstance(obj, QPushButton) and event.type() == QEvent.Type.KeyPress:    
+            if event.key() == Qt.Key.Key_Space:    
+                # Spaceキーを無効化    
+                return True    
+            elif event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:    
+                # Enterキーでクリック    
+                obj.click()    
+                return True    
+        return super().eventFilter(obj, event)    
   
-from VideoManager import VideoManager  
-from AnnotationRepository import AnnotationRepository  
-from ExportService import ExportService  
-from ModelInitializationWorker import ModelInitializationWorker
-from TrackingWorker import TrackingWorker  
-from AnnotationInputDialog import AnnotationInputDialog  
-from ConfigManager import ConfigManager  
-from ErrorHandler import ErrorHandler  
-from COCOExportWorker import COCOExportWorker
-from TrackingResultConfirmDialog import TrackingResultConfirmDialog
+class MASAAnnotationWidget(QWidget):    
+    """統合されたMASAアノテーションメインウィジェット（改善版）"""    
+        
+    def __init__(self, parent=None):    
+        super().__init__(parent)    
   
-
-# QtのデフォルトではSpaceキーでボタンクリックだが、Enterキーに変更する
-class ButtonKeyEventFilter(QObject):  
-    def eventFilter(self, obj, event):  
-        if isinstance(obj, QPushButton) and event.type() == QEvent.Type.KeyPress:  
-            if event.key() == Qt.Key.Key_Space:  
-                # Spaceキーを無効化  
-                return True  
-            elif event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:  
-                # Enterキーでクリック  
-                obj.click()  
-                return True  
-        return super().eventFilter(obj, event)  
-
-class MASAAnnotationWidget(QWidget):  
-    """統合されたMASAアノテーションメインウィジェット（改善版）"""  
-      
-    def __init__(self, parent=None):  
-        super().__init__(parent)  
-
-        # キーボードフォーカスを有効にする  
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)  
-        self.setFocus()
-        # イベントフィルターを作成してアプリケーションに適用  
-        self.button_filter = ButtonKeyEventFilter()  
-        QApplication.instance().installEventFilter(self.button_filter)
-
-        self.config_manager = ConfigManager() 
-        self.video_manager: Optional[VideoManager] = None  
-        self.annotation_repository = AnnotationRepository()  
-        self.export_service = ExportService()  
-        self.playback_controller: Optional[VideoPlaybackController] = None  
-        self.tracking_worker: Optional[TrackingWorker] = None  
-        self.temp_bboxes_for_batch_add: List[Tuple[int, BoundingBox]] = []  
-
-        self.object_tracker = None # 初期化を遅延
-        # バックグラウンドでObjectTracker初期化を開始  
-        self.model_initialization_worker = ModelInitializationWorker(self.config_manager)  
-        self.model_initialization_worker.initialization_completed.connect(  
-            self.on_model_initialization_completed  
-        )  
-        self.model_initialization_worker.initialization_failed.connect(  
-            self.on_model_initialization_failed  
-        )  
-        self.model_initialization_worker.start()            
-
-        self.setup_ui()  
+        # キーボードフォーカスを有効にする    
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)    
+        self.setFocus()  
+        # イベントフィルターを作成してアプリケーションに適用    
+        self.button_filter = ButtonKeyEventFilter()    
+        QApplication.instance().installEventFilter(self.button_filter)  
+  
+        self.config_manager = ConfigManager()    
+        self.video_manager: Optional[VideoManager] = None    
+        self.annotation_repository = AnnotationRepository()    
+        self.export_service = ExportService()    
+        self.object_tracker = ObjectTracker(self.config_manager.get_full_config(config_type="masa")) # ObjectTrackerにはMASAモデル関連のConfigのみを渡す  
+        self.playback_controller: Optional[VideoPlaybackController] = None    
+        self.tracking_worker: Optional[TrackingWorker] = None    
+        self.temp_bboxes_for_batch_add: List[Tuple[int, BoundingBox]] = []    
+          
+        # CommandManagerを追加  
+        self.command_manager = CommandManager()  
+            
+        self.setup_ui()    
         self._connect_signals()
           
     def setup_ui(self):  
@@ -126,6 +122,9 @@ class MASAAnnotationWidget(QWidget):
         self.video_control.frame_changed.connect(self.video_preview.set_frame)  
         self.video_control.range_changed.connect(self.on_range_selection_changed)  
         self.video_control.range_frame_preview.connect(self.video_preview.set_frame)
+
+        # BoundingBoxEditorからのシグナル
+        self.video_preview.bbox_editor.bbox_position_updated.connect(self.on_bbox_position_updated)
 
     @ErrorHandler.handle_with_dialog("Video Load Error")  
     def load_video(self, file_path: str):  
@@ -393,42 +392,44 @@ class MASAAnnotationWidget(QWidget):
         ErrorHandler.show_error_dialog(f"Tracking encountered an error: {message}", "Tracking Error")  
           
     def on_bbox_created(self, x1: int, y1: int, x2: int, y2: int):  
-        """バウンディングボックス作成時の処理"""  
+        """バウンディングボックス作成時の処理（コマンドパターン対応）"""  
         bbox = BoundingBox(x1, y1, x2, y2)  
         current_frame = self.video_control.current_frame  
           
         # 現在のモードがEditModeの場合のみラベル入力ダイアログを表示  
-        if self.video_preview.mode_manager.current_mode_name == 'edit': # current_mode_name を使用  
+        if self.video_preview.mode_manager.current_mode_name == 'edit':  
             dialog = AnnotationInputDialog(bbox, self, existing_labels=self.annotation_repository.get_all_labels())  
             if dialog.exec() == QDialog.DialogCode.Accepted:  
                 label = dialog.get_label()  
                 if label:  
                     annotation = ObjectAnnotation(  
-                        object_id=-1, # 新規IDを意味  
+                        object_id=-1,  # 新規IDを意味  
                         frame_id=current_frame,  
                         bbox=bbox,  
                         label=label,  
                         is_manual=True,  
                         track_confidence=1.0,  
-                        is_batch_added=False # 通常の手動アノテーション  
+                        is_batch_added=False  # 通常の手動アノテーション  
                     )  
-                    self.annotation_repository.add_annotation(annotation)  
+                      
+                    # コマンドパターンを使用してアノテーション追加  
+                    command = AddAnnotationCommand(self.annotation_repository, annotation)  
+                    self.command_manager.execute_command(command)  
+                      
                     self.update_annotation_count()  
                     ErrorHandler.show_info_dialog(f"Added annotation: {label} at frame {current_frame}", "Annotation Added")  
                       
                     self.video_preview.bbox_editor.selected_annotation = annotation  
                     self.video_preview.bbox_editor.selection_changed.emit(annotation)  
                     self.video_preview.update_frame_display()  
-
                 else:  
                     ErrorHandler.show_warning_dialog("Label cannot be empty.", "Input Error")  
         elif self.video_preview.mode_manager.current_mode_name == 'batch_add':  
             # BatchAddModeの場合、ラベル入力ダイアログは表示しない(正常動作)  
-            #ErrorHandler.show_warning_dialog("BatchAddMode中にbbox_createdが呼び出されましたが、処理はスキップされました。", "Warning")  
-            pass
+            pass  
         else:  
             # その他のモードの場合（予期しないケース）  
-            ErrorHandler.show_warning_dialog("不明なモードでbbox_createdが呼び出されました。", "Warning")
+            ErrorHandler.show_warning_dialog("不明なモードでbbox_createdが呼び出されました。", "Warning")  
 
     def on_frame_changed(self, frame_id: int):  
         """フレーム変更時の処理"""  
@@ -494,20 +495,65 @@ class MASAAnnotationWidget(QWidget):
         except Exception as e:  
             ErrorHandler.show_error_dialog(f"ラベル変更中にエラーが発生しました: {e}", "エラー")
 
+    def on_bbox_created(self, x1: int, y1: int, x2: int, y2: int):  
+        """バウンディングボックス作成時の処理（コマンドパターン対応）"""  
+        bbox = BoundingBox(x1, y1, x2, y2)  
+        current_frame = self.video_control.current_frame  
+          
+        # 現在のモードがEditModeの場合のみラベル入力ダイアログを表示  
+        if self.video_preview.mode_manager.current_mode_name == 'edit':  
+            dialog = AnnotationInputDialog(bbox, self, existing_labels=self.annotation_repository.get_all_labels())  
+            if dialog.exec() == QDialog.DialogCode.Accepted:  
+                label = dialog.get_label()  
+                if label:  
+                    annotation = ObjectAnnotation(  
+                        object_id=-1,  # 新規IDを意味  
+                        frame_id=current_frame,  
+                        bbox=bbox,  
+                        label=label,  
+                        is_manual=True,  
+                        track_confidence=1.0,  
+                        is_batch_added=False  # 通常の手動アノテーション  
+                    )  
+                      
+                    # コマンドパターンを使用してアノテーション追加  
+                    command = AddAnnotationCommand(self.annotation_repository, annotation)  
+                    self.command_manager.execute_command(command)  
+                      
+                    self.update_annotation_count()  
+                    ErrorHandler.show_info_dialog(f"Added annotation: {label} at frame {current_frame}", "Annotation Added")  
+                      
+                    self.video_preview.bbox_editor.selected_annotation = annotation  
+                    self.video_preview.bbox_editor.selection_changed.emit(annotation)  
+                    self.video_preview.update_frame_display()  
+                else:  
+                    ErrorHandler.show_warning_dialog("Label cannot be empty.", "Input Error")  
+        elif self.video_preview.mode_manager.current_mode_name == 'batch_add':  
+            # BatchAddModeの場合、ラベル入力ダイアログは表示しない(正常動作)  
+            pass  
+        else:  
+            # その他のモードの場合（予期しないケース）  
+            ErrorHandler.show_warning_dialog("不明なモードでbbox_createdが呼び出されました。", "Warning")  
+  
     def on_delete_annotation_requested(self, annotation: ObjectAnnotation):  
-        """単一アノテーション削除要求時の処理"""  
-        if self.annotation_repository.delete_annotation(annotation.object_id, annotation.frame_id):  
+        """単一アノテーション削除要求時の処理（コマンドパターン対応）"""  
+        # コマンドパターンを使用してアノテーション削除  
+        command = DeleteAnnotationCommand(self.annotation_repository, annotation)  
+        if self.command_manager.execute_command(command):  
             self.video_preview.bbox_editor.selected_annotation = None  
             self.video_preview.bbox_editor.selection_changed.emit(None)  
             ErrorHandler.show_info_dialog("アノテーションを削除しました。", "削除完了")  
             self.update_annotation_count()  
             self.video_preview.update_frame_display()  
         else:  
-            ErrorHandler.show_warning_dialog("アノテーションの削除に失敗しました。", "エラー")
-
+            ErrorHandler.show_warning_dialog("アノテーションの削除に失敗しました。", "エラー")  
+  
     def on_delete_track_requested(self, track_id: int):  
-        """Track IDによる一括削除要求時の処理"""  
-        deleted_count = self.annotation_repository.delete_by_track_id(track_id)  
+        """Track IDによる一括削除要求時の処理（コマンドパターン対応）"""  
+        # コマンドパターンを使用してトラック削除  
+        command = DeleteTrackCommand(self.annotation_repository, track_id)  
+        deleted_count = self.command_manager.execute_command(command)  
+          
         if deleted_count > 0:  
             self.video_preview.bbox_editor.selected_annotation = None  
             self.video_preview.bbox_editor.selection_changed.emit(None)  
@@ -515,18 +561,45 @@ class MASAAnnotationWidget(QWidget):
             self.update_annotation_count()  
             self.video_preview.update_frame_display()  
         else:  
-            ErrorHandler.show_warning_dialog(f"Track ID '{track_id}' のアノテーションは見つかりませんでした。", "エラー")
-
+            ErrorHandler.show_warning_dialog(f"Track ID '{track_id}' のアノテーションは見つかりませんでした。", "エラー")  
+  
+    def on_label_change_requested(self, annotation: ObjectAnnotation, new_label: str):  
+        """アノテーションのラベル変更要求時の処理（コマンドパターン対応）"""  
+        try:  
+            old_label = annotation.label  
+            # コマンドパターンを使用してラベル更新  
+            command = UpdateLabelCommand(self.annotation_repository, annotation, old_label, new_label)  
+            if self.command_manager.execute_command(command):  
+                self.video_preview.update_frame_display()  
+                self.update_annotation_count()  
+            else:  
+                ErrorHandler.show_warning_dialog("アノテーションの更新に失敗しました。", "エラー")  
+        except Exception as e:  
+            ErrorHandler.show_error_dialog(f"ラベル変更中にエラーが発生しました: {e}", "エラー")  
+  
     def on_propagate_label_requested(self, track_id: int, new_label: str):  
-        """Track IDによる一括ラベル変更要求時の処理"""  
-        updated_count = self.annotation_repository.update_label_by_track_id(track_id, new_label)  
-        if updated_count > 0:  
-            ErrorHandler.show_info_dialog(f"Track ID '{track_id}' のアノテーション {updated_count} 件のラベルを '{new_label}' に変更しました。", "ラベル変更完了")  
-            self.update_annotation_count()  
-            self.video_preview.update_frame_display()  
-        else:  
-            ErrorHandler.show_warning_dialog(f"Track ID '{track_id}' のアノテーションは見つかりませんでした。", "エラー")
-
+        """トラック単位でのラベル変更要求時の処理（コマンドパターン対応）"""  
+        try:  
+            # 現在のラベルを取得（最初のアノテーションから）  
+            annotations = self.annotation_repository.get_annotations_by_track_id(track_id)  
+            if not annotations:  
+                ErrorHandler.show_warning_dialog(f"Track ID '{track_id}' のアノテーションが見つかりません。", "エラー")  
+                return  
+              
+            old_label = annotations[0].label  
+            # コマンドパターンを使用してトラック単位でラベル更新  
+            command = UpdateLabelByTrackCommand(self.annotation_repository, track_id, old_label, new_label)  
+            updated_count = self.command_manager.execute_command(command)  
+              
+            if updated_count > 0:  
+                self.video_preview.update_frame_display()  
+                self.update_annotation_count()  
+                ErrorHandler.show_info_dialog(f"Track ID '{track_id}' の {updated_count} 件のアノテーションのラベルを '{new_label}' に変更しました。", "ラベル変更完了")  
+            else:  
+                ErrorHandler.show_warning_dialog("ラベルの更新に失敗しました。", "エラー")  
+        except Exception as e:  
+            ErrorHandler.show_error_dialog(f"ラベル変更中にエラーが発生しました: {e}", "エラー")  
+  
     def start_playback(self):  
         """動画再生を開始"""  
         if self.playback_controller:  
@@ -552,16 +625,25 @@ class MASAAnnotationWidget(QWidget):
         # 他のconfig_typeの変更もここに追加
 
     def on_annotation_selected(self, annotation: Optional[ObjectAnnotation]):  
-        """アノテーション選択時の処理"""  
-        self.menu_panel.update_selected_annotation_info(annotation)
+        """アノテーション選択時の処理（中央集権的制御）"""  
+        # MenuPanelの情報を更新  
+        self.menu_panel.update_selected_annotation_info(annotation)  
+        
+        # VideoPreviewWidgetの表示も確実に更新  
+        self.video_preview.update_frame_display()  
+        
+        # Undo/Redoボタンの状態も更新  
+        if hasattr(self.menu_panel, 'update_undo_redo_buttons'):  
+            self.menu_panel.update_undo_redo_buttons(self.command_manager)
 
     def on_annotation_updated(self, annotation: ObjectAnnotation):  
-        """アノテーション更新時の処理"""  
+        """アノテーション更新時の処理（位置変更以外）"""  
         # 一時的なバッチアノテーションの場合は、アノテーションリポジトリ更新をスキップ  
         if hasattr(annotation, 'is_batch_added') and annotation.is_batch_added:  
             self.update_annotation_count()  
             return  
-          
+        
+        # 位置変更は別途bbox_position_updatedで処理されるため、ここでは他の更新のみ  
         if self.annotation_repository.update_annotation(annotation):  
             self.update_annotation_count()  
         else:  
@@ -599,8 +681,30 @@ class MASAAnnotationWidget(QWidget):
         ErrorHandler.show_error_dialog(f"Failed to initialize MASA models: {error_message}", "Initialization Error")  
         self.menu_panel.set_tracking_enabled(False)  # トラッキング機能を無効化
 
+    def update_annotation_count(self):  
+        """アノテーション数を更新し、UIに反映（Undo/Redoボタン状態も更新）"""  
+        stats = self.annotation_repository.get_statistics()  
+        self.menu_panel.update_annotation_count(stats["total"], stats["manual"])  
+        self.menu_panel.initialize_label_combo(self.annotation_repository.get_all_labels())  
+          
+        # Undo/Redoボタンの状態を更新  
+        if hasattr(self.menu_panel, 'update_undo_redo_buttons'):  
+            self.menu_panel.update_undo_redo_buttons(self.command_manager)
+
+    def on_bbox_position_updated(self, annotation: ObjectAnnotation, old_bbox: BoundingBox, new_bbox: BoundingBox):  
+        """バウンディングボックス位置更新時の処理（コマンドパターン対応）"""  
+        # 位置に変更があった場合のみコマンドを実行  
+        if (old_bbox.x1 != new_bbox.x1 or old_bbox.y1 != new_bbox.y1 or   
+            old_bbox.x2 != new_bbox.x2 or old_bbox.y2 != new_bbox.y2):  
+            
+            command = UpdateBoundingBoxCommand(self.annotation_repository, annotation, old_bbox, new_bbox)  
+            self.command_manager.execute_command(command)  
+            
+            self.update_annotation_count()  
+            self.video_preview.update_frame_display()  
+
     def keyPressEvent(self, event: QKeyEvent):  
-        """キーボードショートカットの処理"""  
+        """キーボードショートカットの処理（Undo/Redo追加）"""  
         # フォーカスされたウィジェットを取得  
         focused_widget = self.focusWidget()  
           
@@ -612,6 +716,37 @@ class MASAAnnotationWidget(QWidget):
                 return  
             elif event.key() == Qt.Key.Key_Space:  
                 # Spaceキーの場合は何もしない（デフォルト動作を無効化）  
+                event.accept()  
+                return  
+          
+        # Ctrl+Z/Ctrl+Y のUndo/Redo処理  
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:  
+            if event.key() == Qt.Key.Key_Z:  
+                # Ctrl+Z: Undo  
+                if self.command_manager.undo():  
+                    self.update_annotation_count()  
+                    self.video_preview.update_frame_display()  
+                    # 選択状態をクリア  
+                    self.video_preview.bbox_editor.selected_annotation = None  
+                    self.video_preview.bbox_editor.selection_changed.emit(None)  
+                    print("--- Undo ---")
+                    #ErrorHandler.show_info_dialog("操作を取り消しました。", "Undo")  
+                else:  
+                    ErrorHandler.show_info_dialog("取り消す操作がありません。", "Undo")  
+                event.accept()  
+                return  
+            elif event.key() == Qt.Key.Key_Y:  
+                # Ctrl+Y: Redo  
+                if self.command_manager.redo():  
+                    self.update_annotation_count()  
+                    self.video_preview.update_frame_display()  
+                    # 選択状態をクリア  
+                    self.video_preview.bbox_editor.selected_annotation = None  
+                    self.video_preview.bbox_editor.selection_changed.emit(None)  
+                    print("--- Redo ---")
+                    #ErrorHandler.show_info_dialog("操作をやり直しました。", "Redo")  
+                else:  
+                    ErrorHandler.show_info_dialog("やり直す操作がありません。", "Redo")  
                 event.accept()  
                 return  
           

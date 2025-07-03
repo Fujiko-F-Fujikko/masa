@@ -180,3 +180,13 @@ class AnnotationRepository:
         self.manual_annotations.clear()  
         self._all_labels_cache.clear()  
         self._is_labels_cache_dirty = True  
+
+    def get_annotations_by_track_id(self, track_id: int) -> List[ObjectAnnotation]:  
+        """指定されたトラックIDのアノテーションを全て取得"""  
+        annotations = []  
+        for frame_annotation in self.frame_annotations.values():  
+            if frame_annotation and frame_annotation.objects:  
+                for annotation in frame_annotation.objects:  
+                    if annotation.object_id == track_id:  
+                        annotations.append(annotation)  
+        return annotations
