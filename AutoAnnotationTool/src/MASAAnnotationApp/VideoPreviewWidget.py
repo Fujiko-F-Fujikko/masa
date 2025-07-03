@@ -252,7 +252,8 @@ class VideoPreviewWidget(QLabel):
         self.annotation_updated.emit(annotation)  
           
     def on_selection_changed(self, annotation):  
-        """選択変更時の処理"""  
+        """選択変更時の処理""" 
+        self.update_frame_display() 
         self.annotation_selected.emit(annotation)  
     
     def _on_config_changed(self, key: str, value: Any, config_type: str):  

@@ -16,6 +16,7 @@ class BoundingBoxEditor(QObject):
     new_bbox_drawing_started = pyqtSignal()  
     new_bbox_drawing_updated = pyqtSignal(int, int, int, int)  # x1, y1, x2, y2  
     new_bbox_drawing_completed = pyqtSignal(int, int, int, int)  # x1, y1, x2, y2  
+    bbox_position_updated = pyqtSignal(object, object, object)  # annotation, old_bbox, new_bbox
       
     def __init__(self, parent=None):  
         super().__init__(parent)  
@@ -123,11 +124,21 @@ class BoundingBoxEditor(QObject):
     def end_drag_operation(self):  
         """ドラッグ操作を終了"""  
         if (self.dragging_bbox or self.resizing_bbox) and self.selected_annotation:  
-            self.annotation_updated.emit(self.selected_annotation)  
-          
+            # 新しいバウンディングボックスを作成  
+            new_bbox = BoundingBox(  
+                self.selected_annotation.bbox.x1,  
+                self.selected_annotation.bbox.y1,  
+                self.selected_annotation.bbox.x2,  
+                self.selected_annotation.bbox.y2,  
+                self.selected_annotation.bbox.confidence  
+            )  
+            
+            # 位置変更コマンドを発行（元の位置と新しい位置を含む）  
+            self.bbox_position_updated.emit(self.selected_annotation, self.original_bbox, new_bbox)  
+        
         self.dragging_bbox = False  
         self.resizing_bbox = False  
-        self.resize_handle = None  
+        self.resize_handle = None
       
     def get_cursor_for_position(self, pos: QPoint) -> Qt.CursorShape:  
         """位置に応じた適切なカーソルを取得"""  
