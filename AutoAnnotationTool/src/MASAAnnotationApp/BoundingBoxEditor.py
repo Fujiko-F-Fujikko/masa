@@ -33,7 +33,7 @@ class BoundingBoxEditor(QObject):
           
         # 表示設定  
         self.handle_size = 24  
-        self.selection_color = (255, 255, 0)  # 黄色  
+        self.selection_color = (255, 165, 0)  # 青色  
         self.handle_color = (255, 255, 255)   # 白色  
         self.handle_border_color = (0, 0, 0)  # 黒色  
           

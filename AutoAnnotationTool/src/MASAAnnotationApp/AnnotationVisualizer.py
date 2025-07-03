@@ -34,7 +34,7 @@ class AnnotationVisualizer:
             color = self.colors[annotation.object_id % len(self.colors)]  
               
             if selected_annotation and annotation.object_id == selected_annotation.object_id:  
-                color = (0, 255, 255)  # 黄色でハイライト  
+                color = (255, 165, 0)  # 青色でハイライト  
                 thickness = 6  
             elif annotation.is_batch_added:  
                 color = (0, 0, 255)  # バッチ追加されたアノテーションの特別な色  
