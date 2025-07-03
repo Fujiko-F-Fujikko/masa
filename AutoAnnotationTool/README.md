@@ -67,5 +67,5 @@ python demo/video_demo_with_text.py <動画ファイルのpath> --out <検出結
 python -m venv venv # 環境構築した仮想環境に入る
 source venv/Scripts/activate
 python AutoAnnotationTool/src/MASAAnnotationApp/MASAAnnotationApp.py
-python AutoAnnotationTool/src/MASAAnnotationApp/MASAAnnotationApp.py -video AutoAnnotationTool/sample/H1125060570339_2025-06-05_10-52-51_2.mp4 --json AutoAnnotationTool/sample/H1125060570339_2025-06-05_10-52-51_2_outputs.json # or 引数指定で起動時読み込み可
+python AutoAnnotationTool/src/MASAAnnotationApp/MASAAnnotationApp.py --video AutoAnnotationTool/sample/H1125060570339_2025-06-05_10-52-51_2.mp4 --json AutoAnnotationTool/sample/H1125060570339_2025-06-05_10-52-51_2_outputs.json # 引数指定で起動時読み込み可
 ```
