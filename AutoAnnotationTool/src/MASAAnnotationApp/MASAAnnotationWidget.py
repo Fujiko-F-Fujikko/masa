@@ -529,17 +529,6 @@ class MASAAnnotationWidget(QWidget):
         self.video_preview.bbox_editor.set_editing_mode(enabled)  
         self.video_preview.update_frame_display()
 
-    def on_label_change_requested(self, annotation: ObjectAnnotation, new_label: str):  
-        """アノテーションのラベル変更要求時の処理"""  
-        try:  
-            annotation.label = new_label  
-            if self.annotation_repository.update_annotation(annotation):  
-                self.video_preview.update_frame_display()  
-                self.update_annotation_count()  
-            else:  
-                ErrorHandler.show_warning_dialog("アノテーションの更新に失敗しました。", "エラー")  
-        except Exception as e:  
-            ErrorHandler.show_error_dialog(f"ラベル変更中にエラーが発生しました: {e}", "エラー")
   
     def on_delete_annotation_requested(self, annotation: ObjectAnnotation):  
         """単一アノテーション削除要求時の処理（コマンドパターン対応）"""  
@@ -715,12 +704,6 @@ class MASAAnnotationWidget(QWidget):
         """再生完了時の処理"""  
         self.menu_panel.reset_playback_button()  
         ErrorHandler.show_info_dialog("動画の再生が完了しました。", "再生完了")
-
-    def update_annotation_count(self):  
-        """アノテーション数を更新し、UIに反映"""  
-        stats = self.annotation_repository.get_statistics()  
-        self.menu_panel.update_annotation_count(stats["total"], stats["manual"])  
-        self.menu_panel.initialize_label_combo(self.annotation_repository.get_all_labels())
 
     def on_model_initialization_completed(self, object_tracker):  
         """モデル初期化完了時の処理"""  
