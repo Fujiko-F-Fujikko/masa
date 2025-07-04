@@ -10,12 +10,17 @@
 
 ```cmd
 python -m venv venv
-source venv/Scripts/activate
+# In windows
+source venv/Scripts/activate 
+# In Linux
+source venv/bin/activate 
 
 python -m pip install --upgrade pip
 pip install numpy==1.26.4
 pip install torch==2.1.2+cu118 torchvision==0.16.2+cu118 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cu118
-pip install msvc-runtime # https://qiita.com/koshitan17/items/20144b79c8905fb19e88
+
+# Skip this command in Linux
+pip install msvc-runtime # https://qiita.com/koshitan17/items/20144b79c8905fb19e88 
 
 cd ../mmdetection # ここからcloneしてくる⇒https://github.com/open-mmlab/mmdetection/tree/v3.3.0
 pip install wheel # https://github.com/open-mmlab/mmdetection/issues/10665#issuecomment-1757209752
@@ -38,6 +43,13 @@ python (仮想環境上で)
 >>> import nltk
 >>> nltk.download('punkt_tab', download_dir='./venv/nltk_data')
 >>> nltk.download('averaged_perceptron_tagger_eng', download_dir='./venv/nltk_data')
+```
+If you get `False` from the above command. try removing the `download_dir` option, run the command below instead.
+```cmd
+python (仮想環境上で)
+>>> import nltk
+>>> nltk.download('punkt_tab')
+>>> nltk.download('averaged_perceptron_tagger_eng')
 ```
 
 ### モデルファイルのダウンロード
