@@ -9,13 +9,14 @@ from typing import List
   
 class AnnotationInputDialog(QDialog):  
     """アノテーション追加ダイアログ（改善版）"""  
-    def __init__(self, bbox: BoundingBox, parent=None, existing_labels: List[str] = None):  
+    def __init__(self, bbox: BoundingBox, parent=None, existing_labels: List[str] = None, default_label: str = ""):  
         super().__init__(parent)  
         self.setWindowTitle("アノテーション追加")  
         self.bbox = bbox  
         self.label = ""  
+        self.default_label = default_label
           
-        self.setup_ui(existing_labels)  
+        self.setup_ui(existing_labels)
       
     def setup_ui(self, existing_labels: List[str] = None):  
         layout = QVBoxLayout()  
@@ -50,11 +51,22 @@ class AnnotationInputDialog(QDialog):
           
         self.setLayout(layout)  
           
-        if existing_labels:  
+        # デフォルトラベルが指定されている場合はそれを使用
+        if self.default_label:
+            # デフォルトラベルがプリセットに含まれている場合は選択
+            if existing_labels and self.default_label in existing_labels:
+                index = self.preset_combo.findText(self.default_label)
+                if index >= 0:
+                    self.preset_combo.setCurrentIndex(index)
+            else:
+                # プリセットに含まれていない場合は直接設定
+                self.preset_combo.setEditText(self.default_label)
+            self.label_input.setText(self.default_label)
+        elif existing_labels:  
             self.preset_combo.setCurrentIndex(0)  
             self.label_input.setText(self.preset_combo.currentText())  
         else:  
-            self.label_input.setText("")  
+            self.label_input.setText("")
       
     def _on_preset_selected(self, index: int):  
         self.label_input.setText(self.preset_combo.currentText())  
@@ -63,4 +75,4 @@ class AnnotationInputDialog(QDialog):
         self.label_input.setText(text)  
       
     def get_label(self) -> str:  
-        return self.label_input.text().strip()  
+        return self.label_input.text().strip()

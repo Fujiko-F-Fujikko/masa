@@ -13,7 +13,8 @@ from PyQt6.QtGui import QFont, QKeyEvent
 from AnnotationInputDialog import AnnotationInputDialog  
 from DataClass import BoundingBox, ObjectAnnotation  
 from ConfigManager import ConfigManager  
-from ErrorHandler import ErrorHandler  
+from ErrorHandler import ErrorHandler
+from CurrentFrameObjectListWidget import CurrentFrameObjectListWidget
   
 class MenuPanel(QWidget):  
     """タブベースの左側メニューパネル（改善版）"""  
@@ -43,12 +44,14 @@ class MenuPanel(QWidget):
         self.config_manager = config_manager  
         self.current_selected_annotation: Optional[ObjectAnnotation] = None  
         self.current_selected_annotation_label: Optional[str] = None  
+        self.annotation_repository = None  # AnnotationRepositoryへの直接参照を追加
           
-        self.setFixedWidth(300)  
+        # 固定幅を削除し、最小幅のみ設定
+        self.setMinimumWidth(250)  
         self.setStyleSheet("background-color: #f0f0f0; border-right: 1px solid #ccc;")  
         self.setup_ui()  
           
-        self._connect_config_signals()  
+        self._connect_config_signals()
           
     def setup_ui(self):  
         layout = QVBoxLayout()  
@@ -87,9 +90,10 @@ class MenuPanel(QWidget):
         layout.addWidget(self.tab_widget)  
 
         self.setup_basic_tab()  
-        self.setup_annotation_tab()  
+        self.setup_annotation_tab()
+        self.setup_object_list_tab()
           
-        self.setLayout(layout)  
+        self.setLayout(layout)
           
     def _connect_config_signals(self):  
         """ConfigManagerからの設定変更シグナルを接続"""  
@@ -348,7 +352,20 @@ class MenuPanel(QWidget):
         annotation_tab.setLayout(layout)  
         self.tab_widget.addTab(annotation_tab, "📝 アノテーション")  
     
-    @ErrorHandler.handle_with_dialog("File Load Error")  
+    def setup_object_list_tab(self):
+        """オブジェクト一覧タブのセットアップ"""
+        object_list_tab = QWidget()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(5, 5, 5, 5)
+        
+        # CurrentFrameObjectListWidgetを追加
+        self.object_list_widget = CurrentFrameObjectListWidget(self)
+        layout.addWidget(self.object_list_widget)
+        
+        object_list_tab.setLayout(layout)
+        self.tab_widget.addTab(object_list_tab, "📋 オブジェクト一覧")
+    
+    @ErrorHandler.handle_with_dialog("File Load Error")
     def _on_load_video_clicked(self, _: str):  
         """動画ファイル読み込みボタンのクリックハンドラ"""  
         file_path, _ = QFileDialog.getOpenFileName(  
@@ -572,8 +589,14 @@ class MenuPanel(QWidget):
         """一括ラベル変更ボタンクリック時の処理"""  
         if self.current_selected_annotation:  
             track_id_to_change = self.current_selected_annotation.object_id  
+            current_label = self.current_selected_annotation.label  # 現在のラベルを取得
               
-            dialog = AnnotationInputDialog(BoundingBox(0, 0, 1, 1), self, existing_labels=self.get_all_labels_from_manager())  
+            dialog = AnnotationInputDialog(
+                BoundingBox(0, 0, 1, 1), 
+                self, 
+                existing_labels=self.get_all_labels_from_manager(),
+                default_label=current_label  # 現在のラベルをデフォルトとして設定
+            )  
             dialog.setWindowTitle(f"Track ID {track_id_to_change} のラベルを一括変更")  
               
             if dialog.exec() == QDialog.DialogCode.Accepted:  
@@ -587,13 +610,13 @@ class MenuPanel(QWidget):
                     if reply == QMessageBox.StandardButton.Yes:  
                         self.propagate_label_requested.emit(track_id_to_change, new_label)  
                 else:  
-                    ErrorHandler.show_warning_dialog("新しいラベル名を入力してください。", "入力エラー")  
+                    ErrorHandler.show_warning_dialog("新しいラベル名を入力してください。", "入力エラー")
                       
     def get_all_labels_from_manager(self) -> List[str]:  
-        """MASAAnnotationWidgetからAnnotationRepositoryの全ラベルを取得するヘルパーメソッド"""  
-        if hasattr(self.parent(), 'annotation_repository') and self.parent().annotation_repository:  
-            return self.parent().annotation_repository.get_all_labels()  
-        return []  
+        """AnnotationRepositoryの全ラベルを取得するヘルパーメソッド"""  
+        if self.annotation_repository:  
+            return self.annotation_repository.get_all_labels()  
+        return []
       
     def _on_batch_add_annotation_clicked(self, checked: bool):  
         """新規アノテーション一括追加ボタンクリック時の処理"""  
@@ -682,3 +705,29 @@ class MenuPanel(QWidget):
                 self.redo_btn.setToolTip(f"Redo: {command_manager.get_redo_description()}")  
             else:  
                 self.redo_btn.setToolTip("Redo (Ctrl+Y)")
+
+    def update_current_frame_objects(self, frame_id: int, frame_annotation=None):
+        """現在フレームのオブジェクト一覧を更新"""
+        if hasattr(self, 'object_list_widget'):
+            self.object_list_widget.update_frame_data(frame_id, frame_annotation)
+            
+    def set_object_list_score_threshold(self, threshold: float):
+        """オブジェクト一覧のスコア閾値を設定"""
+        if hasattr(self, 'object_list_widget'):
+            self.object_list_widget.set_score_threshold(threshold)
+            
+    def update_object_list_selection(self, annotation):
+        """オブジェクト一覧の選択状態を更新"""
+        if hasattr(self, 'object_list_widget') and self.object_list_widget:
+            # 循環防止: _updating_selectionフラグで制御
+            if hasattr(self.object_list_widget, '_updating_selection'):
+                self.object_list_widget._updating_selection = True
+            try:
+                self.object_list_widget.select_annotation(annotation)
+            finally:
+                if hasattr(self.object_list_widget, '_updating_selection'):
+                    self.object_list_widget._updating_selection = False
+            
+    def get_object_list_widget(self):
+        """オブジェクト一覧ウィジェットを取得"""
+        return getattr(self, 'object_list_widget', None)
