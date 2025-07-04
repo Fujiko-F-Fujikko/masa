@@ -1,31 +1,25 @@
 # MASAAnnotationWidget.py
-import os    
-import cv2    
-from typing import Dict, List, Optional, Tuple    
-from PyQt6.QtWidgets import (    
-    QWidget, QHBoxLayout, QVBoxLayout, QDialog,    
-    QMessageBox, QFileDialog, QPushButton, QApplication, QSplitter   
-)
+"""
+ファサードパターンによりリファクタリングされたメインウィジェット
+依存関係を大幅に削減し、可読性と保守性を向上
+"""
+from typing import Optional, List, Tuple, Dict
+from PyQt6.QtWidgets import QWidget, QPushButton, QApplication, QDialog, QMessageBox
 from PyQt6.QtGui import QKeyEvent  
 from PyQt6.QtCore import Qt, QObject, QEvent    
     
 from DataClass import BoundingBox, ObjectAnnotation    
-from MenuPanel import MenuPanel    
-from VideoControlPanel import VideoControlPanel    
-from VideoPreviewWidget import VideoPreviewWidget    
+from AnnotationInputDialog import AnnotationInputDialog
 from VideoPlaybackController import VideoPlaybackController    
-    
-from VideoManager import VideoManager    
-from AnnotationRepository import AnnotationRepository    
-from ExportService import ExportService    
-from ObjectTracker import ObjectTracker    
 from TrackingWorker import TrackingWorker    
-from AnnotationInputDialog import AnnotationInputDialog    
-from ConfigManager import ConfigManager    
-from ErrorHandler import ErrorHandler    
-from COCOExportWorker import COCOExportWorker  
 from TrackingResultConfirmDialog import TrackingResultConfirmDialog  
-from CommandPattern import CommandManager, AddAnnotationCommand, DeleteAnnotationCommand, DeleteTrackCommand, UpdateLabelCommand, UpdateLabelByTrackCommand, UpdateBoundingBoxCommand 
+from ErrorHandler import ErrorHandler
+from VideoManager import VideoManager
+
+# ファサードパターンによる新しいアーキテクチャ
+from MASAApplicationService import MASAApplicationService
+from MainUIController import MainUIController
+from KeyboardShortcutManager import KeyboardShortcutManager
   
 # QtのデフォルトではSpaceキーでボタンクリックだが、Enterキーに変更する  
 class ButtonKeyEventFilter(QObject):    
@@ -45,7 +39,7 @@ class ButtonKeyEventFilter(QObject):
         return QObject.eventFilter(self, obj, event)
   
 class MASAAnnotationWidget(QWidget):    
-    """統合されたMASAアノテーションメインウィジェット（改善版）"""    
+    """ファサードパターンによりリファクタリングされたメインウィジェット"""    
         
     def __init__(self, parent=None):    
         super().__init__(parent)    
@@ -53,111 +47,46 @@ class MASAAnnotationWidget(QWidget):
         # キーボードフォーカスを有効にする    
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)    
         self.setFocus()  
+        
         # イベントフィルターを作成してアプリケーションに適用    
         self.button_filter = ButtonKeyEventFilter()    
         QApplication.instance().installEventFilter(self.button_filter)  
   
-        self.config_manager = ConfigManager()    
-        self.video_manager: Optional[VideoManager] = None    
-        self.annotation_repository = AnnotationRepository()    
-        self.export_service = ExportService()    
-        self.object_tracker = ObjectTracker(self.config_manager.get_full_config(config_type="masa")) # ObjectTrackerにはMASAモデル関連のConfigのみを渡す  
+        # ファサード層の初期化（単一の依存関係）
+        self.app_service = MASAApplicationService()
+        
+        # UI管理層
+        self.main_ui_controller = MainUIController(self, self.app_service)
+        self.keyboard_shortcut_manager = KeyboardShortcutManager(self.app_service, self.main_ui_controller)
+        
+        # 残存する直接管理が必要な要素
         self.playback_controller: Optional[VideoPlaybackController] = None    
         self.tracking_worker: Optional[TrackingWorker] = None    
         self.temp_bboxes_for_batch_add: List[Tuple[int, BoundingBox]] = []    
-          
-        # CommandManagerを追加  
-        self.command_manager = CommandManager()  
-            
+        
+        self.video_manager = None
+
         self.setup_ui()    
-        self._connect_signals()
+        self.setup_connections()
           
     def setup_ui(self):  
-        """UIの初期設定"""  
+        """UIの初期設定 - 新しいアーキテクチャでMainUIControllerに委譲"""  
         self.setWindowTitle("MASA Video Annotation Tool")  
         self.setGeometry(100, 100, 1400, 900)  
-          
-        # QSplitterを使用してMenuPanelの幅を可変にする
-        main_layout = QHBoxLayout()
-        main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # 水平スプリッターを作成
-        splitter = QSplitter(Qt.Orientation.Horizontal)
+        # MainUIControllerにUI構築を委譲
+        self.main_ui_controller.setup_main_layout()
+          
+    def setup_connections(self):  
+        """シグナルとスロットを接続 - 新しいアーキテクチャでMainUIControllerに委譲"""  
+        # MainUIControllerにシグナル接続を委譲
+        self.main_ui_controller.connect_components()
         
-        # MenuPanelを追加
-        self.menu_panel = MenuPanel(self.config_manager)  
-        splitter.addWidget(self.menu_panel)
-          
-        # 右側レイアウトを作成
-        right_layout = QVBoxLayout()  
-        right_layout.setContentsMargins(0, 0, 0, 0)
-          
-        self.video_preview = VideoPreviewWidget(self)  
-        right_layout.addWidget(self.video_preview)  
-          
-        self.video_control = VideoControlPanel()  
-        right_layout.addWidget(self.video_control)  
-          
-        right_widget = QWidget()  
-        right_widget.setLayout(right_layout)  
-        splitter.addWidget(right_widget)
-          
-        # 初期幅の比率を設定（MenuPanel:VideoArea = 1:3）
-        splitter.setSizes([300, 1100])
-        
-        # スプリッターのスタイルを設定
-        splitter.setStyleSheet("""
-            QSplitter::handle {
-                background-color: #ccc;
-                width: 3px;
-            }
-            QSplitter::handle:hover {
-                background-color: #4CAF50;
-            }
-        """)
-        
-        main_layout.addWidget(splitter)
-        self.setLayout(main_layout)
-        
-        # MenuPanelにAnnotationRepositoryへの参照を設定
-        self.menu_panel.annotation_repository = self.annotation_repository
-          
-    def _connect_signals(self):  
-        """シグナルとスロットを接続"""  
-        # MenuPanelからのシグナル  
-        self.menu_panel.load_video_requested.connect(self.load_video)  
-        self.menu_panel.load_json_requested.connect(self.load_json_annotations)  
-        self.menu_panel.export_requested.connect(self.export_annotations)  
-        self.menu_panel.edit_mode_requested.connect(self.set_edit_mode)  
-        self.menu_panel.batch_add_mode_requested.connect(self.set_batch_add_mode)  
-        self.menu_panel.tracking_requested.connect(self.start_tracking)  
-        self.menu_panel.label_change_requested.connect(self.on_label_change_requested)  
-        self.menu_panel.delete_single_annotation_requested.connect(self.on_delete_annotation_requested)  
-        self.menu_panel.delete_track_requested.connect(self.on_delete_track_requested)  
-        self.menu_panel.propagate_label_requested.connect(self.on_propagate_label_requested)  
-        self.menu_panel.play_requested.connect(self.start_playback)  
-        self.menu_panel.pause_requested.connect(self.pause_playback)  
-        self.menu_panel.config_changed.connect(self.on_config_changed)  
-          
-        # VideoPreviewWidgetからのシグナル  
-        self.video_preview.bbox_created.connect(self.on_bbox_created)  
-        self.video_preview.frame_changed.connect(self.on_frame_changed)  
-        self.video_preview.annotation_selected.connect(self.on_annotation_selected)  
-        self.video_preview.annotation_updated.connect(self.on_annotation_updated)  
-          
-        # VideoControlPanelからのシグナル  
-        self.video_control.frame_changed.connect(self.video_preview.set_frame)  
-        self.video_control.range_changed.connect(self.on_range_selection_changed)  
-        self.video_control.range_frame_preview.connect(self.video_preview.set_frame)
-
-        # BoundingBoxEditorからのシグナル
-        self.video_preview.bbox_editor.bbox_position_updated.connect(self.on_bbox_position_updated)
-        
-        # オブジェクト一覧ウィジェットからのシグナル
-        object_list_widget = self.menu_panel.get_object_list_widget()
-        if object_list_widget:
-            object_list_widget.object_selected.connect(self.on_annotation_selected)
-            object_list_widget.object_double_clicked.connect(self.on_object_focus_requested)
+        # VideoPreviewWidgetの設定
+        video_preview = self.main_ui_controller.get_video_preview()
+        if video_preview:
+            video_preview.set_config_manager(self.app_service.config_manager)
+            video_preview.set_annotation_repository(self.app_service.annotation_repository)
 
     @ErrorHandler.handle_with_dialog("Video Load Error")  
     def load_video(self, file_path: str):  
@@ -752,144 +681,9 @@ class MASAAnnotationWidget(QWidget):
             self.on_annotation_selected(annotation)
 
     def keyPressEvent(self, event: QKeyEvent):  
-        """キーボードショートカットの処理（拡張版）"""  
-        # フォーカスされたウィジェットを取得  
-        focused_widget = self.focusWidget()  
-        
-        # テキスト入力中（QLineEdit、QComboBox編集中）はショートカットを無効化  
-        from PyQt6.QtWidgets import QLineEdit, QComboBox  
-        if isinstance(focused_widget, (QLineEdit, QComboBox)):  
-            # ただし、Ctrl系のショートカットは有効にする  
-            if event.modifiers() == Qt.KeyboardModifier.ControlModifier:  
-                pass  # Ctrl系は下で処理  
-            else:  
-                super().keyPressEvent(event)  
-                return  
-          
-        if isinstance(focused_widget, QPushButton):  
-            if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:  
-                # Enterキーでボタンをクリック  
-                focused_widget.click()  
-                event.accept()  
-                return  
-            elif event.key() == Qt.Key.Key_Space:  
-                # Spaceキーの場合は何もしない（デフォルト動作を無効化）  
-                event.accept()  
-                return  
-        
-        # Ctrlキー組み合わせの処理  
-        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:  
-            if event.key() == Qt.Key.Key_O:  
-                # Ctrl+O: 動画を読み込み  
-                self.menu_panel._on_load_video_clicked("")  
-                event.accept()  
-                return  
-            elif event.key() == Qt.Key.Key_L:  
-                # Ctrl+L: JSONを読み込み  
-                self.menu_panel._on_load_json_clicked("")  
-                event.accept()  
-                return  
-            elif event.key() == Qt.Key.Key_S:  
-                # Ctrl+S: MASA JSONを保存  
-                if self.menu_panel.save_masa_json_btn.isEnabled():  
-                    self.export_annotations("masa")  
-                event.accept()  
-                return
-            elif event.key() == Qt.Key.Key_Z:  
-                # Ctrl+Z: Undo  
-                if self.command_manager.undo():  
-                    self.update_annotation_count()  
-                    self.video_preview.update_frame_display()  
-                    # 選択状態をクリア  
-                    self.video_preview.bbox_editor.selected_annotation = None  
-                    self.video_preview.bbox_editor.selection_changed.emit(None)  
-                    print("--- Undo ---")
-                else:  
-                    ErrorHandler.show_info_dialog("取り消す操作がありません。", "Undo")  
-                event.accept()  
-                return  
-            elif event.key() == Qt.Key.Key_Y:  
-                # Ctrl+Y: Redo  
-                if self.command_manager.redo():  
-                    self.update_annotation_count()  
-                    self.video_preview.update_frame_display()  
-                    # 選択状態をクリア  
-                    self.video_preview.bbox_editor.selected_annotation = None  
-                    self.video_preview.bbox_editor.selection_changed.emit(None)  
-                    print("--- Redo ---")
-                else:  
-                    ErrorHandler.show_info_dialog("やり直す操作がありません。", "Redo")  
-                event.accept()  
-                return  
-        
-        # Ctrl+Shift組み合わせの処理  
-        if event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):  
-            if event.key() == Qt.Key.Key_S:  
-                # Ctrl+Shift+S: COCO JSONを保存  
-                if self.menu_panel.save_coco_json_btn.isEnabled():  
-                    self.export_annotations("coco")  
-                event.accept()  
-                return
-        
-        # 単独キーのショートカット処理  
-        if event.key() == Qt.Key.Key_Space:  
-            # 動画再生・一時停止の処理  
-            if self.playback_controller and self.playback_controller.is_playing:  
-                self.pause_playback()  
-            else:  
-                self.start_playback()  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_Left:  
-            self.video_control.prev_frame()  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_Right:  
-            self.video_control.next_frame()  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_E:  
-            # Eキー: 編集モード切り替え  
-            if self.menu_panel.edit_mode_btn.isEnabled():  
-                current_state = self.menu_panel.edit_mode_btn.isChecked()  
-                self.menu_panel.edit_mode_btn.setChecked(not current_state)  
-                self.menu_panel._on_edit_mode_clicked(not current_state)  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_B:  
-            # Bキー: 一括追加モード切り替え  
-            if self.menu_panel.batch_add_annotation_btn.isEnabled():  
-                current_state = self.menu_panel.batch_add_annotation_btn.isChecked()  
-                self.menu_panel.batch_add_annotation_btn.setChecked(not current_state)  
-                self.menu_panel._on_batch_add_annotation_clicked(not current_state)  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_X:  
-            # Xキー: 選択アノテーションを削除  
-            if (self.menu_panel.current_selected_annotation and   
-                self.menu_panel.delete_single_annotation_btn.isEnabled()):  
-                self.menu_panel._on_delete_single_annotation_clicked()  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_D:  
-            # Dキー: トラック一括削除  
-            if (self.menu_panel.current_selected_annotation and   
-                self.menu_panel.delete_track_btn.isEnabled()):  
-                self.menu_panel._on_delete_track_clicked()  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_P:  
-            # Pキー: 一括ラベル変更  
-            if (self.menu_panel.current_selected_annotation and   
-                self.menu_panel.propagate_label_btn.isEnabled()):  
-                self.menu_panel._on_propagate_label_clicked()  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_R:  
-            # Rキー: 実行ボタン  
-            if self.menu_panel.execute_batch_add_btn.isEnabled():  
-                self.menu_panel._on_complete_batch_add_clicked()  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_G:  
-            # Gキー: フレームジャンプ実行  
-            self.video_control.jump_to_frame()  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_F:  
-            # Fキー: フレーム入力フィールドにフォーカス移動  
-            self.video_control.frame_input.setFocus()  
-            self.video_control.frame_input.selectAll()  
-            event.accept()  
-        else:  
+        """キーボードショートカットの処理（KeyboardShortcutManagerに委譲）"""  
+        # KeyboardShortcutManagerに処理を委譲
+        if self.keyboard_shortcut_manager.handle_key_event(event):
+            event.accept()
+        else:
             super().keyPressEvent(event)
