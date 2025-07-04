@@ -200,7 +200,8 @@ class VideoPreviewWidget(QLabel):
         h, w, ch = rgb_frame.shape  
         bytes_per_line = ch * w  
           
-        qt_image = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)  
+        # PyQt6対応: データをbytes形式に変換
+        qt_image = QImage(rgb_frame.data.tobytes(), w, h, bytes_per_line, QImage.Format.Format_RGB888)
           
         widget_size = self.size()  
         scaled_pixmap = QPixmap.fromImage(qt_image).scaled(  

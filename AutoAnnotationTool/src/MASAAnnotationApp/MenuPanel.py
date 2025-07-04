@@ -13,7 +13,8 @@ from PyQt6.QtGui import QFont, QKeyEvent
 from AnnotationInputDialog import AnnotationInputDialog  
 from DataClass import BoundingBox, ObjectAnnotation  
 from ConfigManager import ConfigManager  
-from ErrorHandler import ErrorHandler  
+from ErrorHandler import ErrorHandler
+from CurrentFrameObjectListWidget import CurrentFrameObjectListWidget
   
 class MenuPanel(QWidget):  
     """タブベースの左側メニューパネル（改善版）"""  
@@ -87,9 +88,10 @@ class MenuPanel(QWidget):
         layout.addWidget(self.tab_widget)  
 
         self.setup_basic_tab()  
-        self.setup_annotation_tab()  
+        self.setup_annotation_tab()
+        self.setup_object_list_tab()
           
-        self.setLayout(layout)  
+        self.setLayout(layout)
           
     def _connect_config_signals(self):  
         """ConfigManagerからの設定変更シグナルを接続"""  
@@ -348,7 +350,20 @@ class MenuPanel(QWidget):
         annotation_tab.setLayout(layout)  
         self.tab_widget.addTab(annotation_tab, "📝 アノテーション")  
     
-    @ErrorHandler.handle_with_dialog("File Load Error")  
+    def setup_object_list_tab(self):
+        """オブジェクト一覧タブのセットアップ"""
+        object_list_tab = QWidget()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(5, 5, 5, 5)
+        
+        # CurrentFrameObjectListWidgetを追加
+        self.object_list_widget = CurrentFrameObjectListWidget(self)
+        layout.addWidget(self.object_list_widget)
+        
+        object_list_tab.setLayout(layout)
+        self.tab_widget.addTab(object_list_tab, "📋 オブジェクト一覧")
+    
+    @ErrorHandler.handle_with_dialog("File Load Error")
     def _on_load_video_clicked(self, _: str):  
         """動画ファイル読み込みボタンのクリックハンドラ"""  
         file_path, _ = QFileDialog.getOpenFileName(  
@@ -682,3 +697,29 @@ class MenuPanel(QWidget):
                 self.redo_btn.setToolTip(f"Redo: {command_manager.get_redo_description()}")  
             else:  
                 self.redo_btn.setToolTip("Redo (Ctrl+Y)")
+
+    def update_current_frame_objects(self, frame_id: int, frame_annotation=None):
+        """現在フレームのオブジェクト一覧を更新"""
+        if hasattr(self, 'object_list_widget'):
+            self.object_list_widget.update_frame_data(frame_id, frame_annotation)
+            
+    def set_object_list_score_threshold(self, threshold: float):
+        """オブジェクト一覧のスコア閾値を設定"""
+        if hasattr(self, 'object_list_widget'):
+            self.object_list_widget.set_score_threshold(threshold)
+            
+    def update_object_list_selection(self, annotation):
+        """オブジェクト一覧の選択状態を更新"""
+        if hasattr(self, 'object_list_widget') and self.object_list_widget:
+            # 循環防止: _updating_selectionフラグで制御
+            if hasattr(self.object_list_widget, '_updating_selection'):
+                self.object_list_widget._updating_selection = True
+            try:
+                self.object_list_widget.select_annotation(annotation)
+            finally:
+                if hasattr(self.object_list_widget, '_updating_selection'):
+                    self.object_list_widget._updating_selection = False
+            
+    def get_object_list_widget(self):
+        """オブジェクト一覧ウィジェットを取得"""
+        return getattr(self, 'object_list_widget', None)
