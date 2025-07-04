@@ -44,12 +44,14 @@ class MenuPanel(QWidget):
         self.config_manager = config_manager  
         self.current_selected_annotation: Optional[ObjectAnnotation] = None  
         self.current_selected_annotation_label: Optional[str] = None  
+        self.annotation_repository = None  # AnnotationRepositoryへの直接参照を追加
           
-        self.setFixedWidth(300)  
+        # 固定幅を削除し、最小幅のみ設定
+        self.setMinimumWidth(250)  
         self.setStyleSheet("background-color: #f0f0f0; border-right: 1px solid #ccc;")  
         self.setup_ui()  
           
-        self._connect_config_signals()  
+        self._connect_config_signals()
           
     def setup_ui(self):  
         layout = QVBoxLayout()  
@@ -587,8 +589,14 @@ class MenuPanel(QWidget):
         """一括ラベル変更ボタンクリック時の処理"""  
         if self.current_selected_annotation:  
             track_id_to_change = self.current_selected_annotation.object_id  
+            current_label = self.current_selected_annotation.label  # 現在のラベルを取得
               
-            dialog = AnnotationInputDialog(BoundingBox(0, 0, 1, 1), self, existing_labels=self.get_all_labels_from_manager())  
+            dialog = AnnotationInputDialog(
+                BoundingBox(0, 0, 1, 1), 
+                self, 
+                existing_labels=self.get_all_labels_from_manager(),
+                default_label=current_label  # 現在のラベルをデフォルトとして設定
+            )  
             dialog.setWindowTitle(f"Track ID {track_id_to_change} のラベルを一括変更")  
               
             if dialog.exec() == QDialog.DialogCode.Accepted:  
@@ -602,13 +610,13 @@ class MenuPanel(QWidget):
                     if reply == QMessageBox.StandardButton.Yes:  
                         self.propagate_label_requested.emit(track_id_to_change, new_label)  
                 else:  
-                    ErrorHandler.show_warning_dialog("新しいラベル名を入力してください。", "入力エラー")  
+                    ErrorHandler.show_warning_dialog("新しいラベル名を入力してください。", "入力エラー")
                       
     def get_all_labels_from_manager(self) -> List[str]:  
-        """MASAAnnotationWidgetからAnnotationRepositoryの全ラベルを取得するヘルパーメソッド"""  
-        if hasattr(self.parent(), 'annotation_repository') and self.parent().annotation_repository:  
-            return self.parent().annotation_repository.get_all_labels()  
-        return []  
+        """AnnotationRepositoryの全ラベルを取得するヘルパーメソッド"""  
+        if self.annotation_repository:  
+            return self.annotation_repository.get_all_labels()  
+        return []
       
     def _on_batch_add_annotation_clicked(self, checked: bool):  
         """新規アノテーション一括追加ボタンクリック時の処理"""  

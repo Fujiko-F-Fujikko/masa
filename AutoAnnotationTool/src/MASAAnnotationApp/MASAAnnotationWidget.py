@@ -4,8 +4,8 @@ import cv2
 from typing import Dict, List, Optional, Tuple    
 from PyQt6.QtWidgets import (    
     QWidget, QHBoxLayout, QVBoxLayout, QDialog,    
-    QMessageBox, QFileDialog, QPushButton, QApplication   
-)    
+    QMessageBox, QFileDialog, QPushButton, QApplication, QSplitter   
+)
 from PyQt6.QtGui import QKeyEvent  
 from PyQt6.QtCore import Qt, QObject, QEvent    
     
@@ -77,12 +77,20 @@ class MASAAnnotationWidget(QWidget):
         self.setWindowTitle("MASA Video Annotation Tool")  
         self.setGeometry(100, 100, 1400, 900)  
           
-        main_layout = QHBoxLayout()  
-          
+        # QSplitterを使用してMenuPanelの幅を可変にする
+        main_layout = QHBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # 水平スプリッターを作成
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        # MenuPanelを追加
         self.menu_panel = MenuPanel(self.config_manager)  
-        main_layout.addWidget(self.menu_panel)  
+        splitter.addWidget(self.menu_panel)
           
+        # 右側レイアウトを作成
         right_layout = QVBoxLayout()  
+        right_layout.setContentsMargins(0, 0, 0, 0)
           
         self.video_preview = VideoPreviewWidget(self)  
         right_layout.addWidget(self.video_preview)  
@@ -92,12 +100,27 @@ class MASAAnnotationWidget(QWidget):
           
         right_widget = QWidget()  
         right_widget.setLayout(right_layout)  
-        main_layout.addWidget(right_widget)  
+        splitter.addWidget(right_widget)
           
-        main_layout.setStretch(0, 1)  
-        main_layout.setStretch(1, 3)  
-          
-        self.setLayout(main_layout)  
+        # 初期幅の比率を設定（MenuPanel:VideoArea = 1:3）
+        splitter.setSizes([300, 1100])
+        
+        # スプリッターのスタイルを設定
+        splitter.setStyleSheet("""
+            QSplitter::handle {
+                background-color: #ccc;
+                width: 3px;
+            }
+            QSplitter::handle:hover {
+                background-color: #4CAF50;
+            }
+        """)
+        
+        main_layout.addWidget(splitter)
+        self.setLayout(main_layout)
+        
+        # MenuPanelにAnnotationRepositoryへの参照を設定
+        self.menu_panel.annotation_repository = self.annotation_repository
           
     def _connect_signals(self):  
         """シグナルとスロットを接続"""  
@@ -547,9 +570,14 @@ class MASAAnnotationWidget(QWidget):
             self.video_preview.bbox_editor.selection_changed.emit(None)  
             ErrorHandler.show_info_dialog(f"Track ID '{track_id}' のアノテーションを {deleted_count} 件削除しました。", "削除完了")  
             self.update_annotation_count()  
-            self.video_preview.update_frame_display()  
+            self.video_preview.update_frame_display()
+            
+            # オブジェクト一覧を更新
+            current_frame = self.video_control.current_frame
+            frame_annotation = self.annotation_repository.get_annotations(current_frame)
+            self.menu_panel.update_current_frame_objects(current_frame, frame_annotation)
         else:  
-            ErrorHandler.show_warning_dialog(f"Track ID '{track_id}' のアノテーションは見つかりませんでした。", "エラー")  
+            ErrorHandler.show_warning_dialog(f"Track ID '{track_id}' のアノテーションは見つかりませんでした。", "エラー")
   
     def on_label_change_requested(self, annotation: ObjectAnnotation, new_label: str):  
         """アノテーションのラベル変更要求時の処理（コマンドパターン対応）"""  
@@ -646,8 +674,13 @@ class MASAAnnotationWidget(QWidget):
             # オブジェクト一覧の選択状態も更新（双方向同期）
             self.menu_panel.update_object_list_selection(annotation)
             
+            # VideoPreviewWidgetの選択状態を更新
+            if hasattr(self.video_preview, 'bbox_editor') and self.video_preview.bbox_editor:
+                self.video_preview.bbox_editor.selected_annotation = annotation
+                self.video_preview.bbox_editor.selection_changed.emit(annotation)
+            
             # VideoPreviewWidgetの表示も確実に更新  
-            self.video_preview.update_frame_display()  
+            self.video_preview.update_frame_display()
             
             # Undo/Redoボタンの状態も更新  
             if hasattr(self.menu_panel, 'update_undo_redo_buttons'):  
@@ -721,6 +754,11 @@ class MASAAnnotationWidget(QWidget):
             
             self.update_annotation_count()  
             self.video_preview.update_frame_display()
+            
+            # オブジェクト一覧を更新
+            current_frame = self.video_control.current_frame
+            frame_annotation = self.annotation_repository.get_annotations(current_frame)
+            self.menu_panel.update_current_frame_objects(current_frame, frame_annotation)
             
     def on_object_focus_requested(self, annotation: Optional[ObjectAnnotation]):
         """オブジェクトフォーカス要求時の処理"""

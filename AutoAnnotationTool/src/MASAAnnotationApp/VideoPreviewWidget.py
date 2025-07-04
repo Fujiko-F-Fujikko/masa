@@ -255,7 +255,7 @@ class VideoPreviewWidget(QLabel):
     def on_selection_changed(self, annotation):  
         """選択変更時の処理""" 
         self.update_frame_display() 
-        self.annotation_selected.emit(annotation)  
+        self.annotation_selected.emit(annotation)
     
     def _on_config_changed(self, key: str, value: Any, config_type: str):  
         """ConfigManagerからの設定変更を処理"""  
