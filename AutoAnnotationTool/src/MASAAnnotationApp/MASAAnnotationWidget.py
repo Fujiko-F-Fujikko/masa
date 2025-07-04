@@ -704,9 +704,19 @@ class MASAAnnotationWidget(QWidget):
             self.video_preview.update_frame_display()  
 
     def keyPressEvent(self, event: QKeyEvent):  
-        """キーボードショートカットの処理（Undo/Redo追加）"""  
+        """キーボードショートカットの処理（拡張版）"""  
         # フォーカスされたウィジェットを取得  
         focused_widget = self.focusWidget()  
+        
+        # テキスト入力中（QLineEdit、QComboBox編集中）はショートカットを無効化  
+        from PyQt6.QtWidgets import QLineEdit, QComboBox  
+        if isinstance(focused_widget, (QLineEdit, QComboBox)):  
+            # ただし、Ctrl系のショートカットは有効にする  
+            if event.modifiers() == Qt.KeyboardModifier.ControlModifier:  
+                pass  # Ctrl系は下で処理  
+            else:  
+                super().keyPressEvent(event)  
+                return  
           
         if isinstance(focused_widget, QPushButton):  
             if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:  
@@ -718,10 +728,26 @@ class MASAAnnotationWidget(QWidget):
                 # Spaceキーの場合は何もしない（デフォルト動作を無効化）  
                 event.accept()  
                 return  
-          
-        # Ctrl+Z/Ctrl+Y のUndo/Redo処理  
+        
+        # Ctrlキー組み合わせの処理  
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier:  
-            if event.key() == Qt.Key.Key_Z:  
+            if event.key() == Qt.Key.Key_O:  
+                # Ctrl+O: 動画を読み込み  
+                self.menu_panel._on_load_video_clicked("")  
+                event.accept()  
+                return  
+            elif event.key() == Qt.Key.Key_L:  
+                # Ctrl+L: JSONを読み込み  
+                self.menu_panel._on_load_json_clicked("")  
+                event.accept()  
+                return  
+            elif event.key() == Qt.Key.Key_S:  
+                # Ctrl+S: MASA JSONを保存  
+                if self.menu_panel.save_masa_json_btn.isEnabled():  
+                    self.export_annotations("masa")  
+                event.accept()  
+                return
+            elif event.key() == Qt.Key.Key_Z:  
                 # Ctrl+Z: Undo  
                 if self.command_manager.undo():  
                     self.update_annotation_count()  
@@ -730,7 +756,6 @@ class MASAAnnotationWidget(QWidget):
                     self.video_preview.bbox_editor.selected_annotation = None  
                     self.video_preview.bbox_editor.selection_changed.emit(None)  
                     print("--- Undo ---")
-                    #ErrorHandler.show_info_dialog("操作を取り消しました。", "Undo")  
                 else:  
                     ErrorHandler.show_info_dialog("取り消す操作がありません。", "Undo")  
                 event.accept()  
@@ -744,13 +769,21 @@ class MASAAnnotationWidget(QWidget):
                     self.video_preview.bbox_editor.selected_annotation = None  
                     self.video_preview.bbox_editor.selection_changed.emit(None)  
                     print("--- Redo ---")
-                    #ErrorHandler.show_info_dialog("操作をやり直しました。", "Redo")  
                 else:  
                     ErrorHandler.show_info_dialog("やり直す操作がありません。", "Redo")  
                 event.accept()  
                 return  
-          
-        # 既存のショートカット処理  
+        
+        # Ctrl+Shift組み合わせの処理  
+        if event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):  
+            if event.key() == Qt.Key.Key_S:  
+                # Ctrl+Shift+S: COCO JSONを保存  
+                if self.menu_panel.save_coco_json_btn.isEnabled():  
+                    self.export_annotations("coco")  
+                event.accept()  
+                return
+        
+        # 単独キーのショートカット処理  
         if event.key() == Qt.Key.Key_Space:  
             # 動画再生・一時停止の処理  
             if self.playback_controller and self.playback_controller.is_playing:  
@@ -764,11 +797,51 @@ class MASAAnnotationWidget(QWidget):
         elif event.key() == Qt.Key.Key_Right:  
             self.video_control.next_frame()  
             event.accept()  
+        elif event.key() == Qt.Key.Key_E:  
+            # Eキー: 編集モード切り替え  
+            if self.menu_panel.edit_mode_btn.isEnabled():  
+                current_state = self.menu_panel.edit_mode_btn.isChecked()  
+                self.menu_panel.edit_mode_btn.setChecked(not current_state)  
+                self.menu_panel._on_edit_mode_clicked(not current_state)  
+            event.accept()  
+        elif event.key() == Qt.Key.Key_B:  
+            # Bキー: 一括追加モード切り替え  
+            if self.menu_panel.batch_add_annotation_btn.isEnabled():  
+                current_state = self.menu_panel.batch_add_annotation_btn.isChecked()  
+                self.menu_panel.batch_add_annotation_btn.setChecked(not current_state)  
+                self.menu_panel._on_batch_add_annotation_clicked(not current_state)  
+            event.accept()  
+        elif event.key() == Qt.Key.Key_X:  
+            # Xキー: 選択アノテーションを削除  
+            if (self.menu_panel.current_selected_annotation and   
+                self.menu_panel.delete_single_annotation_btn.isEnabled()):  
+                self.menu_panel._on_delete_single_annotation_clicked()  
+            event.accept()  
         elif event.key() == Qt.Key.Key_D:  
-            # Dキー：トラック一括削除  
+            # Dキー: トラック一括削除  
             if (self.menu_panel.current_selected_annotation and   
                 self.menu_panel.delete_track_btn.isEnabled()):  
                 self.menu_panel._on_delete_track_clicked()  
+            event.accept()  
+        elif event.key() == Qt.Key.Key_P:  
+            # Pキー: 一括ラベル変更  
+            if (self.menu_panel.current_selected_annotation and   
+                self.menu_panel.propagate_label_btn.isEnabled()):  
+                self.menu_panel._on_propagate_label_clicked()  
+            event.accept()  
+        elif event.key() == Qt.Key.Key_R:  
+            # Rキー: 実行ボタン  
+            if self.menu_panel.execute_batch_add_btn.isEnabled():  
+                self.menu_panel._on_complete_batch_add_clicked()  
+            event.accept()  
+        elif event.key() == Qt.Key.Key_G:  
+            # Gキー: フレームジャンプ実行  
+            self.video_control.jump_to_frame()  
+            event.accept()  
+        elif event.key() == Qt.Key.Key_F:  
+            # Fキー: フレーム入力フィールドにフォーカス移動  
+            self.video_control.frame_input.setFocus()  
+            self.video_control.frame_input.selectAll()  
             event.accept()  
         else:  
             super().keyPressEvent(event)
