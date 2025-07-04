@@ -37,8 +37,8 @@ class VideoControlPanel(QWidget):
           
         control_layout = QHBoxLayout()  
           
-        self.prev_btn = QPushButton("◀")  
-        self.prev_btn.setFixedSize(30, 30)  
+        self.prev_btn = QPushButton("◀ (←)")  
+        self.prev_btn.setFixedSize(60, 30)  
         self.prev_btn.clicked.connect(self.prev_frame)  
         control_layout.addWidget(self.prev_btn)  
           
@@ -47,16 +47,16 @@ class VideoControlPanel(QWidget):
         self.frame_slider.valueChanged.connect(self.on_frame_changed)  
         control_layout.addWidget(self.frame_slider)  
           
-        self.next_btn = QPushButton("▶")  
-        self.next_btn.setFixedSize(30, 30)  
+        self.next_btn = QPushButton("▶ (→)")  
+        self.next_btn.setFixedSize(60, 30)  
         self.next_btn.clicked.connect(self.next_frame)  
-        control_layout.addWidget(self.next_btn)  
+        control_layout.addWidget(self.next_btn)
           
         layout.addLayout(control_layout)  
 
         # フレーム番号入力機能を追加  
         jump_layout = QHBoxLayout()  
-        jump_layout.addWidget(QLabel("Jump to frame:"))  
+        jump_layout.addWidget(QLabel("Jump to frame (F):"))  
           
         self.frame_input = QLineEdit()  
         self.frame_input.setPlaceholderText("Frame number")  
@@ -64,10 +64,10 @@ class VideoControlPanel(QWidget):
         self.frame_input.returnPressed.connect(self.jump_to_frame)  
         jump_layout.addWidget(self.frame_input)  
           
-        self.jump_btn = QPushButton("Go")  
-        self.jump_btn.setMaximumWidth(40)  
+        self.jump_btn = QPushButton("Go (G)")  
+        self.jump_btn.setMaximumWidth(50)  
         self.jump_btn.clicked.connect(self.jump_to_frame)  
-        jump_layout.addWidget(self.jump_btn)  
+        jump_layout.addWidget(self.jump_btn)
           
         jump_layout.addStretch()  # 右側に余白を追加  
         layout.addLayout(jump_layout) 

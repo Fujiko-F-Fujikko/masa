@@ -109,26 +109,26 @@ class MenuPanel(QWidget):
         file_group = QGroupBox("ファイル操作")  
         file_layout = QVBoxLayout()  
           
-        self.load_video_btn = QPushButton("動画を読み込み")  
+        self.load_video_btn = QPushButton("動画を読み込み (Ctrl+O)")  
         self.load_video_btn.clicked.connect(self._on_load_video_clicked)  
         file_layout.addWidget(self.load_video_btn)  
         self.video_info_label = QLabel("動画が読み込まれていません")  
         self.video_info_label.setWordWrap(True)  
         file_layout.addWidget(self.video_info_label)  
           
-        self.load_json_btn = QPushButton("JSONを読み込み")  
+        self.load_json_btn = QPushButton("JSONを読み込み (Ctrl+L)")  
         self.load_json_btn.clicked.connect(self._on_load_json_clicked)  
         file_layout.addWidget(self.load_json_btn)  
           
-        self.save_masa_json_btn = QPushButton("MASA JSONを保存")  
+        self.save_masa_json_btn = QPushButton("MASA JSONを保存 (Ctrl+S)")  
         self.save_masa_json_btn.clicked.connect(lambda: self.export_requested.emit("masa"))  
         self.save_masa_json_btn.setEnabled(False)  
         file_layout.addWidget(self.save_masa_json_btn)  
       
-        self.save_coco_json_btn = QPushButton("COCO JSONを保存")  
+        self.save_coco_json_btn = QPushButton("COCO JSONを保存 (Ctrl+Shift+S)")  
         self.save_coco_json_btn.clicked.connect(lambda: self.export_requested.emit("coco"))  
         self.save_coco_json_btn.setEnabled(False)  
-        file_layout.addWidget(self.save_coco_json_btn)  
+        file_layout.addWidget(self.save_coco_json_btn)
           
         self.json_info_label = QLabel("JSONが読み込まれていません")  
         self.json_info_label.setWordWrap(True)  
@@ -145,7 +145,7 @@ class MenuPanel(QWidget):
         playback_group = QGroupBox("再生コントロール")  
         playback_layout = QVBoxLayout()  
           
-        self.play_btn = QPushButton("再生")  
+        self.play_btn = QPushButton("再生(Space)")  
         self.play_btn.setEnabled(False)  
         self.play_btn.clicked.connect(self._on_play_clicked)  
         playback_layout.addWidget(self.play_btn)  
@@ -243,7 +243,7 @@ class MenuPanel(QWidget):
             }  
         """  
           
-        self.edit_mode_btn = QPushButton("編集モード")  
+        self.edit_mode_btn = QPushButton("編集モード (E)")  
         self.edit_mode_btn.setCheckable(True)  
         self.edit_mode_btn.setStyleSheet(edit_button_style)  
         self.edit_mode_btn.clicked.connect(self._on_edit_mode_clicked)  
@@ -263,20 +263,20 @@ class MenuPanel(QWidget):
         edit_layout.addWidget(QLabel("Track ID:"))  
         edit_layout.addWidget(self.track_id_edit)  
           
-        self.delete_single_annotation_btn = QPushButton("選択アノテーションを削除")  
+        self.delete_single_annotation_btn = QPushButton("選択アノテーションを削除 (X)")  
         self.delete_single_annotation_btn.setEnabled(False)  
         self.delete_single_annotation_btn.clicked.connect(self._on_delete_single_annotation_clicked)  
         edit_layout.addWidget(self.delete_single_annotation_btn)  
           
-        self.delete_track_btn = QPushButton("一括削除")  
+        self.delete_track_btn = QPushButton("一括削除 (D)")  
         self.delete_track_btn.setEnabled(False)  
         self.delete_track_btn.clicked.connect(self._on_delete_track_clicked)  
         edit_layout.addWidget(self.delete_track_btn)  
           
-        self.propagate_label_btn = QPushButton("一括ラベル変更")  
+        self.propagate_label_btn = QPushButton("一括ラベル変更 (P)")  
         self.propagate_label_btn.setEnabled(False)  
         self.propagate_label_btn.clicked.connect(self._on_propagate_label_clicked)  
-        edit_layout.addWidget(self.propagate_label_btn)  
+        edit_layout.addWidget(self.propagate_label_btn)
 
         edit_group.setLayout(edit_layout)  
         layout.addWidget(edit_group)  
@@ -317,7 +317,7 @@ class MenuPanel(QWidget):
                 font-weight: bold;  
             }  
         """  
-        self.batch_add_annotation_btn = QPushButton("新規アノテーション一括追加")  
+        self.batch_add_annotation_btn = QPushButton("新規アノテーション一括追加 (B)")  
         self.batch_add_annotation_btn.setCheckable(True)  
         self.batch_add_annotation_btn.setEnabled(True)  
         self.batch_add_annotation_btn.setStyleSheet(batch_add_button_style)
@@ -330,10 +330,10 @@ class MenuPanel(QWidget):
         self.tracking_progress_label = QLabel("")  
         tracking_layout.addWidget(self.tracking_progress_label)
 
-        self.execute_batch_add_btn = QPushButton("実行")  
+        self.execute_batch_add_btn = QPushButton("実行 (R)")  
         self.execute_batch_add_btn.setEnabled(False)  
         self.execute_batch_add_btn.clicked.connect(self._on_complete_batch_add_clicked)  
-        tracking_layout.addWidget(self.execute_batch_add_btn)  
+        tracking_layout.addWidget(self.execute_batch_add_btn)
           
         self.range_info_label = QLabel("範囲: 未選択")  
         tracking_layout.addWidget(self.range_info_label)  
@@ -454,14 +454,14 @@ class MenuPanel(QWidget):
         """再生/一時停止ボタンクリック処理"""  
         if self.play_btn.text() == "再生":  
             self.play_requested.emit()  
-            self.play_btn.setText("一時停止")  
+            self.play_btn.setText("一時停止(Space)")  
         else:  
             self.pause_requested.emit()  
-            self.play_btn.setText("再生")  
+            self.play_btn.setText("再生(Space)")  
               
     def reset_playback_button(self):  
         """再生ボタンを初期状態にリセット"""  
-        self.play_btn.setText("再生")  
+        self.play_btn.setText("再生(Space)")  
           
     def update_frame_display(self, current_frame: int, total_frames: int):  
         """フレーム表示を更新"""  
