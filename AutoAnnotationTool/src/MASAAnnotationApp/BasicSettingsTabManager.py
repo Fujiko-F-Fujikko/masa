@@ -22,6 +22,7 @@ class BasicSettingsTabManager(QWidget):
     export_requested = pyqtSignal(str)
     play_requested = pyqtSignal()
     pause_requested = pyqtSignal()
+    config_changed = pyqtSignal(str, object, str)
     
     def __init__(self, app_service: MASAApplicationService, parent=None):
         super().__init__(parent)

@@ -37,31 +37,30 @@ class MainUIController:
         
         self.parent.setLayout(main_layout)
         
-    def setup_splitter(self):
-        """水平スプリッターを設定"""
-        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+    def setup_splitter(self):  
+        """水平スプリッターを設定"""  
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)  
         
-        # MenuPanelを作成・追加
-        self.menu_panel = MenuPanel(self.app_service.config_manager)
-        self.menu_panel.annotation_repository = self.app_service.annotation_repository
-        self.splitter.addWidget(self.menu_panel)
+        # MenuPanelを作成・追加（修正版 - MASAApplicationServiceを渡す）  
+        self.menu_panel = MenuPanel(self.app_service)  
+        self.splitter.addWidget(self.menu_panel)  
         
-        # 右側レイアウト（動画プレビューとコントロール）を作成
-        right_widget = self._create_right_side_widget()
-        self.splitter.addWidget(right_widget)
+        # 右側レイアウト（動画プレビューとコントロール）を作成  
+        right_widget = self._create_right_side_widget()  
+        self.splitter.addWidget(right_widget)  
         
-        # 初期幅の比率を設定（MenuPanel:VideoArea = 1:3）
-        self.splitter.setSizes([300, 1100])
+        # 初期幅の比率を設定（MenuPanel:VideoArea = 1:3）  
+        self.splitter.setSizes([300, 1100])  
         
-        # スプリッターのスタイルを設定
-        self.splitter.setStyleSheet("""
-            QSplitter::handle {
-                background-color: #ccc;
-                width: 3px;
-            }
-            QSplitter::handle:hover {
-                background-color: #4CAF50;
-            }
+        # スプリッターのスタイルを設定  
+        self.splitter.setStyleSheet("""  
+            QSplitter::handle {  
+                background-color: #ccc;  
+                width: 3px;  
+            }  
+            QSplitter::handle:hover {  
+                background-color: #4CAF50;  
+            }  
         """)
         
     def _create_right_side_widget(self) -> QWidget:
@@ -119,32 +118,32 @@ class MainUIController:
             self.video_preview.bbox_editor.bbox_position_updated.connect(self._on_bbox_position_updated)
         
         # オブジェクト一覧ウィジェットからのシグナル接続
-        object_list_widget = self.menu_panel.get_object_list_widget()
-        if object_list_widget:
-            object_list_widget.object_selected.connect(self._on_annotation_selected)
-            object_list_widget.object_double_clicked.connect(self._on_object_focus_requested)
+        object_list_tab = self.menu_panel.get_object_list_tab()
+        if object_list_tab:
+            object_list_tab.object_selected.connect(self._on_annotation_selected)
+            object_list_tab.object_double_clicked.connect(self._on_object_focus_requested)
     
-    def refresh_display(self):
-        """表示を更新"""
-        if self.video_preview:
-            self.video_preview.update_frame_display()
+    def refresh_display(self):  
+        """表示を更新"""  
+        if self.video_preview:  
+            self.video_preview.update_frame_display()  
             
-        # アノテーション数の更新
-        stats = self.app_service.get_statistics()
-        if self.menu_panel:
-            self.menu_panel.update_annotation_count(stats["total"], stats["manual"])
-            self.menu_panel.initialize_label_combo(self.app_service.get_all_labels())
+        # アノテーション数の更新（修正版 - MASAApplicationService経由）  
+        if self.menu_panel:  
+            stats = self.app_service.annotation_repository.get_statistics()  
+            self.menu_panel.update_annotation_count(stats["total"], stats["manual"])  
+            self.menu_panel.initialize_label_combo(self.app_service.annotation_repository.get_all_labels())  
             
-            # Undo/Redoボタンの状態更新
-            if hasattr(self.menu_panel, 'update_undo_redo_buttons'):
-                self.menu_panel.update_undo_redo_buttons(self.app_service.command_manager)
+            # Undo/Redoボタンの状態更新  
+            if hasattr(self.menu_panel, 'update_undo_redo_buttons'):  
+                self.menu_panel.update_undo_redo_buttons(self.app_service.command_manager)  
                 
-        # 現在フレームのオブジェクト一覧更新
-        current_frame = self.app_service.get_current_frame()
-        frame_annotation = self.app_service.get_annotations(current_frame)
-        if self.menu_panel:
-            self.menu_panel.update_current_frame_objects(current_frame, frame_annotation)
-    
+        # 現在フレームのオブジェクト一覧更新  
+        if self.video_control and self.menu_panel:  
+            current_frame = self.video_control.current_frame  
+            frame_annotation = self.app_service.annotation_repository.get_annotations(current_frame)  
+            self.menu_panel.update_current_frame_objects(current_frame, frame_annotation)    
+
     # ===== シグナルハンドラ（アプリケーションサービスへの委譲） =====
     
     def _on_load_video_requested(self, file_path: str):
@@ -309,19 +308,21 @@ class MainUIController:
         if hasattr(self.parent, 'on_bbox_created'):
             self.parent.on_bbox_created(x1, y1, x2, y2)
     
-    def _on_frame_changed(self, frame_id: int):
-        """フレーム変更"""
-        self.app_service.set_current_frame(frame_id)
-        if self.video_control:
-            self.video_control.set_current_frame(frame_id)
-        if self.menu_panel:
-            video_info = self.app_service.get_video_info()
-            total_frames = video_info.get("total_frames", 0)
-            self.menu_panel.update_frame_display(frame_id, total_frames)
+    def _on_frame_changed(self, frame_id: int):  
+        """フレーム変更"""  
+        self.app_service.set_current_frame(frame_id)  
+        if self.video_control:  
+            self.video_control.set_current_frame(frame_id)  
         
-        # オブジェクト一覧を更新
-        frame_annotation = self.app_service.get_annotations(frame_id)
-        if self.menu_panel:
+        # 修正版：MenuPanelの情報同期マネージャー経由でフレーム表示を更新  
+        if self.menu_panel and self.menu_panel.info_sync_manager:  
+            video_manager = self.app_service.video_manager  
+            total_frames = video_manager.get_total_frames() if video_manager else 0  
+            self.menu_panel.info_sync_manager.update_frame_display(frame_id, total_frames)  
+        
+        # オブジェクト一覧を更新  
+        frame_annotation = self.app_service.annotation_repository.get_annotations(frame_id)  
+        if self.menu_panel:  
             self.menu_panel.update_current_frame_objects(frame_id, frame_annotation)
     
     def _on_annotation_selected(self, annotation):

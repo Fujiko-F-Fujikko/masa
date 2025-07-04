@@ -87,11 +87,12 @@ class MASAApplicationService:
         command = UpdateLabelByTrackCommand(self.annotation_repository, track_id, old_label, new_label)
         return self.command_manager.execute_command(command) or 0
     
-    def update_bbox_position(self, annotation: ObjectAnnotation, old_bbox: BoundingBox, new_bbox: BoundingBox) -> bool:
-        """バウンディングボックスの位置を更新"""
-        command = UpdateBoundingBoxCommand(self.annotation_repository, annotation, old_bbox, new_bbox)
-        return self.command_manager.execute_command(command) is not None
-    
+    def update_bbox_position(self, annotation: ObjectAnnotation, old_bbox: BoundingBox, new_bbox: BoundingBox) -> bool:  
+        """バウンディングボックス位置を更新"""  
+        from CommandPattern import UpdateBoundingBoxCommand  
+        command = UpdateBoundingBoxCommand(self.annotation_repository, annotation, old_bbox, new_bbox)  
+        return self.command_manager.execute_command(command)
+
     # ===== ファイル操作 =====
     
     @ErrorHandler.handle_with_dialog("Video Load Error")
