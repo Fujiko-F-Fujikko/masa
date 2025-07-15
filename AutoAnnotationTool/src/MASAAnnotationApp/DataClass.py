@@ -130,3 +130,8 @@ class DisplayConfig:
     show_ids: bool = True  
     show_confidence: bool = True  
     score_threshold: float = 0.2 # 表示フィルタリング用の閾値
+
+@dataclass  
+class LocalizationConfig:  
+    """ローカライゼーション設定"""  
+    language: str = "ja_JP"

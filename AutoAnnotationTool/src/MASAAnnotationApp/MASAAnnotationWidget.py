@@ -24,7 +24,8 @@ from ErrorHandler import ErrorHandler
 from COCOExportWorker import COCOExportWorker  
 from TrackingResultConfirmDialog import TrackingResultConfirmDialog  
 from CommandPattern import CommandManager, AddAnnotationCommand, DeleteAnnotationCommand, DeleteTrackCommand, UpdateLabelCommand, UpdateLabelByTrackCommand, UpdateBoundingBoxCommand 
-  
+from LocalizationManager import get_localization_manager  
+
 # QtのデフォルトではSpaceキーでボタンクリックだが、Enterキーに変更する  
 class ButtonKeyEventFilter(QObject):    
     def eventFilter(self, obj, event):    
@@ -62,7 +63,8 @@ class MASAAnnotationWidget(QWidget):
         self.object_tracker = ObjectTracker(self.config_manager.get_full_config(config_type="masa")) # ObjectTrackerにはMASAモデル関連のConfigのみを渡す  
         self.playback_controller: Optional[VideoPlaybackController] = None    
         self.tracking_worker: Optional[TrackingWorker] = None    
-        self.temp_bboxes_for_batch_add: List[Tuple[int, BoundingBox]] = []    
+        self.temp_bboxes_for_batch_add: List[Tuple[int, BoundingBox]] = []   
+        self.localization_manager = get_localization_manager()
           
         # CommandManagerを追加  
         self.command_manager = CommandManager()  
@@ -72,7 +74,7 @@ class MASAAnnotationWidget(QWidget):
           
     def setup_ui(self):  
         """UIの初期設定"""  
-        self.setWindowTitle("MASA Video Annotation Tool")  
+        self.setWindowTitle(self.tr("MASA Object Annotation Tool"))  
         self.setGeometry(100, 100, 1400, 900)  
           
         # QSplitterを使用してMenuPanelの幅を可変にする
@@ -156,6 +158,9 @@ class MASAAnnotationWidget(QWidget):
         if object_list_widget:
             object_list_widget.object_selected.connect(self.on_annotation_selected)
             object_list_widget.object_double_clicked.connect(self.on_object_focus_requested)
+
+        # LocalizationManagerからの言語変更を監視  
+        self.localization_manager.add_observer(self._on_language_changed)
 
     @ErrorHandler.handle_with_dialog("Video Load Error")  
     def load_video(self, file_path: str):  
@@ -639,6 +644,9 @@ class MASAAnnotationWidget(QWidget):
             # オブジェクト一覧のスコア閾値も更新
             self.menu_panel.set_object_list_score_threshold(display_options.score_threshold)
         # 他のconfig_typeの変更もここに追加
+        elif config_type == "localization" and key == "language":  
+            # 言語設定が変更された場合  
+            self.localization_manager.set_language(value)
 
     def on_annotation_selected(self, annotation: Optional[ObjectAnnotation]):  
         """アノテーション選択時の処理（中央集権的制御）"""  
@@ -748,6 +756,26 @@ class MASAAnnotationWidget(QWidget):
             self.video_preview.focus_on_annotation(annotation)
             # アノテーションを選択状態にする
             self.on_annotation_selected(annotation)
+
+    def _on_language_changed(self, language_code: str):  
+        """言語変更時の処理"""  
+        # ConfigManagerの言語設定も更新  
+        self.config_manager.update_config("language", language_code, config_type="localization")  
+        
+        # 全UIコンポーネントの翻訳を更新  
+        self.retranslateUi()  
+        
+        # 子ウィジェットの翻訳も更新  
+        if hasattr(self.menu_panel, 'retranslateUi'):  
+            self.menu_panel.retranslateUi()  
+        if hasattr(self.video_preview, 'retranslateUi'):  
+            self.video_preview.retranslateUi()  
+        if hasattr(self.video_control, 'retranslateUi'):  
+            self.video_control.retranslateUi()  
+    
+    def retranslateUi(self):  
+        """UI要素の翻訳を更新"""  
+        self.setWindowTitle(self.tr("MASA Object Annotation Tool"))
 
     def keyPressEvent(self, event: QKeyEvent):  
         """キーボードショートカットの処理（拡張版）"""  

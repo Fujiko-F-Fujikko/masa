@@ -1,7 +1,7 @@
 # ConfigManager.py (変更)  
 from typing import List, Any, Callable  
 
-from DataClass import MASAConfig, DisplayConfig
+from DataClass import MASAConfig, DisplayConfig, LocalizationConfig
   
 class ConfigManager:  
     """設定管理を一元化するクラス"""  
@@ -10,6 +10,7 @@ class ConfigManager:
         self._observers: List[Callable] = []  
         self._masa_config = MASAConfig() # MASAモデル用設定  
         self._display_config = DisplayConfig() # 表示用設定  
+        self._localization_config = LocalizationConfig()
       
     def update_config(self, key: str, value: Any, config_type: str = "masa"): # config_type引数を追加  
         """設定値を更新し、オブザーバーに通知"""  
@@ -17,6 +18,8 @@ class ConfigManager:
             target_config = self._masa_config  
         elif config_type == "display":  
             target_config = self._display_config  
+        elif config_type == "localization":  
+            target_config = self._localization_config  
         else:  
             raise ValueError(f"Unknown config type: {config_type}")  
   
@@ -32,6 +35,8 @@ class ConfigManager:
             target_config = self._masa_config  
         elif config_type == "display":  
             target_config = self._display_config  
+        elif config_type == "localization":  
+            target_config = self._localization_config  
         else:  
             raise ValueError(f"Unknown config type: {config_type}")  
         return getattr(target_config, key, None)  
@@ -42,6 +47,8 @@ class ConfigManager:
             return self._masa_config  
         elif config_type == "display":  
             return self._display_config  
+        elif config_type == "localization":
+            return self._localization_config  
         else:  
             raise ValueError(f"Unknown config type: {config_type}")  
       

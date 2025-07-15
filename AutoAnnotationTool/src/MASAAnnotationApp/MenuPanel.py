@@ -16,6 +16,8 @@ from DataClass import BoundingBox, ObjectAnnotation
 from ConfigManager import ConfigManager  
 from ErrorHandler import ErrorHandler
 from CurrentFrameObjectListWidget import CurrentFrameObjectListWidget
+from LocalizationManager import get_localization_manager  
+
   
 class MenuPanel(QWidget):  
     """タブベースの左側メニューパネル（改善版）"""  
@@ -59,10 +61,10 @@ class MenuPanel(QWidget):
         layout.setSpacing(10)  
         layout.setContentsMargins(10, 10, 10, 10)  
           
-        title_label = QLabel("MASA Annotation Tool")  
-        title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))  
-        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  
-        layout.addWidget(title_label)  
+        self.title_label = QLabel(self.tr("MASA Object Annotation Tool"))  
+        self.title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))  
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  
+        layout.addWidget(self.title_label)  
           
         self.tab_widget = QTabWidget()  
         # タブのスタイルを設定  
@@ -215,6 +217,33 @@ class MenuPanel(QWidget):
         display_group.setLayout(display_layout)  
         layout.addWidget(display_group)  
           
+        # 言語設定グループを追加  
+        language_group = QGroupBox(self.tr("Language Settings"))  
+        language_layout = QVBoxLayout()  
+        
+        language_selection_layout = QHBoxLayout()  
+        language_selection_layout.addWidget(QLabel(self.tr("Language:")))  
+        
+        self.language_combo = QComboBox()  
+        localization_manager = get_localization_manager()  
+        
+        for code, name in localization_manager.get_supported_languages().items():  
+            self.language_combo.addItem(name, code)  
+        
+        # 現在の言語を選択  
+        current_language = localization_manager.get_current_language()  
+        for i in range(self.language_combo.count()):  
+            if self.language_combo.itemData(i) == current_language:  
+                self.language_combo.setCurrentIndex(i)  
+                break  
+        
+        self.language_combo.currentIndexChanged.connect(self._on_language_changed)  
+        language_selection_layout.addWidget(self.language_combo)  
+        
+        language_layout.addLayout(language_selection_layout)  
+        language_group.setLayout(language_layout)  
+        layout.addWidget(language_group)
+
         layout.addStretch()  
         basic_tab.setLayout(layout)  
         self.tab_widget.addTab(basic_tab, "⚙️ 基本設定")  
@@ -840,15 +869,9 @@ class MenuPanel(QWidget):
                             combined_content.append(f"=== {file_path.name} (読み込みエラー) ===")  
                             combined_content.append(f"エラー: {str(e)}")  
                             combined_content.append("")  
-            
-            # デバッグ用：連結前の内容を確認  
-            print(f"Combined content list length: {len(combined_content)}")  
-            for i, content in enumerate(combined_content[:5]):  # 最初の5要素のみ表示  
-                print(f"  [{i}]: {repr(content)}")  
-            
+                        
             # 連結した内容を表示  
             final_content = '\n\n'.join(combined_content)  
-            print(f"Final content preview: {repr(final_content[:200])}")  # 最初の200文字のみ  
             
             # QTextEditに設定  
             self.license_text.clear()  # 既存の内容をクリア  
@@ -858,3 +881,17 @@ class MenuPanel(QWidget):
             error_message = f"{library_name}のライセンス読み込み中にエラーが発生しました:\\n{str(e)}"  
             print(f"Error: {error_message}")  
             self.license_text.setPlainText(error_message)
+
+    def _on_language_changed(self):  
+        """言語変更時の処理"""  
+        selected_language = self.language_combo.currentData()  
+        if selected_language:  
+            localization_manager = get_localization_manager()  
+            localization_manager.set_language(selected_language)
+
+    def retranslateUi(self):  
+        """UI要素の翻訳を更新"""  
+        # ボタンやラベルのテキストを更新  
+        self.load_video_btn.setText(self.tr("Load Video (Ctrl+O)"))  
+        # 他のUI要素も同様に更新...
+        self.title_label.setText(self.tr("MASA Object Annotation Tool"))
