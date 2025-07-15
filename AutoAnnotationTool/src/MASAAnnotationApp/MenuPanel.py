@@ -635,14 +635,14 @@ class MenuPanel(QWidget):
     def _on_complete_batch_add_clicked(self):  
         """一括追加完了ボタンクリック時の処理"""  
         # temp_bboxes_for_batch_add が空でないことを確認  
-        if not self.parent().temp_bboxes_for_batch_add:  
+        if not self.parent().parent().temp_bboxes_for_batch_add:  
             ErrorHandler.show_warning_dialog("追加するアノテーションがありません。", "警告")  
             return  
   
         # 共通ラベル入力ダイアログを表示  
         # 既存のラベルリストを取得  
         # MASAAnnotationWidgetのannotation_repositoryからラベルを取得  
-        existing_labels = self.parent().annotation_repository.get_all_labels()   
+        existing_labels = self.parent().parent().annotation_repository.get_all_labels()   
         dialog = AnnotationInputDialog(None, self, existing_labels=existing_labels) # bboxは不要なのでNone  
         dialog.setWindowTitle("一括追加アノテーションの共通ラベルを選択")  
   
@@ -653,14 +653,14 @@ class MenuPanel(QWidget):
                 return  
   
             # 追跡範囲の取得  
-            start_frame, end_frame = self.parent().video_control.get_selected_range()  
+            start_frame, end_frame = self.parent().parent().video_control.get_selected_range()  
             if start_frame == -1 or end_frame == -1:  
                 ErrorHandler.show_warning_dialog("追跡範囲が選択されていません。", "Warning")  
                 return  
   
             # AnnotationRepositoryから現在のTrack IDの最大値を取得  
             # MASAAnnotationWidgetのannotation_repositoryにアクセス  
-            current_max_track_id = self.parent().annotation_repository.next_object_id  
+            current_max_track_id = self.parent().parent().annotation_repository.next_object_id  
             # MASAAnnotationWidgetに追跡開始を要求  
             # assigned_track_id は バッチ追加で追加されるアノテーションのTrack IDの始まりののインデックスになる。
             self.tracking_requested.emit(current_max_track_id, assigned_label)  
@@ -679,15 +679,35 @@ class MenuPanel(QWidget):
         else:  
             self.tracking_status_label.setText("Ready for tracking")
 
-    def _on_undo_clicked(self):  
-        """Undoボタンクリック時の処理"""  
-        if hasattr(self.parent(), 'command_manager'):  
-            self.parent().keyPressEvent(QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier))  
+    def _on_undo_clicked(self):    
+        """Undoボタンクリック時の処理"""    
+        # QSplitterの親がMASAAnnotationWidget  
+        main_widget = self.parent().parent()  
+        if hasattr(main_widget, 'command_manager'):    
+            if main_widget.command_manager.undo():    
+                main_widget.update_annotation_count()    
+                main_widget.video_preview.update_frame_display()    
+                main_widget.video_preview.bbox_editor.selected_annotation = None    
+                main_widget.video_preview.bbox_editor.selection_changed.emit(None)    
+                print("--- Undo ---")  
+            else:    
+                from ErrorHandler import ErrorHandler  
+                ErrorHandler.show_info_dialog("取り消す操作がありません。", "Undo")    
     
-    def _on_redo_clicked(self):  
-        """Redoボタンクリック時の処理"""  
-        if hasattr(self.parent(), 'command_manager'):  
-            self.parent().keyPressEvent(QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Y, Qt.KeyboardModifier.ControlModifier))  
+    def _on_redo_clicked(self):    
+        """Redoボタンクリック時の処理"""    
+        # QSplitterの親がMASAAnnotationWidget  
+        main_widget = self.parent().parent()  
+        if hasattr(main_widget, 'command_manager'):    
+            if main_widget.command_manager.redo():    
+                main_widget.update_annotation_count()    
+                main_widget.video_preview.update_frame_display()    
+                main_widget.video_preview.bbox_editor.selected_annotation = None    
+                main_widget.video_preview.bbox_editor.selection_changed.emit(None)    
+                print("--- Redo ---")  
+            else:    
+                from ErrorHandler import ErrorHandler  
+                ErrorHandler.show_info_dialog("やり直す操作がありません。", "Redo")
     
     def update_undo_redo_buttons(self, command_manager):  
         """Undo/Redoボタンの状態を更新"""  
