@@ -12,7 +12,7 @@ class AnnotationInputDialog(QDialog):
     """アノテーション追加ダイアログ（改善版）"""  
     def __init__(self, bbox: BoundingBox, parent=None, existing_labels: List[str] = None, default_label: str = ""):  
         super().__init__(parent)  
-        self.setWindowTitle("アノテーション追加")  
+        self.setWindowTitle("Add Annotation")
         self.bbox = bbox  
         self.label = ""  
         self.default_label = default_label
@@ -27,13 +27,13 @@ class AnnotationInputDialog(QDialog):
             layout.addWidget(bbox_info_label)  
           
         label_layout = QHBoxLayout()  
-        label_layout.addWidget(QLabel("ラベル:"))  
+        label_layout.addWidget(QLabel("Label:"))
         self.label_input = QLineEdit()  
         label_layout.addWidget(self.label_input)  
         layout.addLayout(label_layout)  
           
         preset_layout = QHBoxLayout()  
-        preset_layout.addWidget(QLabel("プリセット:"))  
+        preset_layout.addWidget(QLabel("Preset:"))
         self.preset_combo = QComboBox()  
         self.preset_combo.setEditable(True)  
           

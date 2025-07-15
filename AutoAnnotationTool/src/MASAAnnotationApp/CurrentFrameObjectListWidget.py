@@ -37,37 +37,36 @@ class CurrentFrameObjectListWidget(QWidget):
         
         # ヘッダー情報
         header_layout = QHBoxLayout()
-        self.frame_info_label = QLabel("フレーム: 0")
+        self.frame_info_label = QLabel("Frame: 0")
         self.frame_info_label.setFont(QFont("Arial", 10, QFont.Weight.Bold))
         header_layout.addWidget(self.frame_info_label)
         
-        self.object_count_label = QLabel("オブジェクト数: 0")
+        self.object_count_label = QLabel("Objects: 0")
         header_layout.addWidget(self.object_count_label)
         header_layout.addStretch()
         
         layout.addLayout(header_layout)
         
         # フィルタリングオプション
-        filter_group = QGroupBox("フィルタ")
+        filter_group = QGroupBox("Filter")
         filter_layout = QVBoxLayout()
         
         # ラベルフィルタ
         label_filter_layout = QHBoxLayout()
-        label_filter_layout.addWidget(QLabel("ラベル:"))
+        label_filter_layout.addWidget(QLabel("Label:"))
         self.label_filter_combo = QComboBox()
-        self.label_filter_combo.addItem("すべて")
+        self.label_filter_combo.addItem("All")
         self.label_filter_combo.setEditable(False)
         label_filter_layout.addWidget(self.label_filter_combo)
         filter_layout.addLayout(label_filter_layout)
         
         # 表示オプション
         options_layout = QHBoxLayout()
-        self.show_manual_cb = QCheckBox("手動アノテーション")
+        self.show_manual_cb = QCheckBox("Manual Annotation")
         self.show_manual_cb.setChecked(True)
-        self.show_auto_cb = QCheckBox("自動アノテーション")
+        self.show_auto_cb = QCheckBox("Auto Annotation")
         self.show_auto_cb.setChecked(True)
         
-        # 基本設定タブと同じチェックボックススタイルを適用
         simple_checkbox_style = """  
         QCheckBox::indicator:checked {  
             background-color: #4CAF50;  
@@ -97,8 +96,7 @@ class CurrentFrameObjectListWidget(QWidget):
         
     def setup_table(self):
         """テーブルの初期設定"""
-        # 列の設定
-        columns = ["Track ID", "ラベル", "座標 (x1,y1,x2,y2)", "信頼度", "種別"]
+        columns = ["Track ID", "Label", "Coordinates (x1,y1,x2,y2)", "Confidence", "Type"]
         self.table.setColumnCount(len(columns))
         self.table.setHorizontalHeaderLabels(columns)
         
@@ -158,7 +156,7 @@ class CurrentFrameObjectListWidget(QWidget):
     def update_frame_data(self, frame_id: int, frame_annotation: Optional[FrameAnnotation]):
         """フレームデータを更新"""
         self.current_frame_id = frame_id
-        self.frame_info_label.setText(f"フレーム: {frame_id}")
+        self.frame_info_label.setText(f"Frame: {frame_id}")
         
         if frame_annotation and frame_annotation.objects:
             self.current_annotations = frame_annotation.objects
@@ -175,7 +173,7 @@ class CurrentFrameObjectListWidget(QWidget):
         self.label_filter_combo.blockSignals(True)
         
         self.label_filter_combo.clear()
-        self.label_filter_combo.addItem("すべて")
+        self.label_filter_combo.addItem("All")
         
         # 現在のフレームのラベルを取得
         labels = set()
@@ -234,7 +232,7 @@ class CurrentFrameObjectListWidget(QWidget):
             self.table.setItem(row, 3, confidence_item)
             
             # 種別
-            type_text = "手動" if annotation.is_manual else "自動"
+            type_text = "Manual" if annotation.is_manual else "Auto"
             type_item = QTableWidgetItem(type_text)
             type_item.setData(Qt.ItemDataRole.UserRole, annotation)
             type_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -255,9 +253,7 @@ class CurrentFrameObjectListWidget(QWidget):
             # スコア閾値フィルタ
             if annotation.bbox.confidence < self.score_threshold:
                 continue
-                
-            # ラベルフィルタ
-            if selected_label != "すべて" and annotation.label != selected_label:
+            if selected_label != "All" and annotation.label != selected_label:
                 continue
                 
             # 種別フィルタ
@@ -281,9 +277,9 @@ class CurrentFrameObjectListWidget(QWidget):
         total_count = len(self.current_annotations)
         
         if filtered_count == total_count:
-            self.object_count_label.setText(f"オブジェクト数: {total_count}")
+            self.object_count_label.setText(f"Objects: {total_count}")
         else:
-            self.object_count_label.setText(f"オブジェクト数: {filtered_count}/{total_count}")
+            self.object_count_label.setText(f"Objects: {filtered_count}/{total_count}")
             
     def _on_selection_changed(self):
         """テーブル選択変更時の処理"""
