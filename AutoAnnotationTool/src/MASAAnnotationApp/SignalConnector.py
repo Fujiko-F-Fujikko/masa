@@ -1,6 +1,7 @@
 # SignalConnector.py  
 from PyQt6.QtCore import QObject, pyqtSignal  
-from typing import Dict, Any  
+
+from typing import Dict 
   
 class SignalConnector:  
     """シグナル接続を自動化するユーティリティクラス"""  

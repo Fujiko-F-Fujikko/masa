@@ -1,7 +1,6 @@
 # MASAAnnotationWidget.py
-import os    
-import cv2    
 from typing import Dict, List, Optional, Tuple    
+
 from PyQt6.QtWidgets import (    
     QWidget, QHBoxLayout, QVBoxLayout, QDialog,    
     QMessageBox, QFileDialog, QPushButton, QApplication, QSplitter   
@@ -14,7 +13,6 @@ from MenuPanel import MenuPanel
 from VideoControlPanel import VideoControlPanel    
 from VideoPreviewWidget import VideoPreviewWidget    
 from VideoPlaybackController import VideoPlaybackController    
-    
 from VideoManager import VideoManager    
 from AnnotationRepository import AnnotationRepository    
 from ExportService import ExportService    

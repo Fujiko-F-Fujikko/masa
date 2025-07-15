@@ -1,11 +1,12 @@
-# 改善されたDialog.py  
+# Dialog.py  
+from typing import List  
+
 from PyQt6.QtWidgets import (  
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,  
     QLineEdit, QComboBox, QDialogButtonBox,  
-    QFormLayout, QSpinBox  
 )  
+
 from DataClass import BoundingBox  
-from typing import List  
   
 class AnnotationInputDialog(QDialog):  
     """アノテーション追加ダイアログ（改善版）"""  

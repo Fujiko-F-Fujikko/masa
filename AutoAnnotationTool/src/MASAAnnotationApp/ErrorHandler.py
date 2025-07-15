@@ -1,9 +1,10 @@
 # ErrorHandler.py  
-from PyQt6.QtWidgets import QMessageBox  
+from typing import Callable, Any  
 from functools import wraps  
 import logging  
-from typing import Callable, Any  
-  
+
+from PyQt6.QtWidgets import QMessageBox  
+
 class ErrorHandler:  
     """統一されたエラーハンドリング機能"""  
       

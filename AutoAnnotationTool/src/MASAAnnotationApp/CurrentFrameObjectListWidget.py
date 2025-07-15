@@ -1,9 +1,10 @@
 # CurrentFrameObjectListWidget.py
 from typing import List, Optional
+
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView,
-    QComboBox, QCheckBox, QGroupBox, QPushButton
+    QComboBox, QCheckBox, QGroupBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont

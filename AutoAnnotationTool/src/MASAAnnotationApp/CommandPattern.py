@@ -1,6 +1,6 @@
 # CommandPattern.py  
-from abc import ABC, abstractmethod  
 from typing import Any, List  
+from abc import ABC, abstractmethod  
 
 from DataClass import ObjectAnnotation, BoundingBox
 

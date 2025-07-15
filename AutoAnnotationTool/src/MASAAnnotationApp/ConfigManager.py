@@ -1,6 +1,7 @@
 # ConfigManager.py (変更)  
 from typing import List, Any, Callable  
-from DataClass import MASAConfig, DisplayConfig # DisplayConfigをインポート  
+
+from DataClass import MASAConfig, DisplayConfig
   
 class ConfigManager:  
     """設定管理を一元化するクラス"""  

@@ -1,7 +1,7 @@
 # AnnotationRepository.py  
 from typing import Dict, List, Optional  
+
 from DataClass import FrameAnnotation, ObjectAnnotation  
-from ErrorHandler import ErrorHandler  
   
 class AnnotationRepository:  
     """アノテーションデータの管理専用クラス"""  

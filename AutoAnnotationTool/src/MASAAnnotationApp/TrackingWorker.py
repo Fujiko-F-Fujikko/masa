@@ -1,7 +1,8 @@
 # TrackingWorker.py  
+from typing import List, Tuple, Dict  
+
 from PyQt6.QtCore import QThread, pyqtSignal  
-from typing import List, Tuple, Optional, Dict  
-import numpy as np  
+
 from DataClass import ObjectAnnotation, BoundingBox  
 from ObjectTracker import ObjectTracker  
 from AnnotationRepository import AnnotationRepository  

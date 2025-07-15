@@ -1,7 +1,8 @@
-# 改善されたRangeSlider.py  
+# RangeSlider.py  
 from typing import Tuple
+
 from PyQt6.QtWidgets import QWidget  
-from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QRect  
+from PyQt6.QtCore import Qt, pyqtSignal, QRect  
 from PyQt6.QtGui import QPainter, QPen, QBrush, QColor  
   
 class RangeSlider(QWidget):  

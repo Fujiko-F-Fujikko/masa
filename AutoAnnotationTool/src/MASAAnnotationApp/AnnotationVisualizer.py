@@ -1,8 +1,9 @@
-# 改善されたAnnotationVisualizer.py  
+# AnnotationVisualizer.py  
 import cv2  
 import numpy as np  
 import colorsys  
 from typing import List, Tuple  
+
 from DataClass import ObjectAnnotation  
   
 class AnnotationVisualizer:  

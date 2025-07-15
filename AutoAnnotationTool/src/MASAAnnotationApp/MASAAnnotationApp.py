@@ -1,7 +1,9 @@
 # MASAAnnotationApp.py  
 import sys  
 import argparse  
+
 from PyQt6.QtWidgets import QApplication  
+
 from MASAAnnotationWidget import MASAAnnotationWidget  
 from ErrorHandler import ErrorHandler  
   

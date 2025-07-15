@@ -1,8 +1,9 @@
 # VideoManager.py  
+from typing import Optional  
 import cv2  
 import numpy as np  
 import threading
-from typing import Optional  
+
 from ErrorHandler import ErrorHandler  
   
 class VideoManager:  

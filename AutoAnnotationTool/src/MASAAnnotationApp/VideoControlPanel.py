@@ -1,9 +1,10 @@
-# 改善されたVideoControlPanel.py  
+# VideoControlPanel.py  
 from PyQt6.QtWidgets import (  
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,  
     QPushButton, QSlider, QLineEdit  
 )  
 from PyQt6.QtCore import Qt, pyqtSignal  
+
 from RangeSlider import RangeSlider  
 from CoordinateTransform import CoordinateTransform  
   

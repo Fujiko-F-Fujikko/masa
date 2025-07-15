@@ -1,14 +1,15 @@
 # 改善されたMenuPanel.py  
-from pathlib import Path  
 from typing import Dict, List, Any, Optional
+from pathlib import Path  
+
 from PyQt6.QtWidgets import (  
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,  
     QPushButton, QGroupBox, QCheckBox, QLineEdit,  
     QMessageBox, QTabWidget, QComboBox, QFileDialog,  
     QDoubleSpinBox, QDialog,
 )  
-from PyQt6.QtCore import Qt, pyqtSignal, QEvent  
-from PyQt6.QtGui import QFont, QKeyEvent
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QFont
   
 from AnnotationInputDialog import AnnotationInputDialog  
 from DataClass import BoundingBox, ObjectAnnotation  
