@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,  
     QPushButton, QGroupBox, QCheckBox, QLineEdit,  
     QMessageBox, QTabWidget, QComboBox, QFileDialog,  
-    QDoubleSpinBox, QDialog,
+    QDoubleSpinBox, QDialog, QTextEdit
 )  
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
@@ -93,6 +93,7 @@ class MenuPanel(QWidget):
         self.setup_basic_tab()  
         self.setup_annotation_tab()
         self.setup_object_list_tab()
+        self.setup_license_tab()
           
         self.setLayout(layout)
           
@@ -366,6 +367,41 @@ class MenuPanel(QWidget):
         object_list_tab.setLayout(layout)
         self.tab_widget.addTab(object_list_tab, "📋 オブジェクト一覧")
     
+    def setup_license_tab(self):  
+        """ライセンス表示タブのセットアップ"""  
+        license_tab = QWidget()  
+        layout = QVBoxLayout()  
+        
+        # ライブラリ選択用のコンボボックス  
+        library_layout = QHBoxLayout()  
+        library_layout.addWidget(QLabel("ライブラリ:"))  
+        
+        self.license_combo = QComboBox()  
+        self.license_combo.addItems([  
+            "masa", "mmcv", "mmdet", "numpy",   
+            "opencv-python", "PyQt6", "torch"  
+        ])  
+        self.license_combo.currentTextChanged.connect(self._on_license_selection_changed)  
+        library_layout.addWidget(self.license_combo)  
+        library_layout.addStretch()  
+        
+        layout.addLayout(library_layout)  
+        
+        # ライセンス内容表示用のテキストエリア  
+        self.license_text = QTextEdit()  
+        self.license_text.setReadOnly(True)  
+        self.license_text.setFont(QFont("Courier", 9))  # 等幅フォント  
+        self.license_text.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)  # 追加  
+        self.license_text.setAcceptRichText(False)  # プレーンテキストのみ受け入れ
+        layout.addWidget(self.license_text)  
+        
+        license_tab.setLayout(layout)  
+        self.tab_widget.addTab(license_tab, "📄 ライセンス")  
+        
+        # 初期表示（最初のライブラリのライセンスを表示）  
+        if self.license_combo.count() > 0:  
+            self._load_license_content(self.license_combo.itemText(0))
+
     @ErrorHandler.handle_with_dialog("File Load Error")
     def _on_load_video_clicked(self, _: str):  
         """動画ファイル読み込みボタンのクリックハンドラ"""  
@@ -752,3 +788,73 @@ class MenuPanel(QWidget):
     def get_object_list_widget(self):
         """オブジェクト一覧ウィジェットを取得"""
         return getattr(self, 'object_list_widget', None)
+
+    def _on_license_selection_changed(self, library_name: str):  
+        """ライブラリ選択変更時の処理"""  
+        self._load_license_content(library_name)  
+    
+    def _load_license_content(self, library_name: str):  
+        """指定されたライブラリのライセンス内容を読み込み（複数ファイル対応）"""  
+        try:  
+            # ライセンスディレクトリのパスを構築  
+            license_dir = Path(__file__).parent.parent.parent / "licenses" / library_name  
+            
+            if not license_dir.exists():  
+                self.license_text.setPlainText(  
+                    f"{library_name}のライセンスディレクトリが見つかりません。\\n"  
+                    f"パス: {license_dir}"  
+                )  
+                return  
+            
+            # ディレクトリ内のすべてのファイルを取得してソート  
+            license_files = sorted(license_dir.glob("*"))  
+            
+            if not license_files:  
+                self.license_text.setPlainText(  
+                    f"{library_name}のライセンスファイルが見つかりません。"  
+                )  
+                return  
+            
+            # 複数ファイルの内容を連結  
+            combined_content = []  
+            for file_path in license_files:  
+                if file_path.is_file():  # ファイルのみを対象  
+                    try:  
+                        with open(file_path, 'r', encoding='utf-8') as f:  
+                            file_content = f.read().strip()  
+                        
+                        # ファイル名をヘッダーとして追加  
+                        combined_content.append(f"=== {file_path.name} ===")  
+                        combined_content.append(file_content)  
+                        combined_content.append("")  # 空行で区切り  
+                        
+                    except UnicodeDecodeError:  
+                        # UTF-8で読めない場合は別のエンコーディングを試す  
+                        try:  
+                            with open(file_path, 'r', encoding='latin-1') as f:  
+                                file_content = f.read().strip()  
+                            combined_content.append(f"=== {file_path.name} ===")  
+                            combined_content.append(file_content)  
+                            combined_content.append("")  
+                        except Exception as e:  
+                            combined_content.append(f"=== {file_path.name} (読み込みエラー) ===")  
+                            combined_content.append(f"エラー: {str(e)}")  
+                            combined_content.append("")  
+            
+            # デバッグ用：連結前の内容を確認  
+            print(f"Combined content list length: {len(combined_content)}")  
+            for i, content in enumerate(combined_content[:5]):  # 最初の5要素のみ表示  
+                print(f"  [{i}]: {repr(content)}")  
+            
+            # 連結した内容を表示  
+            final_content = '\n\n'.join(combined_content)  
+            print(f"Final content preview: {repr(final_content[:200])}")  # 最初の200文字のみ  
+            
+            # QTextEditに設定  
+            self.license_text.clear()  # 既存の内容をクリア  
+            self.license_text.setPlainText(final_content)  
+            
+        except Exception as e:  
+            error_message = f"{library_name}のライセンス読み込み中にエラーが発生しました:\\n{str(e)}"  
+            print(f"Error: {error_message}")  
+            self.license_text.setPlainText(error_message)
