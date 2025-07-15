@@ -839,14 +839,8 @@ class MenuPanel(QWidget):
                             combined_content.append(f"Error: {str(e)}")  
                             combined_content.append("")  
             
-            # デバッグ用：連結前の内容を確認  
-            print(f"Combined content list length: {len(combined_content)}")  
-            for i, content in enumerate(combined_content[:5]):  # 最初の5要素のみ表示  
-                print(f"  [{i}]: {repr(content)}")  
-            
             # 連結した内容を表示  
             final_content = '\n\n'.join(combined_content)  
-            print(f"Final content preview: {repr(final_content[:200])}")  # 最初の200文字のみ  
             
             # QTextEditに設定  
             self.license_text.clear()  # 既存の内容をクリア  
