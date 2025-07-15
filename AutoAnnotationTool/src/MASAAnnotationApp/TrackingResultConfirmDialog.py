@@ -40,7 +40,7 @@ class TrackingResultConfirmDialog(QDialog):
             self.update_preview()  
   
     def setup_ui(self):  
-        self.setWindowTitle("追跡結果の確認")  
+        self.setWindowTitle("Confirm Tracking Results")
         self.setModal(True)  
         self.resize(1100, 750)  
         layout = QVBoxLayout()  
@@ -50,7 +50,7 @@ class TrackingResultConfirmDialog(QDialog):
         track_group.setFrameStyle(QFrame.Shape.Box)  
         track_group.setStyleSheet("border: 2px solid #ccc; background-color: #f9f9f9;")  
         track_layout = QVBoxLayout(track_group)  
-        track_title = QLabel("Track IDごとに承認するものを選択:")  
+        track_title = QLabel("Select tracks to approve by Track ID:")
         track_title.setStyleSheet("font-weight: bold; margin: 5px;")  
         track_layout.addWidget(track_title)  
   
@@ -60,7 +60,7 @@ class TrackingResultConfirmDialog(QDialog):
         self.track_id_to_item: Dict[int, QListWidgetItem] = {}  
         for track_id, anns in self.grouped_tracking_results.items():  
             label = anns[0].label if anns else ""  
-            item_text = f"Track ID: {track_id} | {label} | {len(anns)}件"  
+            item_text = f"Track ID: {track_id} | {label} | {len(anns)} items"
             item = QListWidgetItem(item_text)  
             item.setData(Qt.ItemDataRole.UserRole, track_id)  
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)  
@@ -94,7 +94,7 @@ class TrackingResultConfirmDialog(QDialog):
         preview_frame.setFrameStyle(QFrame.Shape.Box)  
         preview_frame.setStyleSheet("border: 2px solid #ccc; background-color: #f9f9f9;")  
         preview_layout = QVBoxLayout(preview_frame)  
-        preview_title = QLabel("プレビュー:")  
+        preview_title = QLabel("Preview:")
         preview_title.setStyleSheet("font-weight: bold; margin: 5px;")  
         preview_layout.addWidget(preview_title)  
         self.preview_widget = QLabel()  
@@ -106,7 +106,7 @@ class TrackingResultConfirmDialog(QDialog):
         self.preview_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)  
         preview_layout.addWidget(self.preview_widget)  
         frame_control_layout = QHBoxLayout()  
-        frame_control_layout.addWidget(QLabel("フレーム:"))  
+        frame_control_layout.addWidget(QLabel("Frame:"))
         all_frame_ids = sorted({fid for fid in self.tracking_results})  
         self.frame_slider = QSlider(Qt.Orientation.Horizontal)  
         if all_frame_ids:  
@@ -121,17 +121,17 @@ class TrackingResultConfirmDialog(QDialog):
         layout.addWidget(preview_frame)  
   
         # 詳細  
-        self.annotation_info_label = QLabel("アノテーション情報: 選択されたTrackの詳細がここに表示されます")  
+        self.annotation_info_label = QLabel("Annotation Info: Details of the selected track will be shown here.")
         self.annotation_info_label.setStyleSheet("margin: 10px; padding: 5px; background-color: #f0f0f0;")  
         layout.addWidget(self.annotation_info_label)  
   
         # 承認/破棄  
         bottom_btn_layout = QHBoxLayout()  
-        self.approve_btn = QPushButton("選択中のアノテーションを承認して追加")  
+        self.approve_btn = QPushButton("Approve and Add Selected Annotations")
         self.approve_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")  
         self.approve_btn.clicked.connect(self.approve_results)  
         bottom_btn_layout.addWidget(self.approve_btn)  
-        self.reject_btn = QPushButton("全て破棄")  
+        self.reject_btn = QPushButton("Discard All")
         self.reject_btn.setStyleSheet("background-color: #f44336; color: white; font-weight: bold;")  
         self.reject_btn.clicked.connect(self.reject_results)  
         bottom_btn_layout.addWidget(self.reject_btn)  
@@ -175,18 +175,18 @@ class TrackingResultConfirmDialog(QDialog):
   
         # 詳細  
         if annotations:  
-            info_text = f"Track ID {track_id} | フレーム {frame_id}: {len(annotations)}個\n"  
+            info_text = f"Track ID {track_id} | Frame {frame_id}: {len(annotations)} items\n"  
             for i, ann in enumerate(annotations):  
                 bbox = ann.bbox  
-                info_text += f"  {i+1}. ラベル: {ann.label}, 位置: ({bbox.x1:.0f}, {bbox.y1:.0f}) - ({bbox.x2:.0f}, {bbox.y2:.0f}), 信頼度: {bbox.confidence:.3f}\n"  
+                info_text += f"  {i+1}. Label: {ann.label}, Position: ({bbox.x1:.0f}, {bbox.y1:.0f}) - ({bbox.x2:.0f}, {bbox.y2:.0f}), Confidence: {bbox.confidence:.3f}\n"  
         else:  
-            info_text = f"Track ID {track_id} | フレーム {frame_id}: アノテーションなし"  
+            info_text = f"Track ID {track_id} | Frame {frame_id}: No annotations"
         self.annotation_info_label.setText(info_text)  
   
         # プレビュー  
         frame = self.video_manager.get_frame(frame_id)  
         if frame is None:  
-            self.preview_widget.setText("フレームを読み込めませんでした")  
+            self.preview_widget.setText("Could not load frame.")
             return  
         annotated_frame = self.visualizer.draw_annotations(  
             frame.copy(),  
@@ -213,7 +213,7 @@ class TrackingResultConfirmDialog(QDialog):
             )  
             self.preview_widget.setPixmap(scaled_pixmap)  
         except Exception as e:  
-            self.preview_widget.setText(f"プレビュー表示エラー: {str(e)}")  
+            self.preview_widget.setText(f"Preview display error: {str(e)}")
   
     def approve_results(self):  
         self.approved = True  

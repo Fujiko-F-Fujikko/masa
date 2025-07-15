@@ -409,17 +409,17 @@ class MASAAnnotationWidget(QWidget):
             self.update_annotation_count()  
             self.video_preview.update_frame_display()  
               
-            ErrorHandler.show_info_dialog(  
-                f"追跡が完了しました。{added_count}個のアノテーションを追加しました。",  
-                "Tracking Complete"  
-            )  
+            ErrorHandler.show_info_dialog(
+                f"Tracking completed. {added_count} annotations were added.",
+                "Tracking Complete"
+            )
             self.menu_panel.update_tracking_progress("Tracking completed and annotations added!")  
         else:  
             # ユーザーが破棄を選択した場合  
-            ErrorHandler.show_info_dialog(  
-                "追跡結果を破棄しました。",  
-                "Tracking Cancelled"  
-            )  
+            ErrorHandler.show_info_dialog(
+                "Tracking results were discarded.",
+                "Tracking Cancelled"
+            )
             self.menu_panel.update_tracking_progress("Tracking results discarded.")
           
     def on_tracking_error(self, message: str):  
@@ -469,8 +469,7 @@ class MASAAnnotationWidget(QWidget):
             pass  
         else:  
             # その他のモードの場合（予期しないケース）  
-            ErrorHandler.show_warning_dialog("不明なモードでbbox_createdが呼び出されました。", "Warning")
-
+            ErrorHandler.show_warning_dialog("bbox_created was called in an unknown mode.", "Warning")
     def on_frame_changed(self, frame_id: int):  
         """フレーム変更時の処理"""  
         self.video_control.set_current_frame(frame_id)  
@@ -491,11 +490,11 @@ class MASAAnnotationWidget(QWidget):
             self.video_preview.set_mode('edit')  
             self.video_control.range_slider.setVisible(False)  
             self.video_preview.clear_temp_batch_annotations()  
-            ErrorHandler.show_info_dialog("編集モードが有効になりました。", "モード変更")  
+            ErrorHandler.show_info_dialog("Edit mode enabled.", "Mode Change")
         else:  
             self.video_preview.set_mode('view')  
             self.video_control.range_slider.setVisible(False)  
-            ErrorHandler.show_info_dialog("編集モードが無効になりました。", "モード変更")  
+            ErrorHandler.show_info_dialog("Edit mode disabled.", "Mode Change")
         self.video_preview.bbox_editor.set_editing_mode(enabled)  
         self.video_preview.update_frame_display()  
       
@@ -510,17 +509,20 @@ class MASAAnnotationWidget(QWidget):
             self.video_preview.set_mode('batch_add')  
             self.video_control.range_slider.setVisible(True)
             self.video_preview.clear_temp_batch_annotations()  
-            ErrorHandler.show_info_dialog("新規アノテーション一括追加モードが有効になりました。\n"
-                  "1. 動画プレビュー上でバウンディングボックスを描画してください。\n"
-                  "2. 追加したいフレーム範囲を指定して下さい。\n"
-                  "3. 実行ボタンを押してください。", "モード変更")  
+            ErrorHandler.show_info_dialog(
+                "Batch Add Annotation mode enabled.\n"
+                "1. Draw bounding boxes on the video preview.\n"
+                "2. Specify the frame range to add.\n"
+                "3. Press the Run button.",
+                "Mode Change"
+            )
             self.temp_bboxes_for_batch_add.clear()  
             # 再生中の場合は停止  
             if self.playback_controller and self.playback_controller.is_playing:  
                 self.playback_controller.pause()  
         else:  
             self.video_preview.set_mode('view')  
-            ErrorHandler.show_info_dialog("新規アノテーション一括追加モードが無効になりました。", "モード変更")  
+            ErrorHandler.show_info_dialog("Batch Add Annotation mode disabled.", "Mode Change")
             # モード終了時に再生を停止し、タイマーを確実に停止  
             if self.playback_controller:  
                 self.playback_controller.pause() 
@@ -535,7 +537,7 @@ class MASAAnnotationWidget(QWidget):
         if self.command_manager.execute_command(command):  
             self.video_preview.bbox_editor.selected_annotation = None  
             self.video_preview.bbox_editor.selection_changed.emit(None)  
-            ErrorHandler.show_info_dialog("アノテーションを削除しました。", "削除完了")  
+            ErrorHandler.show_info_dialog("Annotation deleted.", "Delete Complete")
             self.update_annotation_count()  
             self.video_preview.update_frame_display()
             
@@ -544,7 +546,7 @@ class MASAAnnotationWidget(QWidget):
             frame_annotation = self.annotation_repository.get_annotations(current_frame)
             self.menu_panel.update_current_frame_objects(current_frame, frame_annotation)
         else:  
-            ErrorHandler.show_warning_dialog("アノテーションの削除に失敗しました。", "エラー")
+            ErrorHandler.show_warning_dialog("Failed to delete annotation.", "Error")
   
     def on_delete_track_requested(self, track_id: int):  
         """Track IDによる一括削除要求時の処理（コマンドパターン対応）"""  
@@ -555,7 +557,10 @@ class MASAAnnotationWidget(QWidget):
         if deleted_count > 0:  
             self.video_preview.bbox_editor.selected_annotation = None  
             self.video_preview.bbox_editor.selection_changed.emit(None)  
-            ErrorHandler.show_info_dialog(f"Track ID '{track_id}' のアノテーションを {deleted_count} 件削除しました。", "削除完了")  
+            ErrorHandler.show_info_dialog(
+                f"Deleted {deleted_count} annotations for Track ID '{track_id}'.",
+                "Delete Complete"
+            )
             self.update_annotation_count()  
             self.video_preview.update_frame_display()
             
@@ -564,7 +569,10 @@ class MASAAnnotationWidget(QWidget):
             frame_annotation = self.annotation_repository.get_annotations(current_frame)
             self.menu_panel.update_current_frame_objects(current_frame, frame_annotation)
         else:  
-            ErrorHandler.show_warning_dialog(f"Track ID '{track_id}' のアノテーションは見つかりませんでした。", "エラー")
+            ErrorHandler.show_warning_dialog(
+                f"No annotations found for Track ID '{track_id}'.",
+                "Error"
+            )
   
     def on_label_change_requested(self, annotation: ObjectAnnotation, new_label: str):  
         """アノテーションのラベル変更要求時の処理（コマンドパターン対応）"""  
@@ -581,9 +589,9 @@ class MASAAnnotationWidget(QWidget):
                 frame_annotation = self.annotation_repository.get_annotations(current_frame)
                 self.menu_panel.update_current_frame_objects(current_frame, frame_annotation)
             else:  
-                ErrorHandler.show_warning_dialog("アノテーションの更新に失敗しました。", "エラー")  
+                ErrorHandler.show_warning_dialog("Failed to update annotation.", "Error")
         except Exception as e:  
-            ErrorHandler.show_error_dialog(f"ラベル変更中にエラーが発生しました: {e}", "エラー")
+            ErrorHandler.show_error_dialog(f"Error occurred while changing label: {e}", "Error")
   
     def on_propagate_label_requested(self, track_id: int, new_label: str):  
         """トラック単位でのラベル変更要求時の処理（コマンドパターン対応）"""  
@@ -591,7 +599,10 @@ class MASAAnnotationWidget(QWidget):
             # 現在のラベルを取得（最初のアノテーションから）  
             annotations = self.annotation_repository.get_annotations_by_track_id(track_id)  
             if not annotations:  
-                ErrorHandler.show_warning_dialog(f"Track ID '{track_id}' のアノテーションが見つかりません。", "エラー")  
+                ErrorHandler.show_warning_dialog(
+                    f"No annotations found for Track ID '{track_id}'.",
+                    "Error"
+                )
                 return  
               
             old_label = annotations[0].label  
@@ -608,9 +619,12 @@ class MASAAnnotationWidget(QWidget):
                 frame_annotation = self.annotation_repository.get_annotations(current_frame)
                 self.menu_panel.update_current_frame_objects(current_frame, frame_annotation)
                 
-                ErrorHandler.show_info_dialog(f"Track ID '{track_id}' の {updated_count} 件のアノテーションのラベルを '{new_label}' に変更しました。", "ラベル変更完了")  
+                ErrorHandler.show_info_dialog(
+                    f"Changed label of {updated_count} annotations for Track ID '{track_id}' to '{new_label}'.",
+                    "Label Change Complete"
+                )
             else:  
-                ErrorHandler.show_warning_dialog("ラベルの更新に失敗しました。", "エラー")  
+                ErrorHandler.show_warning_dialog("Failed to update label.", "Error")
         except Exception as e:  
             ErrorHandler.show_error_dialog(f"ラベル変更中にエラーが発生しました: {e}", "エラー")
   
@@ -701,7 +715,7 @@ class MASAAnnotationWidget(QWidget):
     def on_playback_finished(self):  
         """再生完了時の処理"""  
         self.menu_panel.reset_playback_button()  
-        ErrorHandler.show_info_dialog("動画の再生が完了しました。", "再生完了")
+        ErrorHandler.show_info_dialog("Video playback completed.", "Playback Complete")
 
     def on_model_initialization_completed(self, object_tracker):  
         """モデル初期化完了時の処理"""  
@@ -803,7 +817,7 @@ class MASAAnnotationWidget(QWidget):
                     self.video_preview.bbox_editor.selection_changed.emit(None)  
                     print("--- Undo ---")
                 else:  
-                    ErrorHandler.show_info_dialog("取り消す操作がありません。", "Undo")  
+                    ErrorHandler.show_info_dialog("There are no actions to undo.", "Undo")  
                 event.accept()  
                 return  
             elif event.key() == Qt.Key.Key_Y:  
@@ -816,7 +830,7 @@ class MASAAnnotationWidget(QWidget):
                     self.video_preview.bbox_editor.selection_changed.emit(None)  
                     print("--- Redo ---")
                 else:  
-                    ErrorHandler.show_info_dialog("やり直す操作がありません。", "Redo")  
+                    ErrorHandler.show_info_dialog("There are no actions to redo.", "Redo")  
                 event.accept()  
                 return  
         
