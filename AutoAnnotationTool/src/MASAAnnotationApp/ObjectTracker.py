@@ -1,11 +1,9 @@
 # ObjectTracker.py  
+from typing import List
 import os
 import sys
 import numpy as np  
 import torch  
-from typing import List, Optional, Union  
-from DataClass import MASAConfig, ObjectAnnotation, BoundingBox  
-from ErrorHandler import ErrorHandler  
   
 # MM関連のインポート  
 from mmcv.transforms import Compose  
@@ -18,6 +16,9 @@ import masa
 from masa.apis import inference_masa, init_masa, inference_detector, build_test_pipeline  
 from masa.models.sam import SamPredictor, sam_model_registry  
   
+from DataClass import MASAConfig, ObjectAnnotation, BoundingBox  
+from ErrorHandler import ErrorHandler  
+
 class ObjectTracker:  
     """MASA を使用した物体追跡クラス（改善版）"""  
       

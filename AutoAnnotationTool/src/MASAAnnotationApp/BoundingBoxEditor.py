@@ -1,9 +1,11 @@
-# 改善されたBoundingBoxEditor.py  
+# BoundingBoxEditor.py  
+from typing import Optional  
 import cv2  
 import numpy as np  
+
 from PyQt6.QtCore import Qt, QPoint, QRect, pyqtSignal, QObject  
 from PyQt6.QtGui import QPainter, QPen, QColor  
-from typing import Optional, Tuple  
+
 from DataClass import ObjectAnnotation, BoundingBox  
 from CoordinateTransform import CoordinateTransform  
   

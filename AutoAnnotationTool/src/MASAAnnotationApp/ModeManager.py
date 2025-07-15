@@ -4,7 +4,6 @@ from PyQt6.QtCore import Qt, QRect
 from PyQt6.QtGui import QMouseEvent
 
 from DataClass import ObjectAnnotation
-from ErrorHandler import ErrorHandler
 from BoundingBoxEditor import BoundingBox
   
 class AnnotationMode(ABC):  

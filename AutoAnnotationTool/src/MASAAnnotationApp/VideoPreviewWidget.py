@@ -1,10 +1,11 @@
-# 改善されたVideoPreviewWidget.py  
+# VideoPreviewWidget.py  
+from typing import Any, List
 import cv2  
 import numpy as np  
-from typing import Any, List
+
 from PyQt6.QtWidgets import QLabel, QSizePolicy  
-from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QRect  
-from PyQt6.QtGui import QPixmap, QImage, QPainter, QPen, QColor  
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QPixmap, QImage, QPainter  
   
 from AnnotationVisualizer import AnnotationVisualizer  
 from BoundingBoxEditor import BoundingBoxEditor  

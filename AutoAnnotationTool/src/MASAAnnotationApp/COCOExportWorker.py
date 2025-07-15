@@ -1,7 +1,5 @@
 # ExportWorker.py  
 from PyQt6.QtCore import QThread, pyqtSignal  
-from typing import Dict  
-from ExportService import ExportService  
   
 class COCOExportWorker(QThread):  
     """エクスポート処理用ワーカースレッド"""  

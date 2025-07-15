@@ -1,12 +1,14 @@
+from typing import Dict, List, Optional  
 import cv2  
 import numpy as np  
+
 from PyQt6.QtWidgets import (  
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,  
-    QSlider, QFrame, QSizePolicy, QListWidget, QListWidgetItem, QMessageBox, QCheckBox  
+    QSlider, QFrame, QSizePolicy, QListWidget, QListWidgetItem
 )  
 from PyQt6.QtCore import Qt  
 from PyQt6.QtGui import QPixmap, QImage  
-from typing import Dict, List, Optional  
+
 from DataClass import ObjectAnnotation  
 from AnnotationVisualizer import AnnotationVisualizer  
   

@@ -1,7 +1,7 @@
 # DataClass.py
+from typing import List, Optional
 import torch  
 from dataclasses import dataclass  
-from typing import List, Optional  
   
 @dataclass  
 class BoundingBox:  

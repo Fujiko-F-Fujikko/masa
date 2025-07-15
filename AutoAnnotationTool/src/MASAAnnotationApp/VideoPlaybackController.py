@@ -1,5 +1,6 @@
 # 改善されたVideoPlaybackController.py  
 from PyQt6.QtCore import QTimer, pyqtSignal, QObject  
+
 from ErrorHandler import ErrorHandler  
   
 class VideoPlaybackController(QObject):  
