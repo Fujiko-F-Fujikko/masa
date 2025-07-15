@@ -112,31 +112,31 @@ class MenuPanel(QWidget):
         layout = QVBoxLayout()  
           
         # ファイル操作グループ  
-        file_group = QGroupBox("ファイル操作")  
+        file_group = QGroupBox("File Operations")
         file_layout = QVBoxLayout()  
           
-        self.load_video_btn = QPushButton("動画を読み込み (Ctrl+O)")  
+        self.load_video_btn = QPushButton("Load Video (Ctrl+O)")
         self.load_video_btn.clicked.connect(self._on_load_video_clicked)  
         file_layout.addWidget(self.load_video_btn)  
-        self.video_info_label = QLabel("動画が読み込まれていません")  
+        self.video_info_label = QLabel("No video loaded")
         self.video_info_label.setWordWrap(True)  
         file_layout.addWidget(self.video_info_label)  
           
-        self.load_json_btn = QPushButton("JSONを読み込み (Ctrl+L)")  
+        self.load_json_btn = QPushButton("Load JSON (Ctrl+L)")
         self.load_json_btn.clicked.connect(self._on_load_json_clicked)  
         file_layout.addWidget(self.load_json_btn)  
           
-        self.save_masa_json_btn = QPushButton("MASA JSONを保存 (Ctrl+S)")  
+        self.save_masa_json_btn = QPushButton("Save MASA JSON (Ctrl+S)")
         self.save_masa_json_btn.clicked.connect(lambda: self.export_requested.emit("masa"))  
         self.save_masa_json_btn.setEnabled(False)  
         file_layout.addWidget(self.save_masa_json_btn)  
       
-        self.save_coco_json_btn = QPushButton("COCO JSONを保存 (Ctrl+Shift+S)")  
+        self.save_coco_json_btn = QPushButton("Save COCO JSON (Ctrl+Shift+S)")
         self.save_coco_json_btn.clicked.connect(lambda: self.export_requested.emit("coco"))  
         self.save_coco_json_btn.setEnabled(False)  
         file_layout.addWidget(self.save_coco_json_btn)
           
-        self.json_info_label = QLabel("JSONが読み込まれていません")  
+        self.json_info_label = QLabel("No JSON loaded")
         self.json_info_label.setWordWrap(True)  
         file_layout.addWidget(self.json_info_label)  
           
@@ -148,39 +148,39 @@ class MenuPanel(QWidget):
         layout.addWidget(file_group)  
           
         # 再生コントロールグループ  
-        playback_group = QGroupBox("再生コントロール")  
+        playback_group = QGroupBox("Playback Controls")
         playback_layout = QVBoxLayout()  
           
-        self.play_btn = QPushButton("再生(Space)")  
+        self.play_btn = QPushButton("Play (Space)")
         self.play_btn.setEnabled(False)  
         self.play_btn.clicked.connect(self._on_play_clicked)  
         playback_layout.addWidget(self.play_btn)  
           
-        self.frame_label = QLabel("フレーム: 0/0")  
+        self.frame_label = QLabel("Frame: 0/0")
         playback_layout.addWidget(self.frame_label)  
         playback_group.setLayout(playback_layout)  
         layout.addWidget(playback_group)  
           
         # 表示設定グループ  
-        display_group = QGroupBox("表示設定")  
+        display_group = QGroupBox("Display Settings")
         display_layout = QVBoxLayout()  
           
-        self.show_manual_cb = QCheckBox("手動アノテーション結果表示")  
+        self.show_manual_cb = QCheckBox("Show Manual Annotations")
         self.show_manual_cb.setChecked(True)  
         self.show_manual_cb.stateChanged.connect(self._on_display_option_changed)  
         display_layout.addWidget(self.show_manual_cb)  
           
-        self.show_auto_cb = QCheckBox("自動アノテーション結果表示")  
+        self.show_auto_cb = QCheckBox("Show Auto Annotations")
         self.show_auto_cb.setChecked(True)  
         self.show_auto_cb.stateChanged.connect(self._on_display_option_changed)  
         display_layout.addWidget(self.show_auto_cb)  
           
-        self.show_ids_cb = QCheckBox("Track ID表示")  
+        self.show_ids_cb = QCheckBox("Show Track ID")
         self.show_ids_cb.setChecked(True)  
         self.show_ids_cb.stateChanged.connect(self._on_display_option_changed)  
         display_layout.addWidget(self.show_ids_cb)  
           
-        self.show_confidence_cb = QCheckBox("スコア表示")  
+        self.show_confidence_cb = QCheckBox("Show Confidence")
         self.show_confidence_cb.setChecked(True)  
         self.show_confidence_cb.stateChanged.connect(self._on_display_option_changed)  
         display_layout.addWidget(self.show_confidence_cb)  
@@ -201,7 +201,7 @@ class MenuPanel(QWidget):
         self.show_confidence_cb.setStyleSheet(simple_checkbox_style)  
           
         score_threshold_layout = QHBoxLayout()  
-        score_threshold_layout.addWidget(QLabel("スコア閾値:"))  
+        score_threshold_layout.addWidget(QLabel("Confidence Threshold:"))
           
         self.score_threshold_spinbox = QDoubleSpinBox()  
         self.score_threshold_spinbox.setRange(0.0, 1.0)  
@@ -217,22 +217,22 @@ class MenuPanel(QWidget):
           
         layout.addStretch()  
         basic_tab.setLayout(layout)  
-        self.tab_widget.addTab(basic_tab, "⚙️ 基本設定")  
+        self.tab_widget.addTab(basic_tab, "⚙️ Basic Settings")
     
     def setup_annotation_tab(self):  
         annotation_tab = QWidget()  
         layout = QVBoxLayout()  
           
         # アノテーション情報グループ  
-        info_group = QGroupBox("アノテーション情報")  
+        info_group = QGroupBox("Annotation Info")
         info_layout = QVBoxLayout()  
-        self.annotation_count_label = QLabel("アノテーション数: 0")  
+        self.annotation_count_label = QLabel("Annotation Count: 0")
         info_layout.addWidget(self.annotation_count_label)  
         info_group.setLayout(info_layout)  
         layout.addWidget(info_group)  
           
         # アノテーション編集グループ  
-        edit_group = QGroupBox("アノテーション編集")  
+        edit_group = QGroupBox("Edit Annotation")
         edit_layout = QVBoxLayout()  
           
         # EditModeボタン用
@@ -249,7 +249,7 @@ class MenuPanel(QWidget):
             }  
         """  
           
-        self.edit_mode_btn = QPushButton("編集モード (E)")  
+        self.edit_mode_btn = QPushButton("Edit Mode (E)")
         self.edit_mode_btn.setCheckable(True)  
         self.edit_mode_btn.setStyleSheet(edit_button_style)  
         self.edit_mode_btn.clicked.connect(self._on_edit_mode_clicked)  
@@ -260,26 +260,26 @@ class MenuPanel(QWidget):
         self.label_combo.setEditable(True)  
         self.label_combo.setEnabled(False)
         self.label_combo.currentIndexChanged.connect(self._on_label_changed)  
-        edit_layout.addWidget(QLabel("ラベル:"))  
+        edit_layout.addWidget(QLabel("Label:"))
         edit_layout.addWidget(self.label_combo)  
           
         self.track_id_edit = QLineEdit()  
         self.track_id_edit.setEnabled(False)  
         self.track_id_edit.setReadOnly(True)  
-        edit_layout.addWidget(QLabel("Track ID:"))  
+        edit_layout.addWidget(QLabel("Track ID:"))
         edit_layout.addWidget(self.track_id_edit)  
           
-        self.delete_single_annotation_btn = QPushButton("選択アノテーションを削除 (X)")  
+        self.delete_single_annotation_btn = QPushButton("Delete Selected Annotation (X)")
         self.delete_single_annotation_btn.setEnabled(False)  
         self.delete_single_annotation_btn.clicked.connect(self._on_delete_single_annotation_clicked)  
         edit_layout.addWidget(self.delete_single_annotation_btn)  
           
-        self.delete_track_btn = QPushButton("一括削除 (D)")  
+        self.delete_track_btn = QPushButton("Delete All (D)")
         self.delete_track_btn.setEnabled(False)  
         self.delete_track_btn.clicked.connect(self._on_delete_track_clicked)  
         edit_layout.addWidget(self.delete_track_btn)  
           
-        self.propagate_label_btn = QPushButton("一括ラベル変更 (P)")  
+        self.propagate_label_btn = QPushButton("Change Label for All (P)")
         self.propagate_label_btn.setEnabled(False)  
         self.propagate_label_btn.clicked.connect(self._on_propagate_label_clicked)  
         edit_layout.addWidget(self.propagate_label_btn)
@@ -289,15 +289,15 @@ class MenuPanel(QWidget):
           
 
         # Undo/Redoグループ
-        undo_redo_group = QGroupBox("Undo/Redo")  
+        undo_redo_group = QGroupBox("Undo/Redo")
         undo_redo_layout = QHBoxLayout()  
         
-        self.undo_btn = QPushButton("Undo (Ctrl+Z)")  
+        self.undo_btn = QPushButton("Undo (Ctrl+Z)")
         self.undo_btn.setEnabled(False)  
         self.undo_btn.clicked.connect(self._on_undo_clicked)  
         undo_redo_layout.addWidget(self.undo_btn)  
         
-        self.redo_btn = QPushButton("Redo (Ctrl+Y)")  
+        self.redo_btn = QPushButton("Redo (Ctrl+Y)")
         self.redo_btn.setEnabled(False)  
         self.redo_btn.clicked.connect(self._on_redo_clicked)  
         undo_redo_layout.addWidget(self.redo_btn)  
@@ -307,7 +307,7 @@ class MenuPanel(QWidget):
 
 
         # 自動追跡グループ  
-        tracking_group = QGroupBox("自動追跡")  
+        tracking_group = QGroupBox("Auto Tracking")
         tracking_layout = QVBoxLayout()  
         
         # BatchAddModeボタン用
@@ -323,7 +323,7 @@ class MenuPanel(QWidget):
                 font-weight: bold;  
             }  
         """  
-        self.batch_add_annotation_btn = QPushButton("新規アノテーション一括追加 (B)")  
+        self.batch_add_annotation_btn = QPushButton("Batch Add New Annotations (B)")
         self.batch_add_annotation_btn.setCheckable(True)  
         self.batch_add_annotation_btn.setEnabled(True)  
         self.batch_add_annotation_btn.setStyleSheet(batch_add_button_style)
@@ -336,12 +336,12 @@ class MenuPanel(QWidget):
         self.tracking_progress_label = QLabel("")  
         tracking_layout.addWidget(self.tracking_progress_label)
 
-        self.execute_batch_add_btn = QPushButton("実行 (R)")  
+        self.execute_batch_add_btn = QPushButton("Run (R)")
         self.execute_batch_add_btn.setEnabled(False)  
         self.execute_batch_add_btn.clicked.connect(self._on_complete_batch_add_clicked)  
         tracking_layout.addWidget(self.execute_batch_add_btn)
           
-        self.range_info_label = QLabel("範囲: 未選択")  
+        self.range_info_label = QLabel("Range: Not Selected")
         tracking_layout.addWidget(self.range_info_label)  
           
         self.tracking_progress_label = QLabel("")  
@@ -352,7 +352,7 @@ class MenuPanel(QWidget):
           
         layout.addStretch()  
         annotation_tab.setLayout(layout)  
-        self.tab_widget.addTab(annotation_tab, "📝 アノテーション")  
+        self.tab_widget.addTab(annotation_tab, "📝 Annotation")
     
     def setup_object_list_tab(self):
         """オブジェクト一覧タブのセットアップ"""
@@ -365,7 +365,7 @@ class MenuPanel(QWidget):
         layout.addWidget(self.object_list_widget)
         
         object_list_tab.setLayout(layout)
-        self.tab_widget.addTab(object_list_tab, "📋 オブジェクト一覧")
+        self.tab_widget.addTab(object_list_tab, "📋 Object List")
     
     def setup_license_tab(self):  
         """ライセンス表示タブのセットアップ"""  
@@ -374,7 +374,7 @@ class MenuPanel(QWidget):
         
         # ライブラリ選択用のコンボボックス  
         library_layout = QHBoxLayout()  
-        library_layout.addWidget(QLabel("ライブラリ:"))  
+        library_layout.addWidget(QLabel("Library:"))  
         
         self.license_combo = QComboBox()  
         self.license_combo.addItems([  
@@ -396,7 +396,7 @@ class MenuPanel(QWidget):
         layout.addWidget(self.license_text)  
         
         license_tab.setLayout(layout)  
-        self.tab_widget.addTab(license_tab, "📄 ライセンス")  
+        self.tab_widget.addTab(license_tab, "📄 License")
         
         # 初期表示（最初のライブラリのライセンスを表示）  
         if self.license_combo.count() > 0:  
@@ -468,11 +468,11 @@ class MenuPanel(QWidget):
         if manual_count is not None:  
             loaded_count = count - manual_count  
             self.annotation_count_label.setText(  
-                f"総アノテーション数: {count}\n"  
-                f"(読み込み: {loaded_count}, 手動: {manual_count})"  
+                f"All Annotation count: {count}\n"  
+                f"(auto: {loaded_count}, manual: {manual_count})"  
             )  
         else:  
-            self.annotation_count_label.setText(f"アノテーション数: {count}")  
+            self.annotation_count_label.setText(f"Annotation count: {count}")  
               
     def update_range_info(self, start_frame: int, end_frame: int):  
         """範囲情報を更新"""  
@@ -506,20 +506,20 @@ class MenuPanel(QWidget):
           
     def _on_play_clicked(self):  
         """再生/一時停止ボタンクリック処理"""  
-        if self.play_btn.text() == "再生":  
+        if self.play_btn.text() == "Play (Space)":  
             self.play_requested.emit()  
-            self.play_btn.setText("一時停止(Space)")  
+            self.play_btn.setText("Stop (Space)")  
         else:  
             self.pause_requested.emit()  
-            self.play_btn.setText("再生(Space)")  
+            self.play_btn.setText("Play (Space)")  
               
     def reset_playback_button(self):  
         """再生ボタンを初期状態にリセット"""  
-        self.play_btn.setText("再生(Space)")  
+        self.play_btn.setText("Play (Space)")  
           
     def update_frame_display(self, current_frame: int, total_frames: int):  
         """フレーム表示を更新"""  
-        self.frame_label.setText(f"フレーム: {current_frame}/{total_frames - 1}")  
+        self.frame_label.setText(f"Frame: {current_frame}/{total_frames - 1}")  
           
     def _on_label_changed(self):  
         """ラベル変更時の処理"""  
@@ -529,8 +529,8 @@ class MenuPanel(QWidget):
                 self.label_change_requested.emit(self.current_selected_annotation, new_label)  
                 self.current_selected_annotation_label = new_label  
                 ErrorHandler.show_info_dialog(  
-                    f"アノテーションID {self.current_selected_annotation.object_id} のラベルを '{new_label}' に変更しました。",  
-                    "ラベル変更"  
+                    f"Changed label of annotation ID {self.current_selected_annotation.object_id} to '{new_label}'",  
+                    "Change Label Success"  
                 )  
                   
     def update_selected_annotation_info(self, annotation: Optional[ObjectAnnotation]):  
@@ -598,8 +598,8 @@ class MenuPanel(QWidget):
         """選択アノテーション削除ボタンクリック時の処理"""  
         if self.current_selected_annotation:  
             reply = QMessageBox.question(  
-                self, "アノテーション削除確認",  
-                f"フレーム {self.current_selected_annotation.frame_id} のアノテーション (ID: {self.current_selected_annotation.object_id}, ラベル: '{self.current_selected_annotation.label}') を削除しますか？",  
+                self, "Confirm Delete Annotation",  
+                f"Do you want to delete the annotation for SELECTED frame {self.current_selected_annotation.frame_id} (ID: {self.current_selected_annotation.object_id}, label: '{self.current_selected_annotation.label}')?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
             )  
             if reply == QMessageBox.StandardButton.Yes:  
@@ -611,12 +611,12 @@ class MenuPanel(QWidget):
         """一括削除ボタンクリック時の処理"""  
         if self.current_selected_annotation:  
             track_id_to_delete = self.current_selected_annotation.object_id  
-            reply = QMessageBox.question(  
-                self, "Track一括削除確認",  
-                f"Track ID '{track_id_to_delete}' を持つすべてのアノテーションを削除しますか？\n"  
-                "この操作は元に戻せません。",  
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
-            )  
+            reply = QMessageBox.question(
+                self, "Confirm ALL Track Deletion",
+                f"Do you want to delete ALL annotations with Track ID '{track_id_to_delete}'?\n"
+                "This action cannot be undone.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
             if reply == QMessageBox.StandardButton.Yes:  
                 self.delete_track_requested.emit(track_id_to_delete)  
                 self.current_selected_annotation = None  
@@ -634,20 +634,20 @@ class MenuPanel(QWidget):
                 existing_labels=self.get_all_labels_from_manager(),
                 default_label=current_label  # 現在のラベルをデフォルトとして設定
             )  
-            dialog.setWindowTitle(f"Track ID {track_id_to_change} のラベルを一括変更")  
+            dialog.setWindowTitle(f"Change Label forALLL with Track ID {track_id_to_change}")
               
             if dialog.exec() == QDialog.DialogCode.Accepted:  
                 new_label = dialog.get_label()  
                 if new_label:  
-                    reply = QMessageBox.question(  
-                        self, "Track一括ラベル変更確認",  
-                        f"Track ID '{track_id_to_change}' を持つすべてのアノテーションのラベルを '{new_label}' に変更しますか？",  
-                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
-                    )  
+                    reply = QMessageBox.question(
+                        self, "Confirm ALL Track Label Change",
+                        f"Do you want to change the label of ALL annotations with Track ID '{track_id_to_change}' to '{new_label}'?",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                    )
                     if reply == QMessageBox.StandardButton.Yes:  
                         self.propagate_label_requested.emit(track_id_to_change, new_label)  
                 else:  
-                    ErrorHandler.show_warning_dialog("新しいラベル名を入力してください。", "入力エラー")
+                    ErrorHandler.show_warning_dialog("Please enter a new label name.", "Input Error")
                       
     def get_all_labels_from_manager(self) -> List[str]:  
         """AnnotationRepositoryの全ラベルを取得するヘルパーメソッド"""  
@@ -673,7 +673,7 @@ class MenuPanel(QWidget):
         """一括追加完了ボタンクリック時の処理"""  
         # temp_bboxes_for_batch_add が空でないことを確認  
         if not self.parent().parent().temp_bboxes_for_batch_add:  
-            ErrorHandler.show_warning_dialog("追加するアノテーションがありません。", "警告")  
+            ErrorHandler.show_warning_dialog("There are no annotations to add.", "Warning")
             return  
   
         # 共通ラベル入力ダイアログを表示  
@@ -681,18 +681,18 @@ class MenuPanel(QWidget):
         # MASAAnnotationWidgetのannotation_repositoryからラベルを取得  
         existing_labels = self.parent().parent().annotation_repository.get_all_labels()   
         dialog = AnnotationInputDialog(None, self, existing_labels=existing_labels) # bboxは不要なのでNone  
-        dialog.setWindowTitle("一括追加アノテーションの共通ラベルを選択")  
+        dialog.setWindowTitle("Select Common Label for Batch Added Annotations")
   
         if dialog.exec() == QDialog.DialogCode.Accepted:  
             assigned_label = dialog.get_label()  
             if not assigned_label:  
-                ErrorHandler.show_warning_dialog("ラベルが選択されていません。", "Warning")  
+                ErrorHandler.show_warning_dialog("No label selected.", "Warning")
                 return  
   
             # 追跡範囲の取得  
             start_frame, end_frame = self.parent().parent().video_control.get_selected_range()  
             if start_frame == -1 or end_frame == -1:  
-                ErrorHandler.show_warning_dialog("追跡範囲が選択されていません。", "Warning")  
+                ErrorHandler.show_warning_dialog("No tracking range selected.", "Warning")
                 return  
   
             # AnnotationRepositoryから現在のTrack IDの最大値を取得  
@@ -706,7 +706,7 @@ class MenuPanel(QWidget):
             self.batch_add_annotation_btn.setChecked(False)  
             self.execute_batch_add_btn.setEnabled(False)  
         else:  
-            ErrorHandler.show_info_dialog("ラベル選択がキャンセルされました。", "Info")  
+            ErrorHandler.show_info_dialog("Label selection was cancelled.", "Info")
 
     def set_tracking_enabled(self, enabled: bool):  
         """トラッキング機能の有効/無効を設定"""  
@@ -728,8 +728,7 @@ class MenuPanel(QWidget):
                 main_widget.video_preview.bbox_editor.selection_changed.emit(None)    
                 print("--- Undo ---")  
             else:    
-                from ErrorHandler import ErrorHandler  
-                ErrorHandler.show_info_dialog("取り消す操作がありません。", "Undo")    
+                ErrorHandler.show_info_dialog("There are no actions to undo.", "Undo")
     
     def _on_redo_clicked(self):    
         """Redoボタンクリック時の処理"""    
@@ -743,8 +742,7 @@ class MenuPanel(QWidget):
                 main_widget.video_preview.bbox_editor.selection_changed.emit(None)    
                 print("--- Redo ---")  
             else:    
-                from ErrorHandler import ErrorHandler  
-                ErrorHandler.show_info_dialog("やり直す操作がありません。", "Redo")
+                ErrorHandler.show_info_dialog("There are no actions to redo.", "Redo")
     
     def update_undo_redo_buttons(self, command_manager):  
         """Undo/Redoボタンの状態を更新"""  
@@ -798,22 +796,22 @@ class MenuPanel(QWidget):
         try:  
             # ライセンスディレクトリのパスを構築  
             license_dir = Path(__file__).parent.parent.parent / "licenses" / library_name  
-            
-            if not license_dir.exists():  
-                self.license_text.setPlainText(  
-                    f"{library_name}のライセンスディレクトリが見つかりません。\\n"  
-                    f"パス: {license_dir}"  
-                )  
-                return  
+
+            if not license_dir.exists():
+                self.license_text.setPlainText(
+                    f"License directory for {library_name} not found.\\n"
+                    f"Path: {license_dir}"
+                )
+                return
             
             # ディレクトリ内のすべてのファイルを取得してソート  
             license_files = sorted(license_dir.glob("*"))  
             
-            if not license_files:  
-                self.license_text.setPlainText(  
-                    f"{library_name}のライセンスファイルが見つかりません。"  
-                )  
-                return  
+            if not license_files:
+                self.license_text.setPlainText(
+                    f"No license files found for {library_name}."
+                )
+                return
             
             # 複数ファイルの内容を連結  
             combined_content = []  
@@ -837,24 +835,18 @@ class MenuPanel(QWidget):
                             combined_content.append(file_content)  
                             combined_content.append("")  
                         except Exception as e:  
-                            combined_content.append(f"=== {file_path.name} (読み込みエラー) ===")  
-                            combined_content.append(f"エラー: {str(e)}")  
+                            combined_content.append(f"=== {file_path.name} (load error) ===")  
+                            combined_content.append(f"Error: {str(e)}")  
                             combined_content.append("")  
-            
-            # デバッグ用：連結前の内容を確認  
-            print(f"Combined content list length: {len(combined_content)}")  
-            for i, content in enumerate(combined_content[:5]):  # 最初の5要素のみ表示  
-                print(f"  [{i}]: {repr(content)}")  
             
             # 連結した内容を表示  
             final_content = '\n\n'.join(combined_content)  
-            print(f"Final content preview: {repr(final_content[:200])}")  # 最初の200文字のみ  
             
             # QTextEditに設定  
             self.license_text.clear()  # 既存の内容をクリア  
             self.license_text.setPlainText(final_content)  
             
         except Exception as e:  
-            error_message = f"{library_name}のライセンス読み込み中にエラーが発生しました:\\n{str(e)}"  
+            error_message = f"An error occurred while loading the license for {library_name}:\\n{str(e)}"
             print(f"Error: {error_message}")  
             self.license_text.setPlainText(error_message)
