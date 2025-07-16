@@ -21,10 +21,10 @@ class MASAAnnotationApp(QApplication):
           
         # 引数で指定されたファイルを読み込み  
         if self.args.video:  
-            self.main_widget.load_video(self.args.video)  
+            self.main_widget.menu_panel.basic_tab.load_video(self.args.video)
               
         if self.args.json and self.args.video:  
-            self.main_widget.load_json_annotations(self.args.json)  
+            self.main_widget.menu_panel.basic_tab.load_json_annotations(self.args.json)
           
         self.main_widget.show()  
       
