@@ -185,16 +185,19 @@ class MenuPanel(QWidget):
         self.show_confidence_cb.stateChanged.connect(self._on_display_option_changed)  
         display_layout.addWidget(self.show_confidence_cb)  
           
-        simple_checkbox_style = """  
+        simple_checkbox_style = """
         QCheckBox::indicator:checked {  
-            background-color: #4CAF50;  
-            border: 1px solid #4CAF50;  
-        }  
-        QCheckBox::indicator:unchecked {  
             background-color: white;  
-            border: 1px solid #ccc;  
+            border: 2px solid #4CAF50;  
+            background-image: url(file:///../AutoAnnotationTool/resources/checkmark_green_thick.svg);
+            background-repeat: no-repeat;  
+            background-position: center;  
         }  
-        """  
+        QCheckBox::indicator:unchecked {    
+            background-color: white;    
+            border: 2px solid #ccc;    
+        }
+        """
         self.show_manual_cb.setStyleSheet(simple_checkbox_style)  
         self.show_auto_cb.setStyleSheet(simple_checkbox_style)  
         self.show_ids_cb.setStyleSheet(simple_checkbox_style)  

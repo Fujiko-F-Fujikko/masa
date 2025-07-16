@@ -73,16 +73,20 @@ class TrackingResultConfirmDialog(QDialog):
             padding: 4px 0px 4px 0px;  
         }  
         QListWidget::item:selected {  
-            background: #e0f7fa;  
+            background: #e0f7fa;
+            color: black;  
         }  
         QListWidget::indicator:checked {  
-            background-color: #4CAF50;  
-            border: 1px solid #388E3C;  
-        }  
-        QListWidget::indicator:unchecked {  
             background-color: white;  
-            border: 1px solid #ccc;  
+            border: 2px solid #4CAF50;  
+            background-image: url(file:///../AutoAnnotationTool/resources/checkmark_green_thick.svg);
+            background-repeat: no-repeat;  
+            background-position: center;  
         }  
+        QListWidget::indicator:unchecked {    
+            background-color: white;    
+            border: 2px solid #ccc;    
+        }
         """)
 
         self.track_list_widget.itemChanged.connect(self.on_track_item_check_changed)  
