@@ -117,10 +117,10 @@ class MASAAnnotationWidget(QWidget):
         self.video_control.frame_changed.connect(self.video_preview.set_frame)    
         self.video_control.range_frame_preview.connect(self.video_preview.set_frame)  
   
-        # 再生制御関連  
-        self.menu_panel.play_requested.connect(self.start_playback)    
-        self.menu_panel.pause_requested.connect(self.pause_playback)    
-          
+        # 再生制御関連 - BasicTabWidgetから直接接続  
+        self.menu_panel.basic_tab.play_requested.connect(self.start_playback)      
+        self.menu_panel.basic_tab.pause_requested.connect(self.pause_playback)
+
         # アノテーション操作関連（削除・ラベル変更・Track ID統一）  
         self.menu_panel.label_change_requested.connect(self.on_label_change_requested)    
         self.menu_panel.delete_single_annotation_requested.connect(self.on_delete_annotation_requested)    
@@ -149,7 +149,7 @@ class MASAAnnotationWidget(QWidget):
     def start_playback(self):    
         """動画再生を開始"""    
         if self.playback_controller:    
-            self.playback_controller.play()    
+            self.playback_controller.play(self.video_control.current_frame)    
             self.menu_panel.basic_tab.set_play_button_state(True)  
   
     def pause_playback(self):    

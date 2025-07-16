@@ -120,22 +120,20 @@ class VideoControlPanel(QWidget):
         self.range_slider.set_range(0, total_frames - 1)    
         self.update_frame_info()    
             
-    def set_current_frame(self, frame_id: int):    
-        """現在のフレームを設定"""    
-        self.current_frame = frame_id    
-        self.frame_slider.setValue(frame_id)    
-        self.update_frame_info()    
+    def set_current_frame(self, frame_id: int):      
+        """現在のフレームを設定"""      
+        self.current_frame = frame_id      
+        self.frame_slider.setValue(frame_id)      
+        self.update_frame_info()      
             
-        if not hasattr(self, '_playback_updating'):    
-            self.frame_changed.emit(frame_id)    
+        # 再生中の自動更新の場合はframe_changedシグナルを発行しない  
+        if not (hasattr(self.main_widget, 'playback_controller') and   
+                self.main_widget.playback_controller and   
+                self.main_widget.playback_controller.is_playing):  
+            self.frame_changed.emit(frame_id)
                 
     def on_frame_changed(self, frame_id: int):    
-        """フレーム変更イベント（手動操作時・内部処理版）"""    
-        # 再生制御がある場合は一時停止    
-        if hasattr(self.main_widget, 'playback_controller') and self.main_widget.playback_controller:    
-            if self.main_widget.playback_controller.is_playing:    
-                self.main_widget.playback_controller.pause()    
-            
+        """フレーム変更イベント（手動操作時・内部処理版）"""                
         self.current_frame = frame_id    
         self.update_frame_info()    
         self.frame_changed.emit(frame_id)  
