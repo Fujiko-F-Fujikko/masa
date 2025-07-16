@@ -65,6 +65,7 @@ class MASAAnnotationWidget(QWidget):
         self.playback_controller: Optional[VideoPlaybackController] = None    
         self.tracking_worker: Optional[TrackingWorker] = None    
         self.temp_bboxes_for_tracking: List[Tuple[int, BoundingBox]] = []    
+        self.clipboard_annotation: Optional[ObjectAnnotation] = None  # コピーしたアノテーション  
           
         # CommandManagerを追加  
         self.command_manager = CommandManager()  
@@ -141,6 +142,8 @@ class MASAAnnotationWidget(QWidget):
         self.menu_panel.align_track_ids_requested.connect(self.on_align_track_ids_requested)
         self.menu_panel.copy_mode_requested.connect(self.set_copy_mode)  
         self.menu_panel.copy_annotations_requested.connect(self.start_copy_annotations)
+        self.menu_panel.copy_annotation_requested.connect(self.copy_selected_annotation)  
+        self.menu_panel.paste_annotation_requested.connect(self.paste_annotation)
 
         # VideoPreviewWidgetからのシグナル  
         self.video_preview.bbox_created.connect(self.on_bbox_created)  
@@ -879,6 +882,100 @@ class MASAAnnotationWidget(QWidget):
         self.video_preview.bbox_editor.selection_changed.emit(None)  
         self.menu_panel.update_selected_annotation_info(None)
 
+    def copy_selected_annotation(self):  
+        """選択中のアノテーションをクリップボードにコピー"""  
+        selected_annotation = self.menu_panel.current_selected_annotation  
+        if not selected_annotation:  
+            ErrorHandler.show_warning_dialog("No annotation selected to copy.", "Copy Error")  
+            return  
+        
+        # アノテーションをクリップボードに保存（ディープコピー）  
+        self.clipboard_annotation = ObjectAnnotation(  
+            object_id=selected_annotation.object_id,  
+            frame_id=selected_annotation.frame_id,  
+            bbox=BoundingBox(  
+                selected_annotation.bbox.x1,  
+                selected_annotation.bbox.y1,  
+                selected_annotation.bbox.x2,  
+                selected_annotation.bbox.y2,  
+                confidence=selected_annotation.bbox.confidence  
+            ),  
+            label=selected_annotation.label,  
+            is_manual=selected_annotation.is_manual,  
+            track_confidence=selected_annotation.track_confidence,  
+            is_manual_added=selected_annotation.is_manual_added  
+        )  
+        
+        print(f"--- Copied annotation: {selected_annotation.label} ---")
+        #ErrorHandler.show_info_dialog(f"Copied annotation: {selected_annotation.label}", "Copy Complete")
+
+    def paste_annotation(self):  
+        """クリップボードのアノテーションを現在のフレームにペースト"""  
+        if not self.clipboard_annotation:  
+            ErrorHandler.show_warning_dialog("No annotation in clipboard.", "Paste Error")  
+            return  
+        
+        if not self.video_manager:  
+            ErrorHandler.show_warning_dialog("Please load a video file first.", "Paste Error")  
+            return  
+        
+        current_frame = self.video_control.current_frame  
+        
+        # 現在のフレームのアノテーションを取得して重複チェック  
+        frame_annotation = self.annotation_repository.get_annotations(current_frame)  
+        use_original_track_id = True  
+        
+        if frame_annotation and frame_annotation.objects:  
+            for existing_annotation in frame_annotation.objects:  
+                # 同じラベルで同じTrack IDのアノテーションが既に存在するかチェック  
+                if (existing_annotation.label == self.clipboard_annotation.label and   
+                    existing_annotation.object_id == self.clipboard_annotation.object_id):  
+                    use_original_track_id = False  
+                    break  
+        
+        # Track IDを決定  
+        target_object_id = self.clipboard_annotation.object_id if use_original_track_id else -1  
+        
+        # 新しいアノテーションを作成  
+        new_annotation = ObjectAnnotation(  
+            object_id=target_object_id,  
+            frame_id=current_frame,  
+            bbox=BoundingBox(  
+                self.clipboard_annotation.bbox.x1,  
+                self.clipboard_annotation.bbox.y1,  
+                self.clipboard_annotation.bbox.x2,  
+                self.clipboard_annotation.bbox.y2,  
+                confidence=1.0  
+            ),  
+            label=self.clipboard_annotation.label,  
+            is_manual=True,  
+            track_confidence=1.0,  
+            is_manual_added=True  
+        )  
+        
+        # コマンドパターンでアノテーション追加  
+        command = AddAnnotationCommand(self.annotation_repository, new_annotation)  
+        if self.command_manager.execute_command(command):  
+            self.update_annotation_count()  
+            self.video_preview.update_frame_display()  
+            
+            # 新しく作成されたアノテーションを選択状態にする  
+            self.video_preview.bbox_editor.selected_annotation = new_annotation  
+            self.video_preview.bbox_editor.selection_changed.emit(new_annotation)  
+            
+            # オブジェクト一覧を更新  
+            frame_annotation = self.annotation_repository.get_annotations(current_frame)  
+            self.menu_panel.update_current_frame_objects(current_frame, frame_annotation)  
+            
+            track_id_info = f"(Track ID: {new_annotation.object_id})" if use_original_track_id else f"(New Track ID: {new_annotation.object_id})"  
+            print(f"--- Pasted annotation: {new_annotation.label} at frame {current_frame} {track_id_info} ---")
+            #ErrorHandler.show_info_dialog(  
+            #    f"Pasted annotation: {new_annotation.label} at frame {current_frame} {track_id_info}",   
+            #    "Paste Complete"  
+            #)  
+        else:  
+            ErrorHandler.show_error_dialog("Failed to paste annotation.", "Paste Error")
+
     def keyPressEvent(self, event: QKeyEvent):  
         """キーボードショートカットの処理（拡張版）"""  
         # フォーカスされたウィジェットを取得  
@@ -934,6 +1031,24 @@ class MASAAnnotationWidget(QWidget):
                     print("--- Undo ---")
                 else:  
                     ErrorHandler.show_info_dialog("There are no actions to undo.", "Undo")  
+            elif event.key() == Qt.Key.Key_C:  
+                # Ctrl+C: アノテーションをコピー  
+                if (self.menu_panel.current_selected_annotation and   
+                    self.menu_panel.edit_mode_btn.isChecked() and  
+                    self.menu_panel.copy_annotation_btn.isEnabled()):  
+                    print("--- Copy ---")
+                    self.menu_panel._on_copy_annotation_clicked()  
+                event.accept()  
+                return  
+            
+            elif event.key() == Qt.Key.Key_V:  
+                # Ctrl+V: アノテーションをペースト  
+                if (self.menu_panel.edit_mode_btn.isChecked() and  
+                    self.menu_panel.paste_annotation_btn.isEnabled()):  
+                    print("--- Paste ---")
+                    self.menu_panel._on_paste_annotation_clicked()  
+                event.accept()  
+                return
                 event.accept()  
                 return  
             elif event.key() == Qt.Key.Key_Y:  
@@ -989,10 +1104,10 @@ class MASAAnnotationWidget(QWidget):
             event.accept()  
         elif event.key() == Qt.Key.Key_C:  
             # Cキー: コピーモード切り替え  
-            if self.menu_panel.copy_annotation_btn.isEnabled():  
-                current_state = self.menu_panel.copy_annotation_btn.isChecked()  
-                self.menu_panel.copy_annotation_btn.setChecked(not current_state)  
-                self.menu_panel._on_copy_annotation_clicked(not current_state)  
+            if self.menu_panel.copy_annotations_btn.isEnabled():  
+                current_state = self.menu_panel.copy_annotations_btn.isChecked()  
+                self.menu_panel.copy_annotations_btn.setChecked(not current_state)  
+                self.menu_panel._on_copy_annotations_clicked(not current_state)  
             event.accept()  
         elif event.key() == Qt.Key.Key_X:  
             # Xキー: 選択アノテーションを削除  
