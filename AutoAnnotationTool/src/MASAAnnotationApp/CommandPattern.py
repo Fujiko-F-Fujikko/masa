@@ -165,6 +165,37 @@ class UpdateBoundingBoxCommand(Command):
     def get_description(self) -> str:  
         return f"Update bounding box position for {self.annotation.label} at frame {self.annotation.frame_id}"  
 
+class AlignTrackIdsByLabelCommand(Command):  
+    """ラベル単位でのTrack ID統一コマンド"""  
+      
+    def __init__(self, annotation_repository, label: str, target_track_id: int):  
+        self.annotation_repository = annotation_repository  
+        self.label = label  
+        self.target_track_id = target_track_id  
+        self.affected_annotations = []  
+        self.original_track_ids = {}  
+      
+    def execute(self):  
+        # 影響を受けるアノテーションを記録  
+        for frame_annotation in self.annotation_repository.frame_annotations.values():  
+            for annotation in frame_annotation.objects:  
+                if annotation.label == self.label and annotation.object_id != self.target_track_id:  
+                    self.affected_annotations.append(annotation)  
+                    self.original_track_ids[id(annotation)] = annotation.object_id  
+          
+        return self.annotation_repository.align_track_ids_by_label(self.label, self.target_track_id)  
+      
+    def undo(self):  
+        # 元のTrack IDに戻す  
+        for annotation in self.affected_annotations:  
+            original_id = self.original_track_ids.get(id(annotation))  
+            if original_id is not None:  
+                annotation.object_id = original_id  
+        return len(self.affected_annotations)  
+      
+    def get_description(self) -> str:  
+        return f"Align track IDs for label '{self.label}' to ID {self.target_track_id}"
+
 class CommandManager:  
     """コマンド履歴を管理するマネージャー"""  
       

@@ -23,7 +23,9 @@ from ConfigManager import ConfigManager
 from ErrorHandler import ErrorHandler    
 from COCOExportWorker import COCOExportWorker  
 from TrackingResultConfirmDialog import TrackingResultConfirmDialog  
-from CommandPattern import CommandManager, AddAnnotationCommand, DeleteAnnotationCommand, DeleteTrackCommand, UpdateLabelCommand, UpdateLabelByTrackCommand, UpdateBoundingBoxCommand 
+from CommandPattern import CommandManager, AddAnnotationCommand, DeleteAnnotationCommand, \
+                            DeleteTrackCommand, UpdateLabelCommand, UpdateLabelByTrackCommand, \
+                            UpdateBoundingBoxCommand, AlignTrackIdsByLabelCommand
   
 # QtのデフォルトではSpaceキーでボタンクリックだが、Enterキーに変更する  
 class ButtonKeyEventFilter(QObject):    
@@ -136,6 +138,7 @@ class MASAAnnotationWidget(QWidget):
         self.menu_panel.play_requested.connect(self.start_playback)  
         self.menu_panel.pause_requested.connect(self.pause_playback)  
         self.menu_panel.config_changed.connect(self.on_config_changed)  
+        self.menu_panel.align_track_ids_requested.connect(self.on_align_track_ids_requested)
           
         # VideoPreviewWidgetからのシグナル  
         self.video_preview.bbox_created.connect(self.on_bbox_created)  
@@ -626,8 +629,33 @@ class MASAAnnotationWidget(QWidget):
             else:  
                 ErrorHandler.show_warning_dialog("Failed to update label.", "Error")
         except Exception as e:  
-            ErrorHandler.show_error_dialog(f"ラベル変更中にエラーが発生しました: {e}", "エラー")
+            ErrorHandler.show_error_dialog(f"Error occurred while changing label: {e}", "Error")
   
+    def on_align_track_ids_requested(self, label: str, target_track_id: int):  
+        """Track ID統一要求時の処理（コマンドパターン対応）"""  
+        try:  
+            # コマンドパターンを使用してTrack ID統一  
+            command = AlignTrackIdsByLabelCommand(self.annotation_repository, label, target_track_id)  
+            updated_count = self.command_manager.execute_command(command)  
+            
+            if updated_count > 0:  
+                self.video_preview.update_frame_display()  
+                self.update_annotation_count()  
+                
+                # オブジェクト一覧を更新  
+                current_frame = self.video_control.current_frame  
+                frame_annotation = self.annotation_repository.get_annotations(current_frame)  
+                self.menu_panel.update_current_frame_objects(current_frame, frame_annotation)  
+                
+                ErrorHandler.show_info_dialog(  
+                    f"Aligned {updated_count} annotations with label '{label}' to Track ID '{target_track_id}'.",  
+                    "Track ID Alignment Complete"  
+                )  
+            else:  
+                ErrorHandler.show_warning_dialog("No annotations were updated.", "Info")  
+        except Exception as e: 
+            ErrorHandler.show_error_dialog(f"Error occurred while merging track id: {e}", "Error") 
+
     def start_playback(self):  
         """動画再生を開始"""  
         if self.playback_controller:  
@@ -903,5 +931,11 @@ class MASAAnnotationWidget(QWidget):
             self.video_control.frame_input.setFocus()  
             self.video_control.frame_input.selectAll()  
             event.accept()  
+        elif event.key() == Qt.Key.Key_A:  
+            # Aキー: Track ID統一  
+            if (self.menu_panel.current_selected_annotation and     
+                self.menu_panel.align_track_ids_btn.isEnabled()):  
+                self.menu_panel._on_align_track_ids_clicked()  
+            event.accept()
         else:  
             super().keyPressEvent(event)
