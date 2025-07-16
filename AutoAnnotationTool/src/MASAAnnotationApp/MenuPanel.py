@@ -38,6 +38,9 @@ class MenuPanel(QWidget):
     copy_mode_requested = pyqtSignal(bool)  # コピーモードの切り替え  
     copy_annotations_requested = pyqtSignal(int, str)  # assigned_track_id, assigned_label      
 
+    copy_annotation_requested = pyqtSignal()  
+    paste_annotation_requested = pyqtSignal()
+
     play_requested = pyqtSignal()  
     pause_requested = pyqtSignal()  
       
@@ -295,6 +298,16 @@ class MenuPanel(QWidget):
         self.align_track_ids_btn.clicked.connect(self._on_align_track_ids_clicked)  
         edit_layout.addWidget(self.align_track_ids_btn)
 
+        self.copy_annotation_btn = QPushButton("Copy Annotation (Ctrl+C)")  
+        self.copy_annotation_btn.setEnabled(False)  
+        self.copy_annotation_btn.clicked.connect(self._on_copy_annotation_clicked)  
+        edit_layout.addWidget(self.copy_annotation_btn)  
+        
+        self.paste_annotation_btn = QPushButton("Paste Annotation (Ctrl+V)")  
+        self.paste_annotation_btn.setEnabled(False)  
+        self.paste_annotation_btn.clicked.connect(self._on_paste_annotation_clicked)  
+        edit_layout.addWidget(self.paste_annotation_btn)
+
         edit_group.setLayout(edit_layout)  
         layout.addWidget(edit_group)  
           
@@ -342,12 +355,12 @@ class MenuPanel(QWidget):
         tracking_layout.addWidget(self.tracking_annotation_btn)  
 
         # コピーモード用のボタンを追加  
-        self.copy_annotation_btn = QPushButton("Add Annotations by Copy(C)")  
-        self.copy_annotation_btn.setCheckable(True)  
-        self.copy_annotation_btn.setEnabled(True)  
-        self.copy_annotation_btn.setStyleSheet(tracking_button_style)  
-        self.copy_annotation_btn.clicked.connect(self._on_copy_annotation_clicked)  
-        tracking_layout.addWidget(self.copy_annotation_btn)
+        self.copy_annotations_btn = QPushButton("Add Annotations by Copy(C)")  
+        self.copy_annotations_btn.setCheckable(True)  
+        self.copy_annotations_btn.setEnabled(True)  
+        self.copy_annotations_btn.setStyleSheet(tracking_button_style)  
+        self.copy_annotations_btn.clicked.connect(self._on_copy_annotations_clicked)  
+        tracking_layout.addWidget(self.copy_annotations_btn)
 
         self.tracking_status_label = QLabel("Loading MASA models...")  
         tracking_layout.addWidget(self.tracking_status_label)  
@@ -458,14 +471,14 @@ class MenuPanel(QWidget):
             # TrackingAddModeがONの場合はOFFにして無効化  
             if self.tracking_annotation_btn.isChecked():  
                 self.tracking_annotation_btn.setChecked(False)  
-            if self.copy_annotation_btn.isChecked():  
-                self.copy_annotation_btn.setChecked(False)  
+            if self.copy_annotations_btn.isChecked():  
+                self.copy_annotations_btn.setChecked(False)  
             self.tracking_annotation_btn.setEnabled(False)
-            self.copy_annotation_btn.setEnabled(False)   
+            self.copy_annotations_btn.setEnabled(False)   
         else:  
             # EditModeがOFFになった時はTrackingAddModeボタンを有効化  
             self.tracking_annotation_btn.setEnabled(True)  
-            self.copy_annotation_btn.setEnabled(True) 
+            self.copy_annotations_btn.setEnabled(True) 
           
         self.edit_mode_requested.emit(checked)  
         self._update_edit_controls_state(checked)  
@@ -478,6 +491,8 @@ class MenuPanel(QWidget):
         self.delete_track_btn.setEnabled(enabled and self.current_selected_annotation is not None)  
         self.propagate_label_btn.setEnabled(enabled and self.current_selected_annotation is not None)  
         self.align_track_ids_btn.setEnabled(enabled and self.current_selected_annotation is not None)
+        self.copy_annotation_btn.setEnabled(enabled and self.current_selected_annotation is not None)  
+        self.paste_annotation_btn.setEnabled(enabled and self.parent().parent().clipboard_annotation is not None)
 
     def update_video_info(self, video_path: str, total_frames: int):  
         """動画情報を更新"""  
@@ -700,15 +715,15 @@ class MenuPanel(QWidget):
             # EditModeとCopyModeがONの場合はOFFにして無効化  
             if self.edit_mode_btn.isChecked():  
                 self.edit_mode_btn.setChecked(False)  
-            if self.copy_annotation_btn.isChecked():
-                self.copy_annotation_btn.setChecked(False)  
+            if self.copy_annotations_btn.isChecked():
+                self.copy_annotations_btn.setChecked(False)  
             
             self.edit_mode_btn.setEnabled(False)  
             self.copy_annotation_btn.setEnabled(False)
         else:  
             # TrackingAddModeがOFFになった時は他のボタンを有効化  
             self.edit_mode_btn.setEnabled(True)  
-            self.copy_annotation_btn.setEnabled(True) 
+            self.copy_annotations_btn.setEnabled(True) 
         
         self.tracking_mode_requested.emit(checked)  
         self.execute_add_btn.setEnabled(checked)
@@ -716,7 +731,7 @@ class MenuPanel(QWidget):
     def _on_complete_tracking_clicked(self):  
         """一括追加完了ボタンクリック時の処理"""  
         # コピーモードの場合  
-        if self.copy_annotation_btn.isChecked():  
+        if self.copy_annotations_btn.isChecked():  
             return self._handle_copy_mode_execution() 
 
         # temp_bboxes_for_tracking が空でないことを確認  
@@ -896,7 +911,7 @@ class MenuPanel(QWidget):
             print(f"Error: {error_message}")  
             self.license_text.setPlainText(error_message)
 
-    def _on_copy_annotation_clicked(self, checked: bool):  
+    def _on_copy_annotations_clicked(self, checked: bool):  
         """コピーモードボタンクリック時の処理"""  
         if checked:  
             # 他のモードがONの場合はOFFにする  
@@ -935,3 +950,10 @@ class MenuPanel(QWidget):
         # コピー処理を要求  
         self.copy_annotations_requested.emit(current_max_track_id, self.current_selected_annotation.label)  
         
+    def _on_copy_annotation_clicked(self):  
+        """コピーボタンクリック時の処理"""  
+        self.copy_annotation_requested.emit()  
+    
+    def _on_paste_annotation_clicked(self):  
+        """ペーストボタンクリック時の処理"""  
+        self.paste_annotation_requested.emit()
