@@ -32,8 +32,9 @@ class MenuPanel(QWidget):
       
     label_change_requested = pyqtSignal(object, str)  # annotation, new_label  
     delete_single_annotation_requested = pyqtSignal(object) # ObjectAnnotation  
-    delete_track_requested = pyqtSignal(int) # object_id (Track ID)  
-    propagate_label_requested = pyqtSignal(int, str) # object_id (Track ID), new_label  
+    delete_track_requested = pyqtSignal(int) # track_id  
+    propagate_label_requested = pyqtSignal(int, str) # track_id, new_label  
+    align_track_ids_requested = pyqtSignal(str, int)  # label, target_track_id
       
     play_requested = pyqtSignal()  
     pause_requested = pyqtSignal()  
@@ -287,6 +288,11 @@ class MenuPanel(QWidget):
         self.propagate_label_btn.clicked.connect(self._on_propagate_label_clicked)  
         edit_layout.addWidget(self.propagate_label_btn)
 
+        self.align_track_ids_btn = QPushButton("Align Track IDs (A)")  
+        self.align_track_ids_btn.setEnabled(False)  
+        self.align_track_ids_btn.clicked.connect(self._on_align_track_ids_clicked)  
+        edit_layout.addWidget(self.align_track_ids_btn)
+
         edit_group.setLayout(edit_layout)  
         layout.addWidget(edit_group)  
           
@@ -457,6 +463,7 @@ class MenuPanel(QWidget):
         self.delete_single_annotation_btn.setEnabled(enabled and self.current_selected_annotation is not None)  
         self.delete_track_btn.setEnabled(enabled and self.current_selected_annotation is not None)  
         self.propagate_label_btn.setEnabled(enabled and self.current_selected_annotation is not None)  
+        self.align_track_ids_btn.setEnabled(enabled and self.current_selected_annotation is not None)
 
     def update_video_info(self, video_path: str, total_frames: int):  
         """動画情報を更新"""  
@@ -652,6 +659,21 @@ class MenuPanel(QWidget):
                 else:  
                     ErrorHandler.show_warning_dialog("Please enter a new label name.", "Input Error")
                       
+    def _on_align_track_ids_clicked(self):  
+        """Track ID統一ボタンクリック時の処理"""  
+        if self.current_selected_annotation:  
+            target_label = self.current_selected_annotation.label  
+            target_track_id = self.current_selected_annotation.object_id  
+            
+            reply = QMessageBox.question(  
+                self, "Confirm Track ID Alignment",  
+                f"Do you want to align ALL annotations with label '{target_label}' to Track ID '{target_track_id}'?\n"  
+                "This will change the Track ID of all annotations with the same label.",  
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+            )  
+            if reply == QMessageBox.StandardButton.Yes:  
+                self.align_track_ids_requested.emit(target_label, target_track_id)
+
     def get_all_labels_from_manager(self) -> List[str]:  
         """AnnotationRepositoryの全ラベルを取得するヘルパーメソッド"""  
         if self.annotation_repository:  
@@ -802,7 +824,7 @@ class MenuPanel(QWidget):
 
             if not license_dir.exists():
                 self.license_text.setPlainText(
-                    f"License directory for {library_name} not found.\\n"
+                    f"License directory for {library_name} not found.\n"
                     f"Path: {license_dir}"
                 )
                 return
@@ -850,6 +872,6 @@ class MenuPanel(QWidget):
             self.license_text.setPlainText(final_content)  
             
         except Exception as e:  
-            error_message = f"An error occurred while loading the license for {library_name}:\\n{str(e)}"
+            error_message = f"An error occurred while loading the license for {library_name}:\n{str(e)}"
             print(f"Error: {error_message}")  
             self.license_text.setPlainText(error_message)

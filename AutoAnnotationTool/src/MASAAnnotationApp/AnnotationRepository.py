@@ -190,3 +190,24 @@ class AnnotationRepository:
                     if annotation.object_id == track_id:  
                         annotations.append(annotation)  
         return annotations
+
+    def align_track_ids_by_label(self, label: str, target_track_id: int) -> int:  
+        """指定されたラベルを持つすべてのアノテーションのTrack IDを統一"""  
+        updated_count = 0  
+        
+        for frame_annotation in self.frame_annotations.values():  
+            for obj in frame_annotation.objects:  
+                if obj.label == label and obj.object_id != target_track_id:  
+                    obj.object_id = target_track_id  
+                    updated_count += 1  
+        
+        # manual_annotationsも更新  
+        for manual_anns in self.manual_annotations.values():  
+            for obj in manual_anns:  
+                if obj.label == label and obj.object_id != target_track_id:  
+                    obj.object_id = target_track_id  
+        
+        if updated_count > 0:  
+            self._is_labels_cache_dirty = True  
+        
+        return updated_count
