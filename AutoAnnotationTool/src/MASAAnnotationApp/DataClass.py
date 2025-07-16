@@ -46,14 +46,14 @@ class ObjectAnnotation:
     """物体アノテーションのデータクラス"""  
     def __init__(self, object_id: int, label: str, bbox: BoundingBox, frame_id: int,  
                  is_manual: bool, track_confidence: float,  
-                 is_batch_added: bool = False):  
+                 is_manual_added: bool = False):  
         self.object_id = object_id  
         self.label = label  
         self.bbox = bbox  
         self.frame_id = frame_id  
         self.is_manual = is_manual  
         self.track_confidence = track_confidence  
-        self.is_batch_added = is_batch_added  
+        self.is_manual_added = is_manual_added  
         self.validate()  
       
     def __post_init__(self):  

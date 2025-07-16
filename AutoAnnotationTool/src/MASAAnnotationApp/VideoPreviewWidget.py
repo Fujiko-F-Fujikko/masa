@@ -56,7 +56,7 @@ class VideoPreviewWidget(QLabel):
         
         self._updating_frame = False # 再帰防止フラグ  
         
-        self.temp_batch_annotations: List[ObjectAnnotation] = []
+        self.temp_tracking_annotations: List[ObjectAnnotation] = []
 
         self._connect_signals()  
           
@@ -171,10 +171,10 @@ class VideoPreviewWidget(QLabel):
                       (not annotation.is_manual and self.show_auto_annotations):  
                         annotations_to_show.append(annotation)  
                           
-        elif current_mode == 'batch_add':  
-            # BatchAddMode: 一時的なバッチアノテーションのみ表示  
+        elif current_mode == 'tracking':  
+            # TrackingMode: 一時的なバッチアノテーションのみ表示  
             annotations_to_show.extend([  
-                ann for ann in self.temp_batch_annotations if ann.frame_id == self.current_frame_id  
+                ann for ann in self.temp_tracking_annotations if ann.frame_id == self.current_frame_id  
             ])  
           
         # アノテーションを描画  
@@ -186,9 +186,9 @@ class VideoPreviewWidget(QLabel):
                 selected_annotation=self.bbox_editor.selected_annotation  
             )  
           
-        # 編集モードまたはBatchAddModeの場合、選択オーバーレイを描画  
+        # 編集モードまたはTrackingModeの場合、選択オーバーレイを描画  
         current_mode = self.mode_manager.current_mode_name  
-        if current_mode in ['edit', 'batch_add']:  
+        if current_mode in ['edit', 'tracking']:  
             self.current_frame = self.bbox_editor.draw_selection_overlay(self.current_frame)  
               
         self._display_frame_on_widget(self.current_frame)
@@ -284,12 +284,12 @@ class VideoPreviewWidget(QLabel):
         if self.current_frame is not None:  
             self.update_frame_display()  
 
-    def clear_temp_batch_annotations(self):  
+    def clear_temp_tracking_annotations(self):  
         """一時的なバッチ追加アノテーションを設定"""  
-        self.temp_batch_annotations.clear()  
+        self.temp_tracking_annotations.clear()  
         self.update_frame_display() # 更新を反映
 
-    def add_temp_batch_annotation(self, annotation: ObjectAnnotation):  
+    def add_temp_tracking_annotation(self, annotation: ObjectAnnotation):  
         """一時的なバッチ追加アノテーションを設定"""  
-        self.temp_batch_annotations.append(annotation)  
+        self.temp_tracking_annotations.append(annotation)  
         self.update_frame_display() # 更新を反映

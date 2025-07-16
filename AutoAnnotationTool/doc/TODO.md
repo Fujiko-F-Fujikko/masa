@@ -59,3 +59,4 @@
 * masa6: https://deepwiki.com/search/_b6058bf0-dcc1-4330-92db-fac72fdfe8ca
 * devin masa 1: https://app.devin.ai/search/undoredoctrlz-ctrlyundoredo_d8795fc4-2a05-4519-9fe2-4b5937082459
 * devin masa 2: https://app.devin.ai/search/track-id-track-id_1cd2a2fc-8a5e-4c8c-8e5a-8ebd75644a41
+* devin masa 3: https://app.devin.ai/search/batchaddmode_13efa3f2-aaf4-4867-bce5-79cd78c7c0a6
