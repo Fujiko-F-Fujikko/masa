@@ -288,7 +288,7 @@ class MenuPanel(QWidget):
         self.propagate_label_btn.clicked.connect(self._on_propagate_label_clicked)  
         edit_layout.addWidget(self.propagate_label_btn)
 
-        self.align_track_ids_btn = QPushButton("Align Track IDs (A)")  
+        self.align_track_ids_btn = QPushButton("Align Track IDs for All(A)")  
         self.align_track_ids_btn.setEnabled(False)  
         self.align_track_ids_btn.clicked.connect(self._on_align_track_ids_clicked)  
         edit_layout.addWidget(self.align_track_ids_btn)
