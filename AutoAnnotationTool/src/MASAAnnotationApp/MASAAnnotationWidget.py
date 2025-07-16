@@ -64,7 +64,7 @@ class MASAAnnotationWidget(QWidget):
         self.object_tracker = ObjectTracker(self.config_manager.get_full_config(config_type="masa")) # ObjectTrackerにはMASAモデル関連のConfigのみを渡す  
         self.playback_controller: Optional[VideoPlaybackController] = None    
         self.tracking_worker: Optional[TrackingWorker] = None    
-        self.temp_bboxes_for_batch_add: List[Tuple[int, BoundingBox]] = []    
+        self.temp_bboxes_for_tracking: List[Tuple[int, BoundingBox]] = []    
           
         # CommandManagerを追加  
         self.command_manager = CommandManager()  
@@ -129,7 +129,7 @@ class MASAAnnotationWidget(QWidget):
         self.menu_panel.load_json_requested.connect(self.load_json_annotations)  
         self.menu_panel.export_requested.connect(self.export_annotations)  
         self.menu_panel.edit_mode_requested.connect(self.set_edit_mode)  
-        self.menu_panel.batch_add_mode_requested.connect(self.set_batch_add_mode)  
+        self.menu_panel.tracking_mode_requested.connect(self.set_tracking_mode)  
         self.menu_panel.tracking_requested.connect(self.start_tracking)  
         self.menu_panel.label_change_requested.connect(self.on_label_change_requested)  
         self.menu_panel.delete_single_annotation_requested.connect(self.on_delete_annotation_requested)  
@@ -139,7 +139,9 @@ class MASAAnnotationWidget(QWidget):
         self.menu_panel.pause_requested.connect(self.pause_playback)  
         self.menu_panel.config_changed.connect(self.on_config_changed)  
         self.menu_panel.align_track_ids_requested.connect(self.on_align_track_ids_requested)
-          
+        self.menu_panel.copy_mode_requested.connect(self.set_copy_mode)  
+        self.menu_panel.copy_annotations_requested.connect(self.start_copy_annotations)
+
         # VideoPreviewWidgetからのシグナル  
         self.video_preview.bbox_created.connect(self.on_bbox_created)  
         self.video_preview.frame_changed.connect(self.on_frame_changed)  
@@ -331,9 +333,9 @@ class MASAAnnotationWidget(QWidget):
           
         start_frame, end_frame = self.video_control.get_selected_range()  
           
-        # temp_bboxes_for_batch_add に含まれるアノテーションのラベルを assigned_label で上書き  
+        # temp_bboxes_for_tracking に含まれるアノテーションのラベルを assigned_label で上書き  
         initial_annotations_for_worker = []  
-        for frame_id, ann_obj in self.temp_bboxes_for_batch_add:  
+        for frame_id, ann_obj in self.temp_bboxes_for_tracking:  
             ann_obj.label = assigned_label # ラベルを上書き  
             initial_annotations_for_worker.append((frame_id, ann_obj.bbox)) # (frame_id, BoundingBox) のタプルを追加  
 
@@ -373,14 +375,14 @@ class MASAAnnotationWidget(QWidget):
             self.tracking_worker.start()  
               
             # バッチ追加モードの場合はUIをリセット  
-            if self.video_preview.mode_manager.current_mode_name == 'batch_add':  
+            if self.video_preview.mode_manager.current_mode_name == 'tracking':  
                 # tmpアノテーションをクリア
-                self.temp_bboxes_for_batch_add.clear()  
-                self.video_preview.clear_temp_batch_annotations()
+                self.temp_bboxes_for_tracking.clear()  
+                self.video_preview.clear_temp_tracking_annotations()
                 # 編集モードに切り替え
                 self.video_preview.set_mode('edit') 
-                self.menu_panel.batch_add_annotation_btn.setChecked(False)  
-                self.menu_panel.execute_batch_add_btn.setEnabled(False)  
+                self.menu_panel.tracking_annotation_btn.setChecked(False)  
+                self.menu_panel.execute_add_btn.setEnabled(False)  
                 self.menu_panel.edit_mode_btn.setChecked(True)
                 self.menu_panel.edit_mode_btn.setEnabled(True)
                 self.video_preview.update_frame_display()
@@ -448,7 +450,7 @@ class MASAAnnotationWidget(QWidget):
                         label=label,  
                         is_manual=True,  
                         track_confidence=1.0,  
-                        is_batch_added=False  # 通常の手動アノテーション  
+                        is_manual_added= True  # 手動追加されたアノテーションとしてマーク
                     )  
                       
                     # コマンドパターンを使用してアノテーション追加  
@@ -467,8 +469,8 @@ class MASAAnnotationWidget(QWidget):
                     self.menu_panel.update_current_frame_objects(current_frame, frame_annotation)
                 else:  
                     ErrorHandler.show_warning_dialog("Label cannot be empty.", "Input Error")
-        elif self.video_preview.mode_manager.current_mode_name == 'batch_add':  
-            # BatchAddModeの場合、ラベル入力ダイアログは表示しない(正常動作)  
+        elif self.video_preview.mode_manager.current_mode_name == 'tracking':  
+            # TrackingModeの場合、ラベル入力ダイアログは表示しない(正常動作)  
             pass  
         else:  
             # その他のモードの場合（予期しないケース）  
@@ -485,14 +487,14 @@ class MASAAnnotationWidget(QWidget):
     def set_edit_mode(self, enabled: bool):  
         """編集モードの設定とUIの更新"""  
         if enabled:  
-            # BatchAddModeがONの場合はOFFにする  
-            if self.menu_panel.batch_add_annotation_btn.isChecked():  
-                self.menu_panel.batch_add_annotation_btn.setChecked(False)  
-                self.set_batch_add_mode(False)  
+            # TrackingModeがONの場合はOFFにする  
+            if self.menu_panel.tracking_annotation_btn.isChecked():  
+                self.menu_panel.tracking_annotation_btn.setChecked(False)  
+                self.set_tracking_mode(False)  
               
             self.video_preview.set_mode('edit')  
             self.video_control.range_slider.setVisible(False)  
-            self.video_preview.clear_temp_batch_annotations()  
+            self.video_preview.clear_temp_tracking_annotations()  
             ErrorHandler.show_info_dialog("Edit mode enabled.", "Mode Change")
         else:  
             self.video_preview.set_mode('view')  
@@ -501,7 +503,7 @@ class MASAAnnotationWidget(QWidget):
         self.video_preview.bbox_editor.set_editing_mode(enabled)  
         self.video_preview.update_frame_display()  
       
-    def set_batch_add_mode(self, enabled: bool):  
+    def set_tracking_mode(self, enabled: bool):  
         """一括追加モードの設定とUIの更新"""  
         if enabled:  
             # EditModeがONの場合はOFFにする  
@@ -509,23 +511,23 @@ class MASAAnnotationWidget(QWidget):
                 self.menu_panel.edit_mode_btn.setChecked(False)  
                 self.set_edit_mode(False)  
               
-            self.video_preview.set_mode('batch_add')  
+            self.video_preview.set_mode('tracking')  
             self.video_control.range_slider.setVisible(True)
-            self.video_preview.clear_temp_batch_annotations()  
+            self.video_preview.clear_temp_tracking_annotations()  
             ErrorHandler.show_info_dialog(
-                "Batch Add Annotation mode enabled.\n"
+                "Tracking mode enabled.\n"
                 "1. Draw bounding boxes on the video preview.\n"
                 "2. Specify the frame range to add.\n"
                 "3. Press the Run button.",
                 "Mode Change"
             )
-            self.temp_bboxes_for_batch_add.clear()  
+            self.temp_bboxes_for_tracking.clear()  
             # 再生中の場合は停止  
             if self.playback_controller and self.playback_controller.is_playing:  
                 self.playback_controller.pause()  
         else:  
             self.video_preview.set_mode('view')  
-            ErrorHandler.show_info_dialog("Batch Add Annotation mode disabled.", "Mode Change")
+            ErrorHandler.show_info_dialog("Tracking Mode disabled.", "Mode Change")
             # モード終了時に再生を停止し、タイマーを確実に停止  
             if self.playback_controller:  
                 self.playback_controller.pause() 
@@ -720,7 +722,7 @@ class MASAAnnotationWidget(QWidget):
     def on_annotation_updated(self, annotation: ObjectAnnotation):  
         """アノテーション更新時の処理（位置変更以外）"""  
         # 一時的なバッチアノテーションの場合は、アノテーションリポジトリ更新をスキップ  
-        if hasattr(annotation, 'is_batch_added') and annotation.is_batch_added:  
+        if hasattr(annotation, 'is_manual_added') and annotation.is_manual_added:  
             self.update_annotation_count()  
             return  
         
@@ -790,6 +792,92 @@ class MASAAnnotationWidget(QWidget):
             self.video_preview.focus_on_annotation(annotation)
             # アノテーションを選択状態にする
             self.on_annotation_selected(annotation)
+
+    def set_copy_mode(self, enabled: bool):  
+        """コピーモードの設定とUIの更新"""  
+        if enabled:  
+            # 他のモードがONの場合はOFFにする  
+            if self.menu_panel.edit_mode_btn.isChecked():  
+                self.menu_panel.edit_mode_btn.setChecked(False)  
+                self.set_edit_mode(False)  
+            if self.menu_panel.tracking_annotation_btn.isChecked():  
+                self.menu_panel.tracking_annotation_btn.setChecked(False)  
+                self.set_tracking_mode(False)  
+            
+            # コピーモードでは既存アノテーションを選択可能にする  
+            self.video_preview.set_mode('edit')  # editモードベースで既存アノテーション選択を有効化  
+            self.video_control.range_slider.setVisible(True)  # フレーム範囲選択を表示  
+            self.video_preview.bbox_editor.set_editing_mode(True)  
+            
+            ErrorHandler.show_info_dialog(  
+                "Copy mode enabled.\n"  
+                "1. Select an annotation to copy.\n"  
+                "2. Specify the frame range.\n"  
+                "3. Press the Run button.",  
+                "Mode Change"  
+            )  
+        else:  
+            self.video_preview.set_mode('view')  
+            self.video_control.range_slider.setVisible(False)  
+            self.video_preview.bbox_editor.set_editing_mode(False)  
+            ErrorHandler.show_info_dialog("Copy mode disabled.", "Mode Change")  
+        
+        self.video_preview.update_frame_display()
+
+    def start_copy_annotations(self, assigned_track_id: int, assigned_label: str):  
+        """選択されたアノテーションのコピーを開始"""  
+        if not self.video_manager:  
+            ErrorHandler.show_warning_dialog("Please load a video file first", "Warning")  
+            return  
+        
+        # 選択されたアノテーションを取得  
+        selected_annotation = self.menu_panel.current_selected_annotation  
+        if not selected_annotation:  
+            ErrorHandler.show_warning_dialog("Please select an annotation to copy", "Warning")  
+            return  
+        
+        start_frame, end_frame = self.video_control.get_selected_range()  
+        if start_frame == -1 or end_frame == -1:  
+            ErrorHandler.show_warning_dialog("No frame range selected.", "Warning")  
+            return  
+        
+        # 選択されたアノテーションを指定フレーム範囲にコピー  
+        copied_count = 0  
+        for frame_id in range(start_frame, end_frame + 1):  
+            # 新しいアノテーションを作成  
+            new_annotation = ObjectAnnotation(  
+                object_id=selected_annotation.object_id,  # コピー元と同じTrack IDを使用  
+                frame_id=frame_id,  
+                bbox=BoundingBox(  
+                    selected_annotation.bbox.x1,  
+                    selected_annotation.bbox.y1,  
+                    selected_annotation.bbox.x2,  
+                    selected_annotation.bbox.y2,  
+                    confidence=1.0  
+                ),  
+                label=assigned_label,  
+                is_manual=True,  
+                track_confidence=1.0,  
+                is_manual_added=True  # 手動追加されたアノテーションとしてマーク  
+            )  
+            
+            # コマンドパターンでアノテーション追加  
+            command = AddAnnotationCommand(self.annotation_repository, new_annotation)  
+            if self.command_manager.execute_command(command):  
+                copied_count += 1  
+        
+        self.update_annotation_count()  
+        self.video_preview.update_frame_display()  
+        
+        ErrorHandler.show_info_dialog(  
+            f"Copied annotation to {copied_count} frames.",  
+            "Copy Complete"  
+        )  
+
+        # 現在の選択を解除して次のアノテーション選択を促す  
+        self.video_preview.bbox_editor.selected_annotation = None  
+        self.video_preview.bbox_editor.selection_changed.emit(None)  
+        self.menu_panel.update_selected_annotation_info(None)
 
     def keyPressEvent(self, event: QKeyEvent):  
         """キーボードショートカットの処理（拡張版）"""  
@@ -892,12 +980,19 @@ class MASAAnnotationWidget(QWidget):
                 self.menu_panel.edit_mode_btn.setChecked(not current_state)  
                 self.menu_panel._on_edit_mode_clicked(not current_state)  
             event.accept()  
-        elif event.key() == Qt.Key.Key_B:  
-            # Bキー: 一括追加モード切り替え  
-            if self.menu_panel.batch_add_annotation_btn.isEnabled():  
-                current_state = self.menu_panel.batch_add_annotation_btn.isChecked()  
-                self.menu_panel.batch_add_annotation_btn.setChecked(not current_state)  
-                self.menu_panel._on_batch_add_annotation_clicked(not current_state)  
+        elif event.key() == Qt.Key.Key_T:  
+            # Tキー: トラッキングモード切り替え  
+            if self.menu_panel.tracking_annotation_btn.isEnabled():  
+                current_state = self.menu_panel.tracking_annotation_btn.isChecked()  
+                self.menu_panel.tracking_annotation_btn.setChecked(not current_state)  
+                self.menu_panel._on_tracking_annotation_clicked(not current_state)  
+            event.accept()  
+        elif event.key() == Qt.Key.Key_C:  
+            # Cキー: コピーモード切り替え  
+            if self.menu_panel.copy_annotation_btn.isEnabled():  
+                current_state = self.menu_panel.copy_annotation_btn.isChecked()  
+                self.menu_panel.copy_annotation_btn.setChecked(not current_state)  
+                self.menu_panel._on_copy_annotation_clicked(not current_state)  
             event.accept()  
         elif event.key() == Qt.Key.Key_X:  
             # Xキー: 選択アノテーションを削除  
@@ -919,8 +1014,8 @@ class MASAAnnotationWidget(QWidget):
             event.accept()  
         elif event.key() == Qt.Key.Key_R:  
             # Rキー: 実行ボタン  
-            if self.menu_panel.execute_batch_add_btn.isEnabled():  
-                self.menu_panel._on_complete_batch_add_clicked()  
+            if self.menu_panel.execute_add_btn.isEnabled():  
+                self.menu_panel._on_complete_tracking_clicked()  
             event.accept()  
         elif event.key() == Qt.Key.Key_G:  
             # Gキー: フレームジャンプ実行  

@@ -132,7 +132,7 @@ class EditMode(AnnotationMode):
                     displayable_annotations.append(annotation)  
         return displayable_annotations  
   
-class BatchAddMode(AnnotationMode):  
+class TrackingAddMode(AnnotationMode):  
     """一括追加モード（既存アノテーションの編集機能付き）"""  
     def __init__(self, widget):  
         super().__init__(widget)  
@@ -143,13 +143,13 @@ class BatchAddMode(AnnotationMode):
         if event.button() == Qt.MouseButton.LeftButton:  
             pos = event.position().toPoint()  
               
-            # BatchAddMode中は一時的なバッチアノテーションのみを選択対象とする  
+            # TrackingAddMode中は一時的なバッチアノテーションのみを選択対象とする  
             current_mode = self.widget.mode_manager.current_mode_name  
               
-            if current_mode == 'batch_add':  
-                # BatchAddMode: 一時的なバッチアノテーションのみを対象  
+            if current_mode == 'tracking':  
+                # TrackingAddMode: 一時的なバッチアノテーションのみを対象  
                 temp_annotations = [  
-                    ann for ann in self.widget.temp_batch_annotations   
+                    ann for ann in self.widget.temp_tracking_annotations   
                     if ann.frame_id == self.widget.current_frame_id  
                 ]  
                   
@@ -226,11 +226,11 @@ class BatchAddMode(AnnotationMode):
                 bbox = BoundingBox(x1, y1, x2, y2)  
   
                 # 仮のラベルを設定  
-                temp_label = "batch_temp"  
+                temp_label = "tracking_target"  
                 # 仮のTrack IDを設定(-1, -2, -3...)
-                temp_object_id = -(len(self.widget.temp_batch_annotations) + 1)
+                temp_object_id = -(len(self.widget.temp_tracking_annotations) + 1)
   
-                # ObjectAnnotationを作成し、temp_bboxes_for_batch_addに追加  
+                # ObjectAnnotationを作成し、temp_bboxes_for_trackingに追加  
                 annotation = ObjectAnnotation(  
                     object_id=temp_object_id,  # 仮のID、後で割り当てられる  
                     frame_id=self.widget.current_frame_id,  
@@ -238,13 +238,13 @@ class BatchAddMode(AnnotationMode):
                     label=temp_label,  # 仮のラベルを使用  
                     is_manual=True,  # 手動で追加されたものとして扱う  
                     track_confidence=1.0,  
-                    is_batch_added=True  # バッチ追加されたアノテーションとしてマーク  
+                    is_manual_added=True  # バッチ追加されたアノテーションとしてマーク  
                 )  
-                self.widget.parent_ma_widget.temp_bboxes_for_batch_add.append(  
+                self.widget.parent_ma_widget.temp_bboxes_for_tracking.append(  
                     (self.widget.current_frame_id, annotation)  
                 )  
-                # MASAAnnotationWidgetのtemp_bboxes_for_batch_addにも追加  
-                self.widget.add_temp_batch_annotation(annotation)  
+                # MASAAnnotationWidgetのtemp_bboxes_for_trackingにも追加  
+                self.widget.add_temp_tracking_annotation(annotation)  
   
                 self.widget.update_frame_display()  
   
@@ -271,7 +271,7 @@ class ModeManager:
         self.modes = {  
             'view': ViewMode(video_preview_widget),  
             'edit': EditMode(video_preview_widget),  
-            'batch_add': BatchAddMode(video_preview_widget)  
+            'tracking': TrackingAddMode(video_preview_widget)  
         }  
         self._current_mode_name = 'view' # 初期モード名  
         self.current_mode = self.modes[self._current_mode_name]  

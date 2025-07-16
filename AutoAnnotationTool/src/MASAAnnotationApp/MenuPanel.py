@@ -26,7 +26,7 @@ class MenuPanel(QWidget):
     export_requested = pyqtSignal(str)  # format  
       
     edit_mode_requested = pyqtSignal(bool)  
-    batch_add_mode_requested = pyqtSignal(bool)  
+    tracking_mode_requested = pyqtSignal(bool)  
       
     tracking_requested = pyqtSignal(int, str) # assigned_track_id, assigned_label  
       
@@ -35,7 +35,9 @@ class MenuPanel(QWidget):
     delete_track_requested = pyqtSignal(int) # track_id  
     propagate_label_requested = pyqtSignal(int, str) # track_id, new_label  
     align_track_ids_requested = pyqtSignal(str, int)  # label, target_track_id
-      
+    copy_mode_requested = pyqtSignal(bool)  # コピーモードの切り替え  
+    copy_annotations_requested = pyqtSignal(int, str)  # assigned_track_id, assigned_label      
+
     play_requested = pyqtSignal()  
     pause_requested = pyqtSignal()  
       
@@ -315,12 +317,12 @@ class MenuPanel(QWidget):
         layout.addWidget(undo_redo_group)  
 
 
-        # 自動追跡グループ  
-        tracking_group = QGroupBox("Auto Tracking")
+        # 一括追加グループ  
+        tracking_group = QGroupBox("Batch Add Annotations")
         tracking_layout = QVBoxLayout()  
         
-        # BatchAddModeボタン用
-        batch_add_button_style = """  
+        # TrackingAddModeボタン用
+        tracking_button_style = """  
             QPushButton {  
                 background-color: #f0f0f0;  
                 border: 2px solid #ccc;  
@@ -332,23 +334,31 @@ class MenuPanel(QWidget):
                 font-weight: bold;  
             }  
         """  
-        self.batch_add_annotation_btn = QPushButton("Batch Add New Annotations (B)")
-        self.batch_add_annotation_btn.setCheckable(True)  
-        self.batch_add_annotation_btn.setEnabled(True)  
-        self.batch_add_annotation_btn.setStyleSheet(batch_add_button_style)
-        self.batch_add_annotation_btn.clicked.connect(self._on_batch_add_annotation_clicked)  
-        tracking_layout.addWidget(self.batch_add_annotation_btn)  
-          
+        self.tracking_annotation_btn = QPushButton("Add Annotations by Tracking(T)")
+        self.tracking_annotation_btn.setCheckable(True)  
+        self.tracking_annotation_btn.setEnabled(True)  
+        self.tracking_annotation_btn.setStyleSheet(tracking_button_style)
+        self.tracking_annotation_btn.clicked.connect(self._on_tracking_annotation_clicked)  
+        tracking_layout.addWidget(self.tracking_annotation_btn)  
+
+        # コピーモード用のボタンを追加  
+        self.copy_annotation_btn = QPushButton("Add Annotations by Copy(C)")  
+        self.copy_annotation_btn.setCheckable(True)  
+        self.copy_annotation_btn.setEnabled(True)  
+        self.copy_annotation_btn.setStyleSheet(tracking_button_style)  
+        self.copy_annotation_btn.clicked.connect(self._on_copy_annotation_clicked)  
+        tracking_layout.addWidget(self.copy_annotation_btn)
+
         self.tracking_status_label = QLabel("Loading MASA models...")  
         tracking_layout.addWidget(self.tracking_status_label)  
         
         self.tracking_progress_label = QLabel("")  
         tracking_layout.addWidget(self.tracking_progress_label)
 
-        self.execute_batch_add_btn = QPushButton("Run (R)")
-        self.execute_batch_add_btn.setEnabled(False)  
-        self.execute_batch_add_btn.clicked.connect(self._on_complete_batch_add_clicked)  
-        tracking_layout.addWidget(self.execute_batch_add_btn)
+        self.execute_add_btn = QPushButton("Run (R)")
+        self.execute_add_btn.setEnabled(False)  
+        self.execute_add_btn.clicked.connect(self._on_complete_tracking_clicked)  
+        tracking_layout.addWidget(self.execute_add_btn)
           
         self.range_info_label = QLabel("Range: Not Selected")
         tracking_layout.addWidget(self.range_info_label)  
@@ -445,13 +455,17 @@ class MenuPanel(QWidget):
     def _on_edit_mode_clicked(self, checked: bool):  
         """編集モードボタンクリック時の処理"""  
         if checked:  
-            # BatchAddModeがONの場合はOFFにして無効化  
-            if self.batch_add_annotation_btn.isChecked():  
-                self.batch_add_annotation_btn.setChecked(False)  
-            self.batch_add_annotation_btn.setEnabled(False)  
+            # TrackingAddModeがONの場合はOFFにして無効化  
+            if self.tracking_annotation_btn.isChecked():  
+                self.tracking_annotation_btn.setChecked(False)  
+            if self.copy_annotation_btn.isChecked():  
+                self.copy_annotation_btn.setChecked(False)  
+            self.tracking_annotation_btn.setEnabled(False)
+            self.copy_annotation_btn.setEnabled(False)   
         else:  
-            # EditModeがOFFになった時はBatchAddModeボタンを有効化  
-            self.batch_add_annotation_btn.setEnabled(True)  
+            # EditModeがOFFになった時はTrackingAddModeボタンを有効化  
+            self.tracking_annotation_btn.setEnabled(True)  
+            self.copy_annotation_btn.setEnabled(True) 
           
         self.edit_mode_requested.emit(checked)  
         self._update_edit_controls_state(checked)  
@@ -680,24 +694,33 @@ class MenuPanel(QWidget):
             return self.annotation_repository.get_all_labels()  
         return []
       
-    def _on_batch_add_annotation_clicked(self, checked: bool):  
+    def _on_tracking_annotation_clicked(self, checked: bool):  
         """新規アノテーション一括追加ボタンクリック時の処理"""  
         if checked:  
-            # EditModeがONの場合はOFFにして無効化  
+            # EditModeとCopyModeがONの場合はOFFにして無効化  
             if self.edit_mode_btn.isChecked():  
                 self.edit_mode_btn.setChecked(False)  
+            if self.copy_annotation_btn.isChecked():
+                self.copy_annotation_btn.setChecked(False)  
+            
             self.edit_mode_btn.setEnabled(False)  
+            self.copy_annotation_btn.setEnabled(False)
         else:  
-            # BatchAddModeがOFFになった時はEditModeボタンを有効化  
+            # TrackingAddModeがOFFになった時は他のボタンを有効化  
             self.edit_mode_btn.setEnabled(True)  
-          
-        self.batch_add_mode_requested.emit(checked)  
-        self.execute_batch_add_btn.setEnabled(checked)
+            self.copy_annotation_btn.setEnabled(True) 
+        
+        self.tracking_mode_requested.emit(checked)  
+        self.execute_add_btn.setEnabled(checked)
 
-    def _on_complete_batch_add_clicked(self):  
+    def _on_complete_tracking_clicked(self):  
         """一括追加完了ボタンクリック時の処理"""  
-        # temp_bboxes_for_batch_add が空でないことを確認  
-        if not self.parent().parent().temp_bboxes_for_batch_add:  
+        # コピーモードの場合  
+        if self.copy_annotation_btn.isChecked():  
+            return self._handle_copy_mode_execution() 
+
+        # temp_bboxes_for_tracking が空でないことを確認  
+        if not self.parent().parent().temp_bboxes_for_tracking:  
             ErrorHandler.show_warning_dialog("There are no annotations to add.", "Warning")
             return  
   
@@ -706,7 +729,7 @@ class MenuPanel(QWidget):
         # MASAAnnotationWidgetのannotation_repositoryからラベルを取得  
         existing_labels = self.parent().parent().annotation_repository.get_all_labels()   
         dialog = AnnotationInputDialog(None, self, existing_labels=existing_labels) # bboxは不要なのでNone  
-        dialog.setWindowTitle("Select Common Label for Batch Added Annotations")
+        dialog.setWindowTitle("Select Common Label for Tracking Added Annotations")
   
         if dialog.exec() == QDialog.DialogCode.Accepted:  
             assigned_label = dialog.get_label()  
@@ -727,15 +750,12 @@ class MenuPanel(QWidget):
             # assigned_track_id は バッチ追加で追加されるアノテーションのTrack IDの始まりののインデックスになる。
             self.tracking_requested.emit(current_max_track_id, assigned_label)  
               
-            # UIをリセット  
-            self.batch_add_annotation_btn.setChecked(False)  
-            self.execute_batch_add_btn.setEnabled(False)  
         else:  
             ErrorHandler.show_info_dialog("Label selection was cancelled.", "Info")
 
     def set_tracking_enabled(self, enabled: bool):  
         """トラッキング機能の有効/無効を設定"""  
-        self.execute_batch_add_btn.setEnabled(enabled)  
+        self.execute_add_btn.setEnabled(enabled)  
         if not enabled:  
             self.tracking_status_label.setText("Loading MASA models...")  
         else:  
@@ -875,3 +895,43 @@ class MenuPanel(QWidget):
             error_message = f"An error occurred while loading the license for {library_name}:\n{str(e)}"
             print(f"Error: {error_message}")  
             self.license_text.setPlainText(error_message)
+
+    def _on_copy_annotation_clicked(self, checked: bool):  
+        """コピーモードボタンクリック時の処理"""  
+        if checked:  
+            # 他のモードがONの場合はOFFにする  
+            if self.edit_mode_btn.isChecked():  
+                self.edit_mode_btn.setChecked(False)  
+            if self.tracking_annotation_btn.isChecked():  
+                self.tracking_annotation_btn.setChecked(False)  
+            
+            self.edit_mode_btn.setEnabled(False)  
+            self.tracking_annotation_btn.setEnabled(False)  
+        else:  
+            # コピーモードがOFFになった時は他のボタンを有効化  
+            self.edit_mode_btn.setEnabled(True)  
+            self.tracking_annotation_btn.setEnabled(True)  
+        
+        self.copy_mode_requested.emit(checked)  
+        # 実行ボタンの有効/無効を切り替え（既存のexecute_add_btnを流用）  
+        self.execute_add_btn.setEnabled(checked)
+
+    def _handle_copy_mode_execution(self):  
+        """コピーモード実行時の処理"""  
+        # 選択されたアノテーションがあるかチェック  
+        if not self.current_selected_annotation:  
+            ErrorHandler.show_warning_dialog("Please select an annotation to copy.", "Warning")  
+            return  
+        
+        # フレーム範囲の取得  
+        start_frame, end_frame = self.parent().parent().video_control.get_selected_range()  
+        if start_frame == -1 or end_frame == -1:  
+            ErrorHandler.show_warning_dialog("No frame range selected.", "Warning")  
+            return  
+        
+        # 新しいTrack IDを取得  
+        current_max_track_id = self.parent().parent().annotation_repository.next_object_id  
+        
+        # コピー処理を要求  
+        self.copy_annotations_requested.emit(current_max_track_id, self.current_selected_annotation.label)  
+        
