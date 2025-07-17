@@ -294,6 +294,8 @@ class MenuPanel(QWidget):
     def update_video_info(self, video_path: str, total_frames: int):  
         self.basic_tab.update_video_info(video_path, total_frames)  
         self.annotation_tab.edit_mode_btn.setEnabled(True)  
+        self.annotation_tab.tracking_annotation_btn.setEnabled(True)  
+        self.annotation_tab.copy_annotations_btn.setEnabled(True)
       
     def update_json_info(self, json_path: str, annotation_count: int):  
         self.basic_tab.update_json_info(json_path, annotation_count)  

@@ -230,7 +230,7 @@ class BasicTabWidget(QWidget):
                 self.main_widget.video_control.set_total_frames(self.main_widget.video_manager.get_total_frames())  
                 self.main_widget.video_control.set_current_frame(0)  
                   
-                self.update_video_info(file_path, self.main_widget.video_manager.get_total_frames())  
+                self.main_widget.menu_panel.update_video_info(file_path, self.main_widget.video_manager.get_total_frames())  
                 self.play_btn.setEnabled(True)  
                   
                 ErrorHandler.show_info_dialog(f"Video loaded: {file_path}", "Success")  
