@@ -257,15 +257,7 @@ class MenuPanel(QWidget):
     @current_selected_annotation.setter  
     def current_selected_annotation(self, value):  
         self.annotation_tab.current_selected_annotation = value  
-      
-    @property  
-    def current_selected_annotation_label(self):  
-        return self.annotation_tab.current_selected_annotation_label  
-      
-    @current_selected_annotation_label.setter  
-    def current_selected_annotation_label(self, value):  
-        self.annotation_tab.current_selected_annotation_label = value  
-      
+            
     # 各タブのUIコンポーネントへのアクセス用プロパティ  
     @property  
     def edit_mode_btn(self):  

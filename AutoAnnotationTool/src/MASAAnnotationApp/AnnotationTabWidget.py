@@ -13,6 +13,7 @@ from ErrorHandler import ErrorHandler
 from DataClass import ObjectAnnotation, BoundingBox  
 from AnnotationInputDialog import AnnotationInputDialog  
 from CommandPattern import AddAnnotationCommand  
+from Utilities import show_call_stack
   
 class AnnotationTabWidget(QWidget):  
     """アノテーション編集タブウィジェット（編集・トラッキング・コピー機能）"""  
@@ -43,7 +44,6 @@ class AnnotationTabWidget(QWidget):
           
         # アノテーション選択状態  
         self.current_selected_annotation: Optional[ObjectAnnotation] = None  
-        self.current_selected_annotation_label: Optional[str] = None  
           
         self.setup_ui()  
       
@@ -86,7 +86,7 @@ class AnnotationTabWidget(QWidget):
           
         self.label_combo = QComboBox()  
         self.label_combo.setEditable(True)  
-        self.label_combo.setEnabled(False)  
+        self.label_combo.setEnabled(True)  
         self.label_combo.currentIndexChanged.connect(self._on_label_changed)  
         edit_layout.addWidget(QLabel("Label:"))  
         edit_layout.addWidget(self.label_combo)  
@@ -355,10 +355,6 @@ class AnnotationTabWidget(QWidget):
   
     def _on_label_changed(self, index: int):  
         """ラベル変更時の処理"""  
-        # ドラッグ操作中やプログラム的な更新中はスキップ  
-        if (hasattr(self, '_updating_annotation_info') and self._updating_annotation_info):  
-            return  
-            
         if self.current_selected_annotation and index >= 0:  
             new_label = self.label_combo.currentText().strip()  
             if new_label and new_label != self.current_selected_annotation.label:  
@@ -541,39 +537,75 @@ class AnnotationTabWidget(QWidget):
     # UI更新メソッド  
     def update_selected_annotation_info(self, annotation: Optional[ObjectAnnotation]):  
         """選択されたアノテーション情報を更新"""  
-        self._updating_annotation_info = True
         self.current_selected_annotation = annotation  
-          
-        if annotation:  
-            self.current_selected_annotation_label = annotation.label  
-            self.label_combo.setCurrentText(annotation.label)  
-            self.track_id_edit.setText(str(annotation.object_id))  
-              
-            # ボタンの有効化  
-            self.delete_single_annotation_btn.setEnabled(True)  
-            self.delete_track_btn.setEnabled(True)  
-            self.propagate_label_btn.setEnabled(True)  
-            self.align_track_ids_btn.setEnabled(True)  
-            self.copy_annotation_btn.setEnabled(True)  
-        else:  
-            self.current_selected_annotation_label = None  
-            self.label_combo.setCurrentText("")  
-            self.track_id_edit.setText("")  
-              
-            # ボタンの無効化  
-            self.delete_single_annotation_btn.setEnabled(False)  
-            self.delete_track_btn.setEnabled(False)  
-            self.propagate_label_btn.setEnabled(False)  
-            self.align_track_ids_btn.setEnabled(False)  
-            self.copy_annotation_btn.setEnabled(False)  
+        self.label_combo.blockSignals(True)  # シグナルを一時的にブロック  
+        
+        try:  
+            if annotation:  
+                self.current_selected_annotation_label = annotation.label  
+                
+                # 既存のラベルをコンボボックスに追加（重複チェック）  
+                current_labels = [self.label_combo.itemText(i) for i in range(self.label_combo.count())]  
+                if annotation.label not in current_labels:  
+                    self.label_combo.addItem(annotation.label)  
+                
+                # 現在のラベルを選択  
+                index = self.label_combo.findText(annotation.label)  
+                if index >= 0:  
+                    self.label_combo.setCurrentIndex(index)  
+                else:  
+                    self.label_combo.addItem(annotation.label)  
+                    self.label_combo.setCurrentText(annotation.label)  
+                
+                self.track_id_edit.setText(str(annotation.object_id))  
+                
+                # ボタンの有効化  
+                self.delete_single_annotation_btn.setEnabled(True)  
+                self.delete_track_btn.setEnabled(True)  
+                self.propagate_label_btn.setEnabled(True)  
+                self.align_track_ids_btn.setEnabled(True)  
+                self.copy_annotation_btn.setEnabled(True)  
+            else:  
+                self.current_selected_annotation_label = None  
+                self.label_combo.setCurrentText("")  
+                self.track_id_edit.setText("")  
+                
+                # ボタンの無効化  
+                self.delete_single_annotation_btn.setEnabled(False)  
+                self.delete_track_btn.setEnabled(False)  
+                self.propagate_label_btn.setEnabled(False)  
+                self.align_track_ids_btn.setEnabled(False)  
+                self.copy_annotation_btn.setEnabled(False)  
+        finally:  
+            self.label_combo.blockSignals(False)  # シグナルブロックを解除
   
     def initialize_label_combo(self, labels: List[str]):  
         """ラベルコンボボックスを初期化"""  
-        current_text = self.label_combo.currentText()  
-        self.label_combo.clear()  
-        self.label_combo.addItems(labels)  
-        if current_text:  
-            self.label_combo.setCurrentText(current_text)  
+        # 現在選択されているラベルを一時的に保持  
+        current_selected_label = self.label_combo.currentText()  
+        
+        self.label_combo.blockSignals(True)  # シグナルを一時的にブロック  
+        self.label_combo.clear()  # 既存のアイテムをクリア  
+        
+        # 新しいラベルを追加  
+        for label in sorted(list(set(labels))):  # 重複を排除しソート  
+            self.label_combo.addItem(label)  
+        
+        # 以前選択されていたラベルを再設定  
+        if current_selected_label and self.label_combo.findText(current_selected_label) >= 0:  
+            self.label_combo.setCurrentText(current_selected_label)  
+        elif self.current_selected_annotation:  # 現在選択中のアノテーションのラベルを優先  
+            index = self.label_combo.findText(self.current_selected_annotation.label)  
+            if index >= 0:  
+                self.label_combo.setCurrentIndex(index)  
+            else:  
+                # もし現在のラベルがリストにない場合は追加して選択  
+                self.label_combo.addItem(self.current_selected_annotation.label)  
+                self.label_combo.setCurrentText(self.current_selected_annotation.label)  
+        elif self.label_combo.count() > 0:  
+            self.label_combo.setCurrentIndex(0)  # リストが空でなければ最初の要素を選択  
+            
+        self.label_combo.blockSignals(False)  # シグナルブロックを解除
   
     def update_range_info(self, start_frame: int, end_frame: int):  
         """範囲情報を更新"""  
