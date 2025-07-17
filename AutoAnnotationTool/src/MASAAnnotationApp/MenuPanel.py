@@ -117,7 +117,6 @@ class MenuPanel(QWidget):
         self.basic_tab.export_requested.connect(self.export_requested)  
         self.basic_tab.play_requested.connect(self.play_requested)  
         self.basic_tab.pause_requested.connect(self.pause_requested)  
-        self.basic_tab.config_changed.connect(self.config_changed)  
           
         # AnnotationTabからのシグナル転送  
         self.annotation_tab.edit_mode_requested.connect(self.edit_mode_requested)  
@@ -133,24 +132,24 @@ class MenuPanel(QWidget):
         self.annotation_tab.copy_annotation_requested.connect(self.copy_annotation_requested)  
         self.annotation_tab.paste_annotation_requested.connect(self.paste_annotation_requested)  
       
+        # ObjectListTabからのシグナル転送を追加  
+        self.object_list_tab.config_changed.connect(self.config_changed)
+
     def _connect_config_signals(self):  
         """ConfigManagerからの設定変更シグナルを接続"""  
         self.config_manager.add_observer(self._on_config_changed)  
       
-    def _on_config_changed(self, key: str, value: object, config_type: str):    
-        """ConfigManagerからの設定変更を処理"""    
-        if config_type == "display":  
-            if key == "score_threshold":    
-                self.basic_tab.score_threshold_spinbox.setValue(value)  
-            
-            # ObjectListTabWidgetの表示設定も更新  
-            display_options = self.config_manager.get_full_config(config_type="display")  
-            self.update_object_list_display_settings(  
-                display_options.show_manual_annotations,  
-                display_options.show_auto_annotations,   
-                display_options.score_threshold  
+    def _on_config_changed(self, key: str, value: object, config_type: str):      
+        """ConfigManagerからの設定変更を処理"""      
+        if config_type == "display":    
+            # ObjectListTabWidgetの表示設定を更新    
+            display_options = self.config_manager.get_full_config(config_type="display")    
+            self.update_object_list_display_settings(    
+                display_options.show_manual_annotations,    
+                display_options.show_auto_annotations,     
+                display_options.score_threshold    
             )
-      
+
     def keyPressEvent(self, event: QKeyEvent):  
         """MenuPanel関連のキーボードショートカット"""  
         # Ctrlキー組み合わせの処理  
