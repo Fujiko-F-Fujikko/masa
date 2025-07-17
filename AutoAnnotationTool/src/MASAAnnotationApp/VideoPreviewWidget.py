@@ -382,8 +382,7 @@ class VideoPreviewWidget(QLabel):
             self.update_frame_display()  
             
             # Undo/Redoボタンの状態も更新（on_annotation_selectedから）  
-            if hasattr(self.main_widget.menu_panel, 'update_undo_redo_buttons'):  
-                self.main_widget.menu_panel.update_undo_redo_buttons(self.main_widget.command_manager)  
+            self.main_widget.menu_panel.update_undo_redo_buttons(self.main_widget.command_manager)  
         finally:  
             self._updating_selection = False
 

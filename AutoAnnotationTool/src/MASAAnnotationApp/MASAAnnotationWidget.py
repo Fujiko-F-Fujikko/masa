@@ -133,6 +133,9 @@ class MASAAnnotationWidget(QWidget):
         # 設定変更関連
         self.menu_panel.config_changed.connect(self.on_config_changed)
 
+        # VideoPreviewWidgetからのアノテーション選択シグナルを接続  
+        self.video_preview.annotation_selected.connect(self.on_annotation_selected)
+
     # 残存する主要メソッド（コンポーネント間調整役）  
     def set_edit_mode(self, enabled: bool):    
         """編集モードの設定とUIの更新"""    
@@ -402,6 +405,25 @@ class MASAAnnotationWidget(QWidget):
             self.menu_panel.object_list_tab.show_manual_cb.setChecked(display_options.show_manual_annotations)  
             self.menu_panel.object_list_tab.show_auto_cb.setChecked(display_options.show_auto_annotations)  
             self.menu_panel.object_list_tab._apply_filters()
+
+    def on_annotation_selected(self, annotation: Optional[ObjectAnnotation]):  
+        """アノテーション選択時の処理（中央集権的制御）"""  
+        if hasattr(self, '_updating_selection') and self._updating_selection:  
+            return  
+            
+        self._updating_selection = True  
+        try:  
+            # MenuPanelの情報を更新  
+            self.menu_panel.update_selected_annotation_info(annotation)  
+            
+            # ObjectListTabWidgetの選択状態も更新（双方向同期）  
+            self.menu_panel.update_object_list_selection(annotation)  
+            
+            # Undo/Redoボタンの状態も更新  
+            if hasattr(self.menu_panel, 'update_undo_redo_buttons'):  
+                self.menu_panel.update_undo_redo_buttons(self.command_manager)  
+        finally:  
+            self._updating_selection = False
 
     def closeEvent(self, event):  
         """アプリケーション終了時のクリーンアップ"""  
