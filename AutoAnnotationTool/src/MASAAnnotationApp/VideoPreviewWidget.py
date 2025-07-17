@@ -254,7 +254,7 @@ class VideoPreviewWidget(QLabel):
         current_frame = self.main_widget.video_control.current_frame  
           
         if self.mode_manager.current_mode_name == 'edit':  
-            dialog = AnnotationInputDialog(bbox, self, existing_labels=self.annotation_repository.get_all_labels())  
+            dialog = AnnotationInputDialog(bbox, existing_labels=self.annotation_repository.get_all_labels())  
             if dialog.exec() == QDialog.DialogCode.Accepted:  
                 label = dialog.get_label()  
                 if label:  
@@ -287,6 +287,7 @@ class VideoPreviewWidget(QLabel):
             pass  
         else:  
             ErrorHandler.show_warning_dialog("bbox_created was called in an unknown mode.", "Warning") 
+
     def on_annotation_updated(self, annotation: ObjectAnnotation):  
         """アノテーション更新時の処理（内部処理版）"""  
         if hasattr(annotation, 'is_manual_added') and annotation.is_manual_added:  
