@@ -362,27 +362,89 @@ class AnnotationTabWidget(QWidget):
   
     def _on_delete_single_annotation_clicked(self):  
         """単一アノテーション削除ボタンクリック時の処理"""  
-        if self.current_selected_annotation:  
-            self.delete_single_annotation_requested.emit(self.current_selected_annotation)  
+        if not self.current_selected_annotation:  
+            return  
+            
+        reply = QMessageBox.question(  
+            self, "Confirm Delete Annotation",  
+            f"Do you want to delete the annotation for SELECTED frame {self.current_selected_annotation.frame_id} (ID: {self.current_selected_annotation.object_id}, label: '{self.current_selected_annotation.label}')?",  
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+        )  
+        
+        if reply == QMessageBox.StandardButton.Yes:  
+            self.delete_single_annotation_requested.emit(self.current_selected_annotation)
   
     def _on_delete_track_clicked(self):  
         """トラック削除ボタンクリック時の処理"""  
-        if self.current_selected_annotation:  
-            self.delete_track_requested.emit(self.current_selected_annotation.object_id)  
+        if not self.current_selected_annotation:  
+            return  
+            
+        track_id_to_delete = self.current_selected_annotation.object_id  
+        reply = QMessageBox.question(  
+            self, "Confirm ALL Track Deletion",  
+            f"Do you want to delete ALL annotations with Track ID '{track_id_to_delete}'?\n"  
+            "This action cannot be undone.",  
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+        )  
+        
+        if reply == QMessageBox.StandardButton.Yes:  
+            self.delete_track_requested.emit(track_id_to_delete)
   
     def _on_propagate_label_clicked(self):  
         """ラベル伝播ボタンクリック時の処理"""  
-        if self.current_selected_annotation:  
-            new_label = self.label_combo.currentText().strip()  
-            if new_label:  
-                self.propagate_label_requested.emit(self.current_selected_annotation.object_id, new_label)  
+        if not self.current_selected_annotation:  
+            return  
+            
+        track_id_to_change = self.current_selected_annotation.object_id  
+        current_label = self.current_selected_annotation.label  
+        
+        # 既存のラベル一覧を取得  
+        existing_labels = self.annotation_repository.get_all_labels()  
+        
+        # ダイアログでラベル入力  
+        dialog = AnnotationInputDialog(  
+            BoundingBox(0, 0, 1, 1),  
+            self,  
+            existing_labels=existing_labels,  
+            default_label=current_label  
+        )  
+        dialog.setWindowTitle(f"Change Label for ALL with Track ID {track_id_to_change}")  
+        
+        if dialog.exec() == QDialog.DialogCode.Accepted:  
+            new_label = dialog.get_label()  
+            if not new_label:  
+                ErrorHandler.show_warning_dialog("No label selected.", "Warning")  
+                return  
+                
+            # 確認ダイアログ  
+            reply = QMessageBox.question(  
+                self, "Confirm ALL Track Label Change",  
+                f"Do you want to change the label of ALL annotations with Track ID '{track_id_to_change}' to '{new_label}'?",  
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+            )  
+            
+            if reply == QMessageBox.StandardButton.Yes:  
+                self.propagate_label_requested.emit(track_id_to_change, new_label)  
+        else:  
+            ErrorHandler.show_info_dialog("Label selection was cancelled.", "Info")
   
     def _on_align_track_ids_clicked(self):  
         """Track ID統一ボタンクリック時の処理"""  
-        if self.current_selected_annotation:  
-            target_label = self.current_selected_annotation.label  
-            target_track_id = self.current_selected_annotation.object_id  
-            self.align_track_ids_requested.emit(target_label, target_track_id)  
+        if not self.current_selected_annotation:  
+            return  
+            
+        target_label = self.current_selected_annotation.label  
+        target_track_id = self.current_selected_annotation.object_id  
+        
+        reply = QMessageBox.question(  
+            self, "Confirm Track ID Alignment",  
+            f"Do you want to align ALL annotations with label '{target_label}' to Track ID '{target_track_id}'?\n"  
+            "This will change the Track ID of all annotations with the same label.",  
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+        )  
+        
+        if reply == QMessageBox.StandardButton.Yes:  
+            self.align_track_ids_requested.emit(target_label, target_track_id)
   
     def _on_copy_annotation_clicked(self):  
         """アノテーションコピーボタンクリック時の処理"""  
