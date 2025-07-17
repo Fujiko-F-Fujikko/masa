@@ -20,7 +20,9 @@ from TrackingWorker import TrackingWorker
 from ConfigManager import ConfigManager      
 from ErrorHandler import ErrorHandler      
 from CommandPattern import CommandManager, DeleteAnnotationCommand, DeleteTrackCommand, \
-                            UpdateLabelCommand, UpdateLabelByTrackCommand, AlignTrackIdsByLabelCommand  
+                            UpdateLabelCommand, UpdateLabelByTrackCommand, AlignTrackIdsByLabelCommand, \
+                            AddAnnotationCommand  
+
   
 class ButtonKeyEventFilter(QObject):      
     def eventFilter(self, obj, event):      
@@ -135,6 +137,10 @@ class MASAAnnotationWidget(QWidget):
 
         # VideoPreviewWidgetからのアノテーション選択シグナルを接続  
         self.video_preview.annotation_selected.connect(self.on_annotation_selected)
+
+        # コピー・ペースト関連のシグナル接続
+        self.menu_panel.copy_annotation_requested.connect(self.copy_selected_annotation)  
+        self.menu_panel.paste_annotation_requested.connect(self.paste_annotation)
 
     # 残存する主要メソッド（コンポーネント間調整役）  
     def set_edit_mode(self, enabled: bool):    
@@ -424,6 +430,106 @@ class MASAAnnotationWidget(QWidget):
                 self.menu_panel.update_undo_redo_buttons(self.command_manager)  
         finally:  
             self._updating_selection = False
+
+    def copy_selected_annotation(self):  
+        """選択中のアノテーションをクリップボードにコピー"""  
+        selected_annotation = self.menu_panel.current_selected_annotation  
+        if not selected_annotation:  
+            ErrorHandler.show_warning_dialog("No annotation selected to copy.", "Copy Error")  
+            return  
+        
+        # MenuPanelのクリップボードに保存（ディープコピー）  
+        self.menu_panel.clipboard_annotation = ObjectAnnotation(  
+            object_id=selected_annotation.object_id,  
+            frame_id=selected_annotation.frame_id,  
+            bbox=BoundingBox(  
+                selected_annotation.bbox.x1,  
+                selected_annotation.bbox.y1,  
+                selected_annotation.bbox.x2,  
+                selected_annotation.bbox.y2,  
+                confidence=selected_annotation.bbox.confidence  
+            ),  
+            label=selected_annotation.label,  
+            is_manual=selected_annotation.is_manual,  
+            track_confidence=selected_annotation.track_confidence,  
+            is_manual_added=selected_annotation.is_manual_added  
+        )  
+        
+        # paste_annotation_btnの状態を更新  
+        self._update_paste_button_state()  
+        print(f"--- Copied annotation: {selected_annotation.label} ---")
+
+    def _update_paste_button_state(self):  
+        """paste_annotation_btnの状態を更新"""  
+        if hasattr(self.menu_panel, 'paste_annotation_btn'):  
+            paste_enabled = (self.menu_panel.clipboard_annotation is not None and   
+                            self.menu_panel.edit_mode_btn.isChecked())  
+            self.menu_panel.paste_annotation_btn.setEnabled(paste_enabled)
+
+    def paste_annotation(self):  
+        """クリップボードのアノテーションを現在のフレームにペースト"""  
+        if not self.menu_panel.clipboard_annotation:  
+            ErrorHandler.show_warning_dialog("No annotation in clipboard.", "Paste Error")  
+            return  
+        
+        if not self.video_manager:  
+            ErrorHandler.show_warning_dialog("Please load a video file first.", "Paste Error")  
+            return  
+        
+        current_frame = self.video_control.current_frame  
+        
+        # 現在のconfidence閾値を取得  
+        display_config = self.config_manager.get_full_config(config_type="display")  
+        threshold = display_config.score_threshold  
+        
+        # 現在のフレームのアノテーションを取得して重複チェック  
+        frame_annotation = self.annotation_repository.get_annotations(current_frame)  
+        use_original_track_id = True  
+        
+        if frame_annotation and frame_annotation.objects:  
+            for existing_annotation in frame_annotation.objects:  
+                # confidence閾値以上のアノテーションのみをチェック対象とする  
+                if (existing_annotation.is_manual or existing_annotation.bbox.confidence >= threshold):  
+                    # 同じラベルで同じTrack IDのアノテーションが既に存在するかチェック  
+                    if (existing_annotation.label == self.menu_panel.clipboard_annotation.label and   
+                        existing_annotation.object_id == self.menu_panel.clipboard_annotation.object_id):  
+                        use_original_track_id = False  
+                        break 
+        
+        # Track IDを決定  
+        target_object_id = self.menu_panel.clipboard_annotation.object_id if use_original_track_id else -1  
+        
+        # 新しいアノテーションを作成  
+        new_annotation = ObjectAnnotation(  
+            object_id=target_object_id,  
+            frame_id=current_frame,  
+            bbox=BoundingBox(  
+                self.menu_panel.clipboard_annotation.bbox.x1,  
+                self.menu_panel.clipboard_annotation.bbox.y1,  
+                self.menu_panel.clipboard_annotation.bbox.x2,  
+                self.menu_panel.clipboard_annotation.bbox.y2,  
+                confidence=1.0  
+            ),  
+            label=self.menu_panel.clipboard_annotation.label,  
+            is_manual=True,  
+            track_confidence=1.0,  
+            is_manual_added=True  
+        )  
+        
+        # コマンドパターンでアノテーション追加  
+        command = AddAnnotationCommand(self.annotation_repository, new_annotation)  
+        if self.command_manager.execute_command(command):  
+            self.update_annotation_count()  
+            self.video_preview.update_frame_display()  
+            
+            # 新しく作成されたアノテーションを選択状態にする  
+            self.video_preview.bbox_editor.selected_annotation = new_annotation  
+            self.video_preview.bbox_editor.selection_changed.emit(new_annotation)  
+            
+            track_id_info = f"(Track ID: {new_annotation.object_id})" if use_original_track_id else f"(New Track ID: {new_annotation.object_id})"  
+            print(f"--- Pasted annotation: {new_annotation.label} at frame {current_frame} {track_id_info} ---")  
+        else:  
+            ErrorHandler.show_error_dialog("Failed to paste annotation.", "Paste Error")
 
     def closeEvent(self, event):  
         """アプリケーション終了時のクリーンアップ"""  
