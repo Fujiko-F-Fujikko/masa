@@ -9,7 +9,6 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont  
   
 from ConfigManager import ConfigManager  
-from ErrorHandler import ErrorHandler  
 from DataClass import ObjectAnnotation, FrameAnnotation  
   
 class ObjectListTabWidget(QWidget):  

@@ -2,18 +2,15 @@
 from typing import Dict, List, Any, Optional  
 from PyQt6.QtWidgets import (  
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,  
-    QPushButton, QGroupBox, QCheckBox, QLineEdit,  
+    QPushButton, QGroupBox, QLineEdit,  
     QMessageBox, QComboBox, QDialog  
 )  
-from PyQt6.QtCore import Qt, pyqtSignal  
-from PyQt6.QtGui import QFont, QKeyEvent  
+from PyQt6.QtCore import pyqtSignal  
   
 from ConfigManager import ConfigManager  
 from ErrorHandler import ErrorHandler  
 from DataClass import ObjectAnnotation, BoundingBox  
 from AnnotationInputDialog import AnnotationInputDialog  
-from CommandPattern import AddAnnotationCommand  
-from Utilities import show_call_stack
   
 class AnnotationTabWidget(QWidget):  
     """アノテーション編集タブウィジェット（編集・トラッキング・コピー機能）"""  

@@ -1,16 +1,13 @@
 # BasicTabWidget.py  
-from typing import Dict, List, Any, Optional  
 from pathlib import Path  
 from datetime import datetime  
   
 from PyQt6.QtWidgets import (  
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,  
-    QPushButton, QGroupBox, QCheckBox, QLineEdit,  
-    QMessageBox, QComboBox, QFileDialog,  
+    QPushButton, QGroupBox, QCheckBox, QFileDialog,  
     QDoubleSpinBox  
 )  
-from PyQt6.QtCore import Qt, pyqtSignal  
-from PyQt6.QtGui import QFont, QKeyEvent  
+from PyQt6.QtCore import pyqtSignal  
   
 from ConfigManager import ConfigManager  
 from ErrorHandler import ErrorHandler  

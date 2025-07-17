@@ -1,11 +1,7 @@
 # MenuPanel.py  
-from typing import Dict, List, Any, Optional  
-from pathlib import Path  
+from typing import List, Optional  
 from PyQt6.QtWidgets import (  
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel,  
-    QPushButton, QGroupBox, QCheckBox, QLineEdit,  
-    QMessageBox, QTabWidget, QComboBox, QFileDialog,  
-    QDoubleSpinBox, QDialog, QTextEdit, QSplitter  
+    QWidget, QVBoxLayout, QLabel, QTabWidget
 )  
 from PyQt6.QtCore import Qt, pyqtSignal  
 from PyQt6.QtGui import QFont, QKeyEvent  
@@ -16,7 +12,6 @@ from ObjectListTabWidget import ObjectListTabWidget
 from LicenseTabWidget import LicenseTabWidget  
 from ConfigManager import ConfigManager  
 from DataClass import ObjectAnnotation
-from ErrorHandler import ErrorHandler  
   
 class MenuPanel(QWidget):  
     """タブベースの左側メニューパネル（分割版）"""  
