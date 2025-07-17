@@ -355,10 +355,14 @@ class AnnotationTabWidget(QWidget):
   
     def _on_label_changed(self, index: int):  
         """ラベル変更時の処理"""  
+        # ドラッグ操作中やプログラム的な更新中はスキップ  
+        if (hasattr(self, '_updating_annotation_info') and self._updating_annotation_info):  
+            return  
+            
         if self.current_selected_annotation and index >= 0:  
             new_label = self.label_combo.currentText().strip()  
             if new_label and new_label != self.current_selected_annotation.label:  
-                self.label_change_requested.emit(self.current_selected_annotation, new_label)  
+                self.label_change_requested.emit(self.current_selected_annotation, new_label)
   
     def _on_delete_single_annotation_clicked(self):  
         """単一アノテーション削除ボタンクリック時の処理"""  
@@ -537,6 +541,7 @@ class AnnotationTabWidget(QWidget):
     # UI更新メソッド  
     def update_selected_annotation_info(self, annotation: Optional[ObjectAnnotation]):  
         """選択されたアノテーション情報を更新"""  
+        self._updating_annotation_info = True
         self.current_selected_annotation = annotation  
           
         if annotation:  
