@@ -272,15 +272,7 @@ class AnnotationTabWidget(QWidget):
             ErrorHandler.show_info_dialog("Copy mode disabled.", "Mode Change")  
           
         self.main_widget.video_preview.update_frame_display()  
-
-    def start_tracking(self, assigned_track_id: int, assigned_label: str):  
-        """自動追跡を開始（MASAAnnotationWidgetから移動）"""  
-        self.tracking_requested.emit(assigned_track_id, assigned_label)  
-  
-    def start_copy_annotations(self, assigned_track_id: int, assigned_label: str):  
-        """選択されたアノテーションのコピーを開始（MASAAnnotationWidgetから移動）"""  
-        self.copy_annotations_requested.emit(assigned_track_id, assigned_label)  
-  
+    
     # イベントハンドラー  
     def _on_edit_mode_clicked(self, checked: bool):  
         """編集モードボタンクリック時の処理"""  
@@ -404,7 +396,6 @@ class AnnotationTabWidget(QWidget):
         # ダイアログでラベル入力  
         dialog = AnnotationInputDialog(  
             BoundingBox(0, 0, 1, 1),  
-            self,  
             existing_labels=existing_labels,  
             default_label=current_label  
         )  
@@ -489,7 +480,7 @@ class AnnotationTabWidget(QWidget):
   
         # 共通ラベル入力ダイアログを表示  
         existing_labels = self.annotation_repository.get_all_labels()  
-        dialog = AnnotationInputDialog(None, self, existing_labels=existing_labels)  
+        dialog = AnnotationInputDialog(None, existing_labels=existing_labels)  
         dialog.setWindowTitle("Select Common Label for Tracking Added Annotations")  
   
         if dialog.exec() == QDialog.DialogCode.Accepted:  
@@ -513,16 +504,24 @@ class AnnotationTabWidget(QWidget):
         if not self.current_selected_annotation:  
             ErrorHandler.show_warning_dialog("Please select an annotation to copy.", "Warning")  
             return  
-  
+    
         start_frame, end_frame = self.main_widget.video_control.get_selected_range()  
         if start_frame == -1 or end_frame == -1:  
             ErrorHandler.show_warning_dialog("No frame range selected.", "Warning")  
             return  
-  
+    
         existing_labels = self.annotation_repository.get_all_labels()  
-        dialog = AnnotationInputDialog(None, self, existing_labels=existing_labels)  
-        dialog.setWindowTitle("Select Label for Copied Annotations")  
-  
+        
+        # コピー元のラベルをデフォルトとして設定  
+        default_label = self.current_selected_annotation.label  
+        
+        dialog = AnnotationInputDialog(  
+            None,   
+            existing_labels=existing_labels,  
+            default_label=default_label  
+        )  
+        dialog.setWindowTitle("Select Label for Copied Annotations")    
+ 
         if dialog.exec() == QDialog.DialogCode.Accepted:  
             assigned_label = dialog.get_label()  
             if not assigned_label:  
