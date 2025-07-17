@@ -284,23 +284,74 @@ class AnnotationTabWidget(QWidget):
     # イベントハンドラー  
     def _on_edit_mode_clicked(self, checked: bool):  
         """編集モードボタンクリック時の処理"""  
+        if checked:  
+            # Edit Modeがオンの時は他のモードボタンを無効化  
+            self.tracking_annotation_btn.setEnabled(False)  
+            self.copy_annotations_btn.setEnabled(False)  
+            
+            # 他のモードがオンの場合はオフにする  
+            if self.tracking_annotation_btn.isChecked():  
+                self.tracking_annotation_btn.setChecked(False)  
+                self.set_tracking_mode(False)  
+            if self.copy_annotations_btn.isChecked():  
+                self.copy_annotations_btn.setChecked(False)  
+                self.set_copy_mode(False)  
+        else:  
+            # Edit Modeがオフの時は他のモードボタンを有効化  
+            self.tracking_annotation_btn.setEnabled(True)  
+            self.copy_annotations_btn.setEnabled(True)  
+        
         self.edit_mode_requested.emit(checked)  
-  
+
     def _on_tracking_annotation_clicked(self, checked: bool):  
         """トラッキングモードボタンクリック時の処理"""  
         if checked:  
+            # Tracking Modeがオンの時は他のモードボタンを無効化  
+            self.edit_mode_btn.setEnabled(False)  
+            self.copy_annotations_btn.setEnabled(False)  
+            
+            # 他のモードがオンの場合はオフにする  
+            if self.edit_mode_btn.isChecked():  
+                self.edit_mode_btn.setChecked(False)  
+                # edit_mode_requestedシグナルを発行してedit modeを無効化  
+                self.edit_mode_requested.emit(False)  
+            if self.copy_annotations_btn.isChecked():  
+                self.copy_annotations_btn.setChecked(False)  
+                self.set_copy_mode(False)  
+            
             self.set_tracking_mode(True)  
         else:  
+            # Tracking Modeがオフの時は他のモードボタンを有効化  
+            self.edit_mode_btn.setEnabled(True)  
+            self.copy_annotations_btn.setEnabled(True)  
             self.set_tracking_mode(False)  
-        self.tracking_mode_requested.emit(checked)  
+        
+        self.tracking_mode_requested.emit(checked)
   
     def _on_copy_annotations_clicked(self, checked: bool):  
         """コピーモードボタンクリック時の処理"""  
         if checked:  
+            # Copy Modeがオンの時は他のモードボタンを無効化  
+            self.edit_mode_btn.setEnabled(False)  
+            self.tracking_annotation_btn.setEnabled(False)  
+            
+            # 他のモードがオンの場合はオフにする  
+            if self.edit_mode_btn.isChecked():  
+                self.edit_mode_btn.setChecked(False)  
+                # edit_mode_requestedシグナルを発行してedit modeを無効化  
+                self.edit_mode_requested.emit(False)  
+            if self.tracking_annotation_btn.isChecked():  
+                self.tracking_annotation_btn.setChecked(False)  
+                self.set_tracking_mode(False)  
+            
             self.set_copy_mode(True)  
         else:  
+            # Copy Modeがオフの時は他のモードボタンを有効化  
+            self.edit_mode_btn.setEnabled(True)  
+            self.tracking_annotation_btn.setEnabled(True)  
             self.set_copy_mode(False)  
-        self.copy_mode_requested.emit(checked)  
+        
+        self.copy_mode_requested.emit(checked)
   
     def _on_label_changed(self, index: int):  
         """ラベル変更時の処理"""  
