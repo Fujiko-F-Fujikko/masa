@@ -142,10 +142,19 @@ class MenuPanel(QWidget):
         """ConfigManagerからの設定変更シグナルを接続"""  
         self.config_manager.add_observer(self._on_config_changed)  
       
-    def _on_config_changed(self, key: str, value: object, config_type: str):  
-        """ConfigManagerからの設定変更を処理"""  
-        if config_type == "display" and key == "score_threshold":  
-            self.basic_tab.score_threshold_spinbox.setValue(value)  
+    def _on_config_changed(self, key: str, value: object, config_type: str):    
+        """ConfigManagerからの設定変更を処理"""    
+        if config_type == "display":  
+            if key == "score_threshold":    
+                self.basic_tab.score_threshold_spinbox.setValue(value)  
+            
+            # ObjectListTabWidgetの表示設定も更新  
+            display_options = self.config_manager.get_full_config(config_type="display")  
+            self.update_object_list_display_settings(  
+                display_options.show_manual_annotations,  
+                display_options.show_auto_annotations,   
+                display_options.score_threshold  
+            )
       
     def keyPressEvent(self, event: QKeyEvent):  
         """MenuPanel関連のキーボードショートカット"""  
@@ -351,3 +360,7 @@ class MenuPanel(QWidget):
       
     def get_object_list_widget(self):  
         return self.object_list_tab.get_object_list_widget()
+
+    def update_object_list_display_settings(self, show_manual: bool, show_auto: bool, score_threshold: float):  
+        """ObjectListTabWidgetの表示設定を更新"""  
+        self.object_list_tab.update_display_settings(show_manual, show_auto, score_threshold)

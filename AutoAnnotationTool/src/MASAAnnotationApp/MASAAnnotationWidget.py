@@ -86,7 +86,9 @@ class MASAAnnotationWidget(QWidget):
         right_layout.addWidget(self.video_preview)    
             
         # VideoControlPanelに必要な参照を渡す  
-        self.video_control = VideoControlPanel(self)    
+        self.video_control = VideoControlPanel(self)  
+        # VideoPreviewWidgetにConfigManagerを設定  
+        self.video_preview.set_config_manager(self.config_manager)  
         right_layout.addWidget(self.video_control)    
             
         right_widget = QWidget()    
@@ -128,6 +130,9 @@ class MASAAnnotationWidget(QWidget):
         self.menu_panel.propagate_label_requested.connect(self.on_propagate_label_requested)    
         self.menu_panel.align_track_ids_requested.connect(self.on_align_track_ids_requested)  
   
+        # 設定変更関連
+        self.menu_panel.config_changed.connect(self.on_config_changed)
+
     # 残存する主要メソッド（コンポーネント間調整役）  
     def set_edit_mode(self, enabled: bool):    
         """編集モードの設定とUIの更新"""    
@@ -376,6 +381,28 @@ class MASAAnnotationWidget(QWidget):
           
         return filtered_annotations  
   
+    def on_config_changed(self, key: str, value: object, config_type: str):  
+        """設定変更時の処理"""  
+        if config_type == "display":  
+            display_options = self.config_manager.get_full_config(config_type="display")  
+            
+            # VideoPreviewWidgetの設定更新  
+            self.video_preview.set_display_options(  
+                display_options.show_manual_annotations,  
+                display_options.show_auto_annotations,  
+                display_options.show_ids,  
+                display_options.show_confidence,  
+                display_options.score_threshold  
+            )  
+            
+            # ObjectListTabWidgetの設定更新を追加  
+            self.menu_panel.set_object_list_score_threshold(display_options.score_threshold)  
+            
+            # ObjectListTabWidgetのチェックボックス状態も同期  
+            self.menu_panel.object_list_tab.show_manual_cb.setChecked(display_options.show_manual_annotations)  
+            self.menu_panel.object_list_tab.show_auto_cb.setChecked(display_options.show_auto_annotations)  
+            self.menu_panel.object_list_tab._apply_filters()
+
     def closeEvent(self, event):  
         """アプリケーション終了時のクリーンアップ"""  
         # VideoManagerのリソースを解放  

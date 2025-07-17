@@ -382,3 +382,10 @@ class ObjectListTabWidget(QWidget):
     def get_object_list_widget(self):  
         """オブジェクト一覧ウィジェットを取得（自分自身を返す）"""  
         return self
+
+    def update_display_settings(self, show_manual: bool, show_auto: bool, score_threshold: float):  
+        """Display settingからの設定更新"""  
+        self.show_manual_cb.setChecked(show_manual)  
+        self.show_auto_cb.setChecked(show_auto)  
+        self.score_threshold = score_threshold  
+        self._apply_filters()
