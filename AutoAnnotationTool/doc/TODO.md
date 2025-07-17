@@ -65,6 +65,7 @@
 ## 残件
 
 - [x] BasicTabWidgetのフィルタ機能をObjectListTabWidgetに移動
+- [x] BasicTabWidgetのplay_btnをVideoControlPanelに移動
 - [ ] キーボードショートカットが効かない
 - [ ] 最終版クラス図
 

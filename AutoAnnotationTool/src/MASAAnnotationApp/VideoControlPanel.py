@@ -15,7 +15,9 @@ class VideoControlPanel(QWidget):
     frame_changed = pyqtSignal(int)    
     range_changed = pyqtSignal(int, int)    
     range_frame_preview = pyqtSignal(int)    
-        
+    play_requested = pyqtSignal()  
+    pause_requested = pyqtSignal()
+
     def __init__(self, main_widget, parent=None):    
         super().__init__(parent)    
         self.main_widget = main_widget  # MASAAnnotationWidgetへの参照  
@@ -57,6 +59,16 @@ class VideoControlPanel(QWidget):
             
         layout.addLayout(control_layout)    
   
+        # Play/Pauseボタン  
+        playback_layout = QHBoxLayout()  
+        
+        self.play_btn = QPushButton("Play (Space)")  
+        self.play_btn.setEnabled(False)  
+        self.play_btn.clicked.connect(self._on_play_clicked)  
+        playback_layout.addWidget(self.play_btn)  
+        
+        layout.addLayout(playback_layout)
+
         # フレーム番号入力機能を追加    
         jump_layout = QHBoxLayout()    
         jump_layout.addWidget(QLabel("Jump to frame (F):"))    
@@ -138,9 +150,6 @@ class VideoControlPanel(QWidget):
         self.update_frame_info()    
         self.frame_changed.emit(frame_id)  
           
-        # フレーム変更時の処理を内部で実行  
-        self.main_widget.menu_panel.update_frame_display(frame_id, self.main_widget.video_manager.get_total_frames() if self.main_widget.video_manager else 0)  
-          
         # オブジェクト一覧を更新  
         if self.main_widget.annotation_repository:  
             frame_annotation = self.main_widget.annotation_repository.get_annotations(frame_id)  
@@ -185,3 +194,21 @@ class VideoControlPanel(QWidget):
         except ValueError:    
             # 無効な入力の場合は何もしない    
             self.frame_input.clear()
+
+    def _on_play_clicked(self):  
+        """再生ボタンのクリックハンドラ"""  
+        if self.play_btn.text() == "Play (Space)":  
+            self.play_requested.emit()  
+        else:  
+            self.pause_requested.emit()  
+    
+    def set_play_button_state(self, is_playing: bool):  
+        """再生ボタンの状態を設定"""  
+        if is_playing:  
+            self.play_btn.setText("Pause (Space)")  
+        else:  
+            self.play_btn.setText("Play (Space)")  
+    
+    def set_play_button_enabled(self, enabled: bool):  
+        """再生ボタンの有効/無効を設定"""  
+        self.play_btn.setEnabled(enabled)

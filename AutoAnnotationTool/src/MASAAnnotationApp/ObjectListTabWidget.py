@@ -320,23 +320,7 @@ class ObjectListTabWidget(QWidget):
                         return    
         finally:    
             self._updating_selection = False    
-                    
-    def get_selected_annotation(self) -> Optional[ObjectAnnotation]:    
-        """選択中のアノテーションを取得（CurrentFrameObjectListWidgetから統合）"""    
-        return self.selected_annotation    
-            
-    def clear_selection(self):    
-        """選択をクリア（CurrentFrameObjectListWidgetから統合）"""    
-        self.table.clearSelection()    
-        self.selected_annotation = None    
-            
-    def set_score_threshold(self, threshold: float):    
-        """スコア閾値を設定（CurrentFrameObjectListWidgetから統合）"""    
-        self.score_threshold = threshold    
-        self.score_threshold_spinbox.setValue(threshold)    
-        self._apply_filters()  # 閾値変更時にフィルタを再適用    
     
-    # 移動された関数（MASAAnnotationWidgetから移動）    
     def on_object_focus_requested(self, annotation: Optional[ObjectAnnotation]):    
         """オブジェクトフォーカス要求時の処理"""    
         # ビデオプレビューでオブジェクトにフォーカス    
@@ -346,26 +330,10 @@ class ObjectListTabWidget(QWidget):
     def update_current_frame_objects(self, frame_id: int, frame_annotation: Optional[FrameAnnotation] = None):    
         """現在フレームのオブジェクト一覧を更新"""    
         self.update_frame_data(frame_id, frame_annotation)    
-        
-    def set_object_list_score_threshold(self, threshold: float):    
-        """オブジェクト一覧のスコア閾値を設定"""    
-        self.set_score_threshold(threshold)    
-        
+                
     def update_object_list_selection(self, annotation: Optional[ObjectAnnotation]):    
         """オブジェクト一覧の選択状態を更新"""    
-        self.select_annotation(annotation)    
-        
-    def get_object_list_widget(self):    
-        """オブジェクト一覧ウィジェットを取得（自分自身を返す）"""    
-        return self  
-  
-    def update_display_settings(self, show_manual: bool, show_auto: bool, score_threshold: float):    
-        """Display settingからの設定更新"""    
-        self.show_manual_cb.setChecked(show_manual)    
-        self.show_auto_cb.setChecked(show_auto)    
-        self.score_threshold = score_threshold    
-        self.score_threshold_spinbox.setValue(score_threshold)    
-        self._apply_filters()  
+        self.select_annotation(annotation)      
   
     def _on_config_changed(self, key: str, value: object, config_type: str):    
         """ConfigManagerからの設定変更を処理"""    
@@ -402,13 +370,3 @@ class ObjectListTabWidget(QWidget):
         self.config_manager.update_config("score_threshold", value, config_type="display")    
         self.config_changed.emit("score_threshold", value, "display")    
         self._apply_filters()    
-  
-    def get_display_options(self):    
-        """現在の表示オプションを取得"""    
-        return {    
-            "show_manual_annotations": self.show_manual_cb.isChecked(),    
-            "show_auto_annotations": self.show_auto_cb.isChecked(),    
-            "show_ids": self.show_ids_cb.isChecked(),    
-            "show_confidence": self.show_confidence_cb.isChecked(),    
-            "score_threshold": self.score_threshold_spinbox.value()    
-        }

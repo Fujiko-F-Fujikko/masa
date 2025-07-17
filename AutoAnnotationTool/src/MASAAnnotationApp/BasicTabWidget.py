@@ -3,9 +3,8 @@ from pathlib import Path
 from datetime import datetime  
   
 from PyQt6.QtWidgets import (  
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel,  
-    QPushButton, QGroupBox, QCheckBox, QFileDialog,  
-    QDoubleSpinBox  
+    QWidget, QVBoxLayout, QLabel,  
+    QPushButton, QGroupBox, QFileDialog
 )  
 from PyQt6.QtCore import pyqtSignal  
   
@@ -23,8 +22,6 @@ class BasicTabWidget(QWidget):
     load_video_requested = pyqtSignal(str)  
     load_json_requested = pyqtSignal(str)  
     export_requested = pyqtSignal(str)  
-    play_requested = pyqtSignal()  
-    pause_requested = pyqtSignal()  
       
     def __init__(self, config_manager: ConfigManager, annotation_repository, command_manager, main_widget, parent=None):  
         super().__init__(parent)  
@@ -80,21 +77,6 @@ class BasicTabWidget(QWidget):
         file_group.setLayout(file_layout)  
         layout.addWidget(file_group)  
           
-        # 再生コントロールグループ  
-        playback_group = QGroupBox("Playback Controls")  
-        playback_layout = QVBoxLayout()  
-          
-        self.play_btn = QPushButton("Play (Space)")  
-        self.play_btn.setEnabled(False)  
-        self.play_btn.clicked.connect(self._on_play_clicked)  
-        playback_layout.addWidget(self.play_btn)  
-          
-        self.frame_label = QLabel("Frame: 0/0")  
-        playback_layout.addWidget(self.frame_label)  
-          
-        playback_group.setLayout(playback_layout)  
-        layout.addWidget(playback_group)  
-          
         layout.addStretch()  
         self.setLayout(layout)  
                   
@@ -149,7 +131,7 @@ class BasicTabWidget(QWidget):
                 self.main_widget.video_control.set_current_frame(0)  
                   
                 self.main_widget.menu_panel.update_video_info(file_path, self.main_widget.video_manager.get_total_frames())  
-                self.play_btn.setEnabled(True)  
+                self.main_widget.video_control.set_play_button_enabled(True)  
                   
                 ErrorHandler.show_info_dialog(f"Video loaded: {file_path}", "Success")  
             else:  
@@ -245,14 +227,7 @@ class BasicTabWidget(QWidget):
                     ErrorHandler.show_error_dialog(f"Unsupported export format: {format_type}", "Error")  
         except Exception as e:  
             ErrorHandler.show_error_dialog(f"Failed to export: {str(e)}", "Export Error")  
-      
-    def _on_play_clicked(self):  
-        """再生ボタンのクリックハンドラ"""  
-        if self.play_btn.text() == "Play (Space)":  
-            self.play_requested.emit()  
-        else:  
-            self.pause_requested.emit()  
-            
+                  
     # UI更新メソッド  
     def update_video_info(self, video_path: str, total_frames: int):  
         """動画情報を更新"""  
@@ -271,14 +246,3 @@ class BasicTabWidget(QWidget):
     def update_export_progress(self, message: str):  
         """エクスポート進捗を更新"""  
         self.export_progress_label.setText(message)  
-      
-    def update_frame_info(self, current_frame: int, total_frames: int):  
-        """フレーム情報を更新"""  
-        self.frame_label.setText(f"Frame: {current_frame}/{total_frames - 1}")  
-      
-    def set_play_button_state(self, is_playing: bool):  
-        """再生ボタンの状態を設定"""  
-        if is_playing:  
-            self.play_btn.setText("Pause (Space)")  
-        else:  
-            self.play_btn.setText("Play (Space)")  

@@ -35,10 +35,7 @@ class MenuPanel(QWidget):
     align_track_ids_requested = pyqtSignal(str, int)  
     copy_annotation_requested = pyqtSignal()  
     paste_annotation_requested = pyqtSignal()  
-      
-    play_requested = pyqtSignal()  
-    pause_requested = pyqtSignal()  
-      
+            
     config_changed = pyqtSignal(str, object, str)  
       
     def __init__(self, config_manager: ConfigManager, annotation_repository, command_manager, main_widget, parent=None):  
@@ -115,8 +112,6 @@ class MenuPanel(QWidget):
         self.basic_tab.load_video_requested.connect(self.load_video_requested)  
         self.basic_tab.load_json_requested.connect(self.load_json_requested)  
         self.basic_tab.export_requested.connect(self.export_requested)  
-        self.basic_tab.play_requested.connect(self.play_requested)  
-        self.basic_tab.pause_requested.connect(self.pause_requested)  
           
         # AnnotationTabからのシグナル転送  
         self.annotation_tab.edit_mode_requested.connect(self.edit_mode_requested)  
@@ -291,10 +286,7 @@ class MenuPanel(QWidget):
         self.annotation_tab.edit_mode_btn.setEnabled(True)  
         self.annotation_tab.tracking_annotation_btn.setEnabled(True)  
         self.annotation_tab.copy_annotations_btn.setEnabled(True)
-      
-    def update_json_info(self, json_path: str, annotation_count: int):  
-        self.basic_tab.update_json_info(json_path, annotation_count)  
-      
+            
     def update_export_progress(self, message: str):  
         self.basic_tab.update_export_progress(message)  
       
@@ -314,15 +306,6 @@ class MenuPanel(QWidget):
     def update_tracking_progress(self, progress_text: str):  
         self.annotation_tab.update_tracking_progress(progress_text)  
       
-    def update_frame_display(self, current_frame: int, total_frames: int):  
-        self.basic_tab.update_frame_info(current_frame, total_frames)  
-      
-    def reset_playback_button(self):  
-        self.basic_tab.set_play_button_state(False)  
-      
-    def get_display_options(self):  
-        return self.basic_tab.get_display_options()  
-      
     def update_selected_annotation_info(self, annotation: Optional[ObjectAnnotation]):  
         self.annotation_tab.update_selected_annotation_info(annotation)  
       
@@ -337,16 +320,6 @@ class MenuPanel(QWidget):
       
     def update_current_frame_objects(self, frame_id: int, frame_annotation=None):  
         self.object_list_tab.update_current_frame_objects(frame_id, frame_annotation)  
-      
-    def set_object_list_score_threshold(self, threshold: float):  
-        self.object_list_tab.set_object_list_score_threshold(threshold)  
-      
+            
     def update_object_list_selection(self, annotation):  
         self.object_list_tab.update_object_list_selection(annotation)  
-      
-    def get_object_list_widget(self):  
-        return self.object_list_tab.get_object_list_widget()
-
-    def update_object_list_display_settings(self, show_manual: bool, show_auto: bool, score_threshold: float):  
-        """ObjectListTabWidgetの表示設定を更新"""  
-        self.object_list_tab.update_display_settings(show_manual, show_auto, score_threshold)
