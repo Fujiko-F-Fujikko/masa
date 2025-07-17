@@ -315,28 +315,7 @@ class VideoPreviewWidget(QLabel):
             current_frame = self.main_widget.video_control.current_frame  
             frame_annotation = self.annotation_repository.get_annotations(current_frame)  
             self.main_widget.menu_panel.update_current_frame_objects(current_frame, frame_annotation)  
-  
-    def on_annotation_selected(self, annotation: Optional[ObjectAnnotation]):  
-        """アノテーション選択時の処理（内部処理版）"""  
-        if hasattr(self, '_updating_selection') and self._updating_selection:  
-            return  
-          
-        self._updating_selection = True  
-        try:  
-            self.main_widget.menu_panel.update_selected_annotation_info(annotation)  
-            self.main_widget.menu_panel.update_object_list_selection(annotation)  
-              
-            if hasattr(self, 'bbox_editor') and self.bbox_editor:  
-                self.bbox_editor.selected_annotation = annotation  
-                self.bbox_editor.selection_changed.emit(annotation)  
-              
-            self.update_frame_display()  
-              
-            if hasattr(self.main_widget.menu_panel, 'update_undo_redo_buttons'):  
-                self.main_widget.menu_panel.update_undo_redo_buttons(self.main_widget.command_manager)  
-        finally:  
-            self._updating_selection = False  
-  
+    
     def on_selection_changed(self, annotation):    
         """選択変更時の処理（内部処理版）"""   
         self.update_frame_display()   
@@ -377,15 +356,34 @@ class VideoPreviewWidget(QLabel):
         """一時的なバッチ追加アノテーションを追加"""    
         self.temp_tracking_annotations.append(annotation)    
         self.update_frame_display()  
-  
-    def focus_on_annotation(self, annotation: Optional[ObjectAnnotation]):  
-        """指定されたアノテーションにフォーカス"""  
-        if annotation:  
-            # アノテーションが存在するフレームに移動  
-            if annotation.frame_id != self.current_frame_id:  
-                self.set_frame(annotation.frame_id)  
-              
-            # アノテーションを選択状態にする  
-            self.bbox_editor.selected_annotation = annotation  
-            self.bbox_editor.selection_changed.emit(annotation)  
-            self.update_frame_display()
+
+    def select_and_focus_annotation(self, annotation: Optional[ObjectAnnotation]):  
+        """アノテーションを選択してフォーカス（統合版）"""  
+        if hasattr(self, '_updating_selection') and self._updating_selection:  
+            return  
+        
+        self._updating_selection = True  
+        try:  
+            if annotation:  
+                # アノテーションが存在するフレームに移動（focus_on_annotationから）  
+                if annotation.frame_id != self.current_frame_id:  
+                    self.set_frame(annotation.frame_id)  
+            
+            # MenuPanelの情報を更新（on_annotation_selectedから）  
+            self.main_widget.menu_panel.update_selected_annotation_info(annotation)  
+            self.main_widget.menu_panel.update_object_list_selection(annotation)  
+            
+            # BoundingBoxEditorの選択状態を更新（両方から）  
+            if hasattr(self, 'bbox_editor') and self.bbox_editor:  
+                self.bbox_editor.selected_annotation = annotation  
+                self.bbox_editor.selection_changed.emit(annotation)  
+            
+            # 表示を更新（両方から）  
+            self.update_frame_display()  
+            
+            # Undo/Redoボタンの状態も更新（on_annotation_selectedから）  
+            if hasattr(self.main_widget.menu_panel, 'update_undo_redo_buttons'):  
+                self.main_widget.menu_panel.update_undo_redo_buttons(self.main_widget.command_manager)  
+        finally:  
+            self._updating_selection = False
+

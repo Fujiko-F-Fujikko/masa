@@ -17,7 +17,6 @@ class ObjectListTabWidget(QWidget):
       
     # シグナル定義  
     object_selected = pyqtSignal(object)  # ObjectAnnotation  
-    object_double_clicked = pyqtSignal(object)  # ObjectAnnotation  
       
     def __init__(self, config_manager: ConfigManager, annotation_repository, command_manager, main_widget, parent=None):  
         super().__init__(parent)  
@@ -158,7 +157,6 @@ class ObjectListTabWidget(QWidget):
     def _connect_signals(self):  
         """シグナル接続（CurrentFrameObjectListWidgetから統合）"""  
         self.table.itemSelectionChanged.connect(self._on_selection_changed)  
-        self.table.itemDoubleClicked.connect(self._on_item_double_clicked)  
         self.label_filter_combo.currentTextChanged.connect(self._apply_filters)  
         self.show_manual_cb.stateChanged.connect(self._apply_filters)  
         self.show_auto_cb.stateChanged.connect(self._apply_filters)  
@@ -291,34 +289,30 @@ class ObjectListTabWidget(QWidget):
         else:  
             self.object_count_label.setText(f"Objects: {filtered_count}/{total_count}")  
 
-    def _on_selection_changed(self):  
-        """テーブル選択変更時の処理（CurrentFrameObjectListWidgetから統合）"""  
-        # 循環呼び出し防止  
-        if hasattr(self, '_updating_selection') and self._updating_selection:  
-            return  
-              
-        selected_items = self.table.selectedItems()  
-          
-        if selected_items:  
-            # 最初の選択されたアイテムからアノテーションを取得  
-            annotation = selected_items[0].data(Qt.ItemDataRole.UserRole)  
-              
-            # object_idベースで比較（オブジェクト参照ではなく）  
-            if (annotation is None or self.selected_annotation is None or   
-                annotation.object_id != self.selected_annotation.object_id):  
-                self.selected_annotation = annotation  
-                self.object_selected.emit(annotation)  
-        else:  
-            self.selected_annotation = None  
-            self.object_selected.emit(None)  
-              
-    def _on_item_double_clicked(self, item):  
-        """アイテムダブルクリック時の処理（CurrentFrameObjectListWidgetから統合）"""  
-        annotation = item.data(Qt.ItemDataRole.UserRole)  
-        if annotation:  
-            self.on_object_focus_requested(annotation)  
-            self.object_double_clicked.emit(annotation)  
-              
+    def _on_selection_changed(self):    
+        """テーブル選択変更時の処理（CurrentFrameObjectListWidgetから統合）"""    
+        # 循環呼び出し防止    
+        if hasattr(self, '_updating_selection') and self._updating_selection:    
+            return    
+                
+        selected_items = self.table.selectedItems()    
+            
+        if selected_items:    
+            # 最初の選択されたアイテムからアノテーションを取得    
+            annotation = selected_items[0].data(Qt.ItemDataRole.UserRole)    
+                
+            # object_idベースで比較（オブジェクト参照ではなく）    
+            if (annotation is None or self.selected_annotation is None or     
+                annotation.object_id != self.selected_annotation.object_id):    
+                self.selected_annotation = annotation    
+                self.object_selected.emit(annotation)    
+                
+                # シングルクリックでフォーカス処理も実行  
+                self.on_object_focus_requested(annotation)  
+        else:    
+            self.selected_annotation = None    
+            self.object_selected.emit(None) 
+                            
     def select_annotation(self, annotation: Optional[ObjectAnnotation]):  
         """外部からのアノテーション選択（CurrentFrameObjectListWidgetから統合）"""  
         # _updating_selectionフラグを設定してシグナルをブロック  
@@ -360,12 +354,9 @@ class ObjectListTabWidget(QWidget):
     # 移動された関数（MASAAnnotationWidgetから移動）  
     def on_object_focus_requested(self, annotation: Optional[ObjectAnnotation]):  
         """オブジェクトフォーカス要求時の処理"""  
-        if annotation and hasattr(self.main_widget.video_preview, 'focus_on_annotation'):  
-            # ビデオプレビューでオブジェクトにフォーカス  
-            self.main_widget.video_preview.focus_on_annotation(annotation)  
-            # アノテーションを選択状態にする  
-            self.main_widget.on_annotation_selected(annotation)  
-  
+        # ビデオプレビューでオブジェクトにフォーカス  
+        self.main_widget.video_preview.select_and_focus_annotation(annotation)  
+
     # 外部インターフェース用メソッド（MenuPanelとの互換性維持）  
     def update_current_frame_objects(self, frame_id: int, frame_annotation: Optional[FrameAnnotation] = None):  
         """現在フレームのオブジェクト一覧を更新"""  
