@@ -6,7 +6,8 @@ from PyQt6.QtWidgets import (
     QPushButton, QApplication, QSplitter,  
     QMessageBox, QDialog  
 )    
-from PyQt6.QtCore import Qt, QObject, QEvent        
+from PyQt6.QtCore import Qt, QObject, QEvent
+from PyQt6.QtGui import QKeyEvent        
   
 from DataClass import BoundingBox, ObjectAnnotation        
 from MenuPanel import MenuPanel        
@@ -21,6 +22,7 @@ from TrackingWorker import TrackingWorker
 from ConfigManager import ConfigManager        
 from ErrorHandler import ErrorHandler        
 from TrackingResultConfirmDialog import TrackingResultConfirmDialog    
+from KeyboardShortcutHandler import KeyboardShortcutHandler
 from CommandPattern import CommandManager, DeleteAnnotationCommand, DeleteTrackCommand, \
                             UpdateLabelCommand, UpdateLabelByTrackCommand, AlignTrackIdsByLabelCommand, \
                             AddAnnotationCommand    
@@ -60,9 +62,13 @@ class MASAAnnotationWidget(QWidget):
         self.temp_bboxes_for_tracking: List[Tuple[int, BoundingBox]] = []        
             
         self.command_manager = CommandManager()      
-                
+
         self.setup_ui()        
         self._connect_signals()    
+
+        # キーボードショートカットハンドラーを初期化  
+        self.keyboard_handler = KeyboardShortcutHandler(self)
+
               
     def setup_ui(self):      
         """UIの初期設定"""      
@@ -650,6 +656,11 @@ class MASAAnnotationWidget(QWidget):
         # 表示を更新    
         self.video_preview.update_frame_display()  
   
+    def keyPressEvent(self, event: QKeyEvent):  
+        """キーボードイベントをハンドラーに委譲"""  
+        if not self.keyboard_handler.handle_key_press(event):  
+            super().keyPressEvent(event)
+
     def closeEvent(self, event):    
         """アプリケーション終了時のクリーンアップ"""    
         # VideoManagerのリソースを解放    

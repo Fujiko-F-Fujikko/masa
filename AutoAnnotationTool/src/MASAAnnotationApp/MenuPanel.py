@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTabWidget
 )  
 from PyQt6.QtCore import Qt, pyqtSignal  
-from PyQt6.QtGui import QFont, QKeyEvent  
+from PyQt6.QtGui import QFont  
   
 from BasicTabWidget import BasicTabWidget  
 from AnnotationTabWidget import AnnotationTabWidget  
@@ -144,99 +144,6 @@ class MenuPanel(QWidget):
                 display_options.show_auto_annotations,     
                 display_options.score_threshold    
             )
-
-    def keyPressEvent(self, event: QKeyEvent):  
-        """MenuPanel関連のキーボードショートカット"""  
-        # Ctrlキー組み合わせの処理  
-        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:  
-            if event.key() == Qt.Key.Key_O:  
-                self.basic_tab._on_load_video_clicked("")  
-                event.accept()  
-                return  
-            elif event.key() == Qt.Key.Key_L:  
-                self.basic_tab._on_load_json_clicked("")  
-                event.accept()  
-                return  
-            elif event.key() == Qt.Key.Key_S:  
-                if self.basic_tab.save_masa_json_btn.isEnabled():  
-                    self.basic_tab._on_export_masa_clicked()  
-                event.accept()  
-                return  
-            elif event.key() == Qt.Key.Key_Z:  
-                self.annotation_tab._on_undo_clicked()  
-                event.accept()  
-                return  
-            elif event.key() == Qt.Key.Key_Y:  
-                self.annotation_tab._on_redo_clicked()  
-                event.accept()  
-                return  
-            elif event.key() == Qt.Key.Key_C:  
-                if (self.annotation_tab.current_selected_annotation and   
-                    self.annotation_tab.edit_mode_btn.isChecked() and  
-                    self.annotation_tab.copy_annotation_btn.isEnabled()):  
-                    self.annotation_tab._on_copy_annotation_clicked()  
-                event.accept()  
-                return  
-            elif event.key() == Qt.Key.Key_V:  
-                if (self.annotation_tab.edit_mode_btn.isChecked() and  
-                    self.annotation_tab.paste_annotation_btn.isEnabled()):  
-                    self.annotation_tab._on_paste_annotation_clicked()  
-                event.accept()  
-                return  
-          
-        # Ctrl+Shift組み合わせの処理  
-        if event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):  
-            if event.key() == Qt.Key.Key_S:  
-                if self.basic_tab.save_coco_json_btn.isEnabled():  
-                    self.basic_tab._on_export_coco_clicked()  
-                event.accept()  
-                return  
-          
-        # 単独キーのショートカット処理  
-        if event.key() == Qt.Key.Key_E:  
-            if self.annotation_tab.edit_mode_btn.isEnabled():  
-                current_state = self.annotation_tab.edit_mode_btn.isChecked()  
-                self.annotation_tab.edit_mode_btn.setChecked(not current_state)  
-                self.annotation_tab._on_edit_mode_clicked(not current_state)  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_T:  
-            if self.annotation_tab.tracking_annotation_btn.isEnabled():  
-                current_state = self.annotation_tab.tracking_annotation_btn.isChecked()  
-                self.annotation_tab.tracking_annotation_btn.setChecked(not current_state)  
-                self.annotation_tab._on_tracking_annotation_clicked(not current_state)  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_C:  
-            if self.annotation_tab.copy_annotations_btn.isEnabled():  
-                current_state = self.annotation_tab.copy_annotations_btn.isChecked()  
-                self.annotation_tab.copy_annotations_btn.setChecked(not current_state)  
-                self.annotation_tab._on_copy_annotations_clicked(not current_state)  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_X:  
-            if (self.annotation_tab.current_selected_annotation and   
-                self.annotation_tab.delete_single_annotation_btn.isEnabled()):  
-                self.annotation_tab._on_delete_single_annotation_clicked()  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_D:  
-            if (self.annotation_tab.current_selected_annotation and   
-                self.annotation_tab.delete_track_btn.isEnabled()):  
-                self.annotation_tab._on_delete_track_clicked()  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_P:  
-            if (self.annotation_tab.current_selected_annotation and   
-                self.annotation_tab.propagate_label_btn.isEnabled()):  
-                self.annotation_tab._on_propagate_label_clicked()  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_A:  
-            if (self.annotation_tab.current_selected_annotation and   
-                self.annotation_tab.align_track_ids_btn.isEnabled()):  
-                self.annotation_tab._on_align_track_ids_clicked()  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_R:  
-            if self.annotation_tab.execute_add_btn.isEnabled():  
-                self.annotation_tab._on_complete_tracking_clicked()  
-            event.accept()  
-        else:  
-            super().keyPressEvent(event)  
       
     # 各タブへのアクセス用プロパティ  
     @property  

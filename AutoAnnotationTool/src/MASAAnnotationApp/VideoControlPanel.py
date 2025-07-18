@@ -4,7 +4,6 @@ from PyQt6.QtWidgets import (
     QPushButton, QSlider, QLineEdit    
 )    
 from PyQt6.QtCore import Qt, pyqtSignal    
-from PyQt6.QtGui import QKeyEvent  
   
 from RangeSlider import RangeSlider    
 from CoordinateTransform import CoordinateTransform    
@@ -88,33 +87,7 @@ class VideoControlPanel(QWidget):
         layout.addLayout(jump_layout)   
   
         self.setLayout(layout)    
-      
-    def keyPressEvent(self, event: QKeyEvent):  
-        """フレーム制御関連のキーボードショートカット"""  
-        if event.key() == Qt.Key.Key_Left:  
-            self.prev_frame()  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_Right:  
-            self.next_frame()  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_G:  
-            self.jump_to_frame()  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_F:  
-            self.frame_input.setFocus()  
-            self.frame_input.selectAll()  
-            event.accept()  
-        elif event.key() == Qt.Key.Key_Space:  
-            # 動画再生・一時停止の処理  
-            if hasattr(self.main_widget, 'playback_controller') and self.main_widget.playback_controller:  
-                if self.main_widget.playback_controller.is_playing:  
-                    self.main_widget.pause_playback()  
-                else:  
-                    self.main_widget.start_playback()  
-            event.accept()  
-        else:  
-            super().keyPressEvent(event)  
-            
+                 
     def on_range_frame_preview(self, frame_id: int):    
         """範囲選択中のフレームプレビュー"""    
         self.range_frame_preview.emit(frame_id)    

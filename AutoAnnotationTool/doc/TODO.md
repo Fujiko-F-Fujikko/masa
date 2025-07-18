@@ -67,7 +67,7 @@
 - [x] BasicTabWidgetのフィルタ機能をObjectListTabWidgetに移動
 - [x] BasicTabWidgetのplay_btnをVideoControlPanelに移動
 - [x] 未使用のクラスの削除
-- [ ] キーボードショートカットが効かない
+- [x] キーボードショートカットが効かない
 - [ ] 最終版クラス図
 
 - [ ] feature/refactor_2ブランチをmainにマージ
