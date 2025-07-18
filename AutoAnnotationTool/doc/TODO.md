@@ -68,7 +68,7 @@
 - [x] BasicTabWidgetのplay_btnをVideoControlPanelに移動
 - [x] 未使用のクラスの削除
 - [x] キーボードショートカットが効かない
-- [ ] 最終版クラス図
+- [x] 最終版クラス図
 
 - [ ] feature/refactor_2ブランチをmainにマージ
 - [ ] feature/refactor ブランチをリモートも削除
