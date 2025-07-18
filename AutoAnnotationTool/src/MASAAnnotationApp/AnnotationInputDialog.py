@@ -10,8 +10,8 @@ from DataClass import BoundingBox
   
 class AnnotationInputDialog(QDialog):  
     """アノテーション追加ダイアログ（改善版）"""  
-    def __init__(self, bbox: BoundingBox, parent=None, existing_labels: List[str] = None, default_label: str = ""):  
-        super().__init__(parent)  
+    def __init__(self, bbox: BoundingBox, existing_labels: List[str] = None, default_label: str = ""):  
+        super().__init__()  
         self.setWindowTitle("Add Annotation")
         self.bbox = bbox  
         self.label = ""  
