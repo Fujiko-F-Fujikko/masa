@@ -42,8 +42,8 @@ class SAM2TrackingWorker(QThread):
         self.video_height = video_height    
             
         # SAM2設定    
-        self.model_cfg = os.path.abspath("sam2/sam2/configs/samurai/sam2.1_hiera_l.yaml")  # SAMURAI mode = True
-        #self.model_cfg = os.path.abspath("sam2/sam2/configs/sam2.1/sam2.1_hiera_l.yaml")  # SAMURAI mode = False
+        #self.model_cfg = os.path.abspath("sam2/sam2/configs/samurai/sam2.1_hiera_l.yaml")  # SAMURAI mode = True
+        self.model_cfg = os.path.abspath("sam2/sam2/configs/sam2.1/sam2.1_hiera_l.yaml")  # SAMURAI mode = False
         self.model_ckpt = os.path.abspath("sam2/checkpoints/sam2.1_hiera_large.pt")  
         self.device = "cuda" if torch.cuda.is_available() else "cpu"  
   
