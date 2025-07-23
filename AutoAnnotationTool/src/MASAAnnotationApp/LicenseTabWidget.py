@@ -36,7 +36,8 @@ class LicenseTabWidget(QWidget):
         self.license_combo = QComboBox()  
         self.license_combo.addItems([  
             "masa", "mmcv", "mmdet", "numpy",  
-            "opencv-python", "PyQt6", "torch"  
+            "opencv-python", "PyQt6", "torch",
+            "samurai"
         ])  
         self.license_combo.currentTextChanged.connect(self._on_license_selection_changed)  
         library_layout.addWidget(self.license_combo)  
