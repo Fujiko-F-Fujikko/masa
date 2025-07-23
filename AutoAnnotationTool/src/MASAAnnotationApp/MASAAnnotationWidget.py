@@ -640,6 +640,30 @@ class MASAAnnotationWidget(QWidget):
           
         # 表示を更新    
         self.video_preview.update_frame_display()  
+
+    def filter_annotations_by_score_threshold(self):  
+        """現在の表示設定のスコア閾値でアノテーションをフィルタリング"""  
+        filtered_frame_annotations = {}  
+        display_config = self.config_manager.get_full_config(config_type="display")  
+        score_threshold = display_config.score_threshold  
+          
+        for frame_id, frame_annotation in self.annotation_repository.frame_annotations.items():  
+            if frame_annotation and frame_annotation.objects:  
+                filtered_objects = []  
+                for annotation in frame_annotation.objects:  
+                    if annotation.bbox.confidence >= score_threshold:  
+                        filtered_objects.append(annotation)  
+                  
+                if filtered_objects:  
+                    from DataClass import FrameAnnotation  
+                    filtered_frame_annotation = FrameAnnotation(  
+                        frame_id=frame_annotation.frame_id,  
+                        frame_path=frame_annotation.frame_path,  
+                        objects=filtered_objects  
+                    )  
+                    filtered_frame_annotations[frame_id] = filtered_frame_annotation  
+          
+        return filtered_frame_annotations
   
     def keyPressEvent(self, event: QKeyEvent):  
         """キーボードイベントをハンドラーに委譲"""  
