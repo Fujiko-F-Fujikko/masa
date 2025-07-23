@@ -17,8 +17,7 @@ from VideoPlaybackController import VideoPlaybackController
 from VideoManager import VideoManager        
 from AnnotationRepository import AnnotationRepository        
 from ExportService import ExportService        
-from ObjectTracker import ObjectTracker        
-from TrackingWorker import TrackingWorker        
+from SAM2TrackingWorker import SAM2TrackingWorker        
 from ConfigManager import ConfigManager        
 from ErrorHandler import ErrorHandler        
 from TrackingResultConfirmDialog import TrackingResultConfirmDialog    
@@ -56,9 +55,8 @@ class MASAAnnotationWidget(QWidget):
         self.video_manager: Optional[VideoManager] = None        
         self.annotation_repository = AnnotationRepository()        
         self.export_service = ExportService()        
-        self.object_tracker = ObjectTracker(self.config_manager.get_full_config(config_type="masa"))    
         self.playback_controller: Optional[VideoPlaybackController] = None        
-        self.tracking_worker: Optional[TrackingWorker] = None        
+        self.tracking_worker: Optional[SAM2TrackingWorker] = None        
         self.temp_bboxes_for_tracking: List[Tuple[int, BoundingBox]] = []        
             
         self.command_manager = CommandManager()      
@@ -514,18 +512,6 @@ class MASAAnnotationWidget(QWidget):
     @ErrorHandler.handle_with_dialog("Tracking Error")    
     def start_tracking(self, assigned_track_id: int, assigned_label: str):    
         """自動追跡を開始"""    
-        if not self.object_tracker:    
-            ErrorHandler.show_warning_dialog("MASA models are still loading. Please wait.", "Warning")    
-            return    
-          
-        # ObjectTrackerの実際の初期化（まだされていない場合）    
-        if not self.object_tracker.initialized:    
-            try:    
-                self.object_tracker.initialize()    
-            except Exception as e:    
-                ErrorHandler.show_error_dialog(f"Failed to initialize MASA models: {str(e)}", "Initialization Error")    
-                return    
-      
         if not self.video_manager:    
             ErrorHandler.show_warning_dialog("Please load a video file first", "Warning")    
             return    
@@ -553,10 +539,9 @@ class MASAAnnotationWidget(QWidget):
             video_width = self.video_manager.get_video_width()    
             video_height = self.video_manager.get_video_height()    
           
-            self.tracking_worker = TrackingWorker(    
+            self.tracking_worker = SAM2TrackingWorker(    
                 self.video_manager,    
                 self.annotation_repository,    
-                self.object_tracker,    
                 start_frame,    
                 end_frame,    
                 initial_annotations_for_worker,    
