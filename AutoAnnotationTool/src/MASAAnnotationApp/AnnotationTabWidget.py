@@ -3,7 +3,8 @@ from typing import Dict, List, Any, Optional
 from PyQt6.QtWidgets import (  
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,  
     QPushButton, QGroupBox, QLineEdit,  
-    QMessageBox, QComboBox, QDialog  
+    QMessageBox, QComboBox, QDialog,
+    QInputDialog
 )  
 from PyQt6.QtCore import pyqtSignal  
   
@@ -27,6 +28,7 @@ class AnnotationTabWidget(QWidget):
     delete_single_annotation_requested = pyqtSignal(object)  
     delete_track_requested = pyqtSignal(int)  
     propagate_label_requested = pyqtSignal(int, str)  
+    propagate_confidence_requested = pyqtSignal(int, float)
     align_track_ids_requested = pyqtSignal(str, int)  
     copy_annotation_requested = pyqtSignal()  
     paste_annotation_requested = pyqtSignal()  
@@ -108,6 +110,11 @@ class AnnotationTabWidget(QWidget):
         self.propagate_label_btn.setEnabled(False)  
         self.propagate_label_btn.clicked.connect(self._on_propagate_label_clicked)  
         edit_layout.addWidget(self.propagate_label_btn)  
+        
+        self.propagate_confidence_btn = QPushButton("Change Confidence for All (F)")  
+        self.propagate_confidence_btn.setEnabled(False)  
+        self.propagate_confidence_btn.clicked.connect(self._on_propagate_confidence_clicked)  
+        edit_layout.addWidget(self.propagate_confidence_btn)
           
         self.align_track_ids_btn = QPushButton("Align Track IDs (A)")  
         self.align_track_ids_btn.setEnabled(False)  
@@ -416,6 +423,36 @@ class AnnotationTabWidget(QWidget):
         else:  
             ErrorHandler.show_info_dialog("Label selection was cancelled.", "Info")
   
+    def _on_propagate_confidence_clicked(self):  
+        """confidence伝播ボタンクリック時の処理"""  
+        if not self.current_selected_annotation:  
+            return  
+              
+        track_id_to_change = self.current_selected_annotation.object_id  
+        current_confidence = self.current_selected_annotation.bbox.confidence  
+          
+        # confidence入力ダイアログ  
+        confidence, ok = QInputDialog.getDouble(  
+            self,   
+            f"Change Confidence for ALL with Track ID {track_id_to_change}",  
+            "Enter new confidence (0.0-1.0):",  
+            current_confidence,  
+            0.0,  
+            1.0,  
+            2  
+        )  
+          
+        if ok:  
+            # 確認ダイアログ  
+            reply = QMessageBox.question(  
+                self, "Confirm ALL Track Confidence Change",  
+                f"Do you want to change the confidence of ALL annotations with Track ID '{track_id_to_change}' to '{confidence:.2f}'?",  
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+            )  
+              
+            if reply == QMessageBox.StandardButton.Yes:  
+                self.propagate_confidence_requested.emit(track_id_to_change, confidence)
+
     def _on_align_track_ids_clicked(self):  
         """Track ID統一ボタンクリック時の処理"""  
         if not self.current_selected_annotation:  
@@ -559,6 +596,7 @@ class AnnotationTabWidget(QWidget):
                 self.delete_single_annotation_btn.setEnabled(True)  
                 self.delete_track_btn.setEnabled(True)  
                 self.propagate_label_btn.setEnabled(True)  
+                self.propagate_confidence_btn.setEnabled(True) 
                 self.align_track_ids_btn.setEnabled(True)  
                 self.copy_annotation_btn.setEnabled(True)  
             else:  
@@ -570,6 +608,7 @@ class AnnotationTabWidget(QWidget):
                 self.delete_single_annotation_btn.setEnabled(False)  
                 self.delete_track_btn.setEnabled(False)  
                 self.propagate_label_btn.setEnabled(False)  
+                self.propagate_confidence_btn.setEnabled(False)
                 self.align_track_ids_btn.setEnabled(False)  
                 self.copy_annotation_btn.setEnabled(False)  
         finally:  

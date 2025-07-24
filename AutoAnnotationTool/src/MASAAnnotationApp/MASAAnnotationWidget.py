@@ -24,7 +24,7 @@ from TrackingResultConfirmDialog import TrackingResultConfirmDialog
 from KeyboardShortcutHandler import KeyboardShortcutHandler
 from CommandPattern import CommandManager, DeleteAnnotationCommand, DeleteTrackCommand, \
                             UpdateLabelCommand, UpdateLabelByTrackCommand, AlignTrackIdsByLabelCommand, \
-                            AddAnnotationCommand    
+                            AddAnnotationCommand, UpdateConfidenceByTrackCommand
   
     
 class ButtonKeyEventFilter(QObject):        
@@ -136,6 +136,7 @@ class MASAAnnotationWidget(QWidget):
         self.menu_panel.delete_single_annotation_requested.connect(self.on_delete_annotation_requested)      
         self.menu_panel.delete_track_requested.connect(self.on_delete_track_requested)      
         self.menu_panel.propagate_label_requested.connect(self.on_propagate_label_requested)      
+        self.menu_panel.propagate_confidence_requested.connect(self.on_propagate_confidence_requested)
         self.menu_panel.align_track_ids_requested.connect(self.on_align_track_ids_requested)    
   
         # 設定変更関連  
@@ -276,6 +277,39 @@ class MASAAnnotationWidget(QWidget):
         except Exception as e:      
             ErrorHandler.show_error_dialog(f"Error occurred while changing label: {e}", "Error")    
   
+    def on_propagate_confidence_requested(self, track_id: int, new_confidence: float):  
+        """トラック単位でのbbox.confidence変更要求時の処理"""  
+        try:  
+            annotations = self.annotation_repository.get_annotations_by_track_id(track_id)  
+            if not annotations:  
+                ErrorHandler.show_warning_dialog(  
+                    f"No annotations found for Track ID '{track_id}'.",  
+                    "Error"  
+                )  
+                return  
+                  
+            old_confidence = annotations[0].bbox.confidence  
+            command = UpdateConfidenceByTrackCommand(self.annotation_repository, track_id, old_confidence, new_confidence)  
+            updated_count = self.command_manager.execute_command(command)  
+                  
+            if updated_count > 0:  
+                self.video_preview.update_frame_display()  
+                self.update_annotation_count()  
+                      
+                # オブジェクト一覧を更新  
+                current_frame = self.video_control.current_frame  
+                frame_annotation = self.annotation_repository.get_annotations(current_frame)  
+                self.menu_panel.update_current_frame_objects(current_frame, frame_annotation)  
+                      
+                ErrorHandler.show_info_dialog(  
+                    f"Changed confidence of {updated_count} annotations for Track ID '{track_id}' to '{new_confidence:.2f}'.",  
+                    "Confidence Change Complete"  
+                )  
+            else:  
+                ErrorHandler.show_warning_dialog("Failed to update confidence.", "Error")  
+        except Exception as e:  
+            ErrorHandler.show_error_dialog(f"Error occurred while changing confidence: {e}", "Error")
+
     def on_align_track_ids_requested(self, target_label: str, target_track_id: int):      
         """ラベル単位でのTrack ID統一要求時の処理"""      
         try:      

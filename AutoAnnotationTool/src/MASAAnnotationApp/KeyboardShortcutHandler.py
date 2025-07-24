@@ -50,6 +50,7 @@ class KeyboardShortcutHandler:
             Qt.Key.Key_G: self._handle_jump_to_frame,  
             Qt.Key.Key_F: self._handle_focus_frame_input,  
             Qt.Key.Key_A: self._handle_align_track_ids,  
+            Qt.Key.Key_F: self._handle_propagate_confidence
         }  
       
     def handle_key_press(self, event: QKeyEvent) -> bool:  
@@ -296,3 +297,10 @@ class KeyboardShortcutHandler:
             self.menu_panel.annotation_tab.current_selected_annotation and  
             self.menu_panel.annotation_tab.align_track_ids_btn.isEnabled()):  
             self.menu_panel.annotation_tab._on_align_track_ids_clicked()
+
+    def _handle_propagate_confidence(self):  
+        """F: 一括信頼度変更"""  
+        if (hasattr(self.menu_panel, 'annotation_tab') and  
+            self.menu_panel.annotation_tab.current_selected_annotation and  
+            self.menu_panel.annotation_tab.propagate_confidence_btn.isEnabled()):  
+            self.menu_panel.annotation_tab._on_propagate_confidence_clicked()  

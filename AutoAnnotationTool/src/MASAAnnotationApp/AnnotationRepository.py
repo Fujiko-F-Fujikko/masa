@@ -138,6 +138,29 @@ class AnnotationRepository:
           
         return updated_count  
       
+    def update_confidence_by_track_id(self, track_id: int, new_confidence: float) -> int:  
+        """指定されたTrack IDを持つすべてのアノテーションのbbox.confidenceを更新"""  
+        updated_count = 0  
+          
+        for frame_annotation in self.frame_annotations.values():  
+            for obj in frame_annotation.objects:  
+                if obj.object_id == track_id:  
+                    obj.bbox.confidence = new_confidence  
+                    obj.is_manual = True  # 手動アノテーションとして扱う
+                    updated_count += 1  
+          
+        # manual_annotationsも更新  
+        for manual_anns in self.manual_annotations.values():  
+            for obj in manual_anns:  
+                if obj.object_id == track_id:  
+                    obj.bbox.confidence = new_confidence  
+                    obj.is_manual = True  # 手動アノテーションとして扱う
+          
+        if updated_count > 0:  
+            self._is_labels_cache_dirty = True  
+          
+        return updated_count
+
     def get_all_labels(self) -> List[str]:  
         """全ラベルを取得（キャッシュ対応）"""  
         if not self._is_labels_cache_dirty:  

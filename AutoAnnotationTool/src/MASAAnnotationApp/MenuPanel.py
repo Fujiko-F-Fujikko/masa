@@ -32,6 +32,7 @@ class MenuPanel(QWidget):
     delete_single_annotation_requested = pyqtSignal(object)  
     delete_track_requested = pyqtSignal(int)  
     propagate_label_requested = pyqtSignal(int, str)  
+    propagate_confidence_requested = pyqtSignal(int, float)
     align_track_ids_requested = pyqtSignal(str, int)  
     copy_annotation_requested = pyqtSignal()  
     paste_annotation_requested = pyqtSignal()  
@@ -123,6 +124,7 @@ class MenuPanel(QWidget):
         self.annotation_tab.delete_single_annotation_requested.connect(self.delete_single_annotation_requested)  
         self.annotation_tab.delete_track_requested.connect(self.delete_track_requested)  
         self.annotation_tab.propagate_label_requested.connect(self.propagate_label_requested)  
+        self.annotation_tab.propagate_confidence_requested.connect(self.propagate_confidence_requested)
         self.annotation_tab.align_track_ids_requested.connect(self.align_track_ids_requested)  
         self.annotation_tab.copy_annotation_requested.connect(self.copy_annotation_requested)  
         self.annotation_tab.paste_annotation_requested.connect(self.paste_annotation_requested)  
@@ -230,3 +232,10 @@ class MenuPanel(QWidget):
             
     def update_object_list_selection(self, annotation):  
         self.object_list_tab.update_object_list_selection(annotation)  
+
+    def update_object_list_display_settings(self, show_manual: bool, show_auto: bool, score_threshold: float):  
+        """オブジェクトリストの表示設定を更新"""  
+        if hasattr(self.object_list_tab, '_on_config_changed'):  
+            self.object_list_tab._on_config_changed("show_manual_annotations", show_manual, "display")  
+            self.object_list_tab._on_config_changed("show_auto_annotations", show_auto, "display")  
+            self.object_list_tab._on_config_changed("score_threshold", score_threshold, "display")
