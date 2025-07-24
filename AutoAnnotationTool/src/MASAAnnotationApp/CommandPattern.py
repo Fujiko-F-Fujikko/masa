@@ -122,6 +122,41 @@ class UpdateLabelByTrackCommand(Command):
     def get_description(self) -> str:  
         return f"Update track {self.track_id} label from '{self.old_label}' to '{self.new_label}'"  
   
+class UpdateConfidenceByTrackCommand(Command):  
+    """トラック単位でのbbox.confidence更新コマンド（手動アノテーション化含む）"""  
+      
+    def __init__(self, annotation_repository, track_id: int, old_confidence: float, new_confidence: float):  
+        self.annotation_repository = annotation_repository  
+        self.track_id = track_id  
+        self.old_confidence = old_confidence  
+        self.new_confidence = new_confidence  
+        self.affected_annotations = []  
+        self.old_is_manual_states = {}  # 元のis_manual状態を保存  
+      
+    def execute(self):  
+        # 影響を受けるアノテーションを記録  
+        self.affected_annotations = self.annotation_repository.get_annotations_by_track_id(self.track_id)  
+          
+        # 元のis_manual状態を保存  
+        for ann in self.affected_annotations:  
+            self.old_is_manual_states[ann.frame_id] = ann.is_manual  
+          
+        return self.annotation_repository.update_confidence_by_track_id(self.track_id, self.new_confidence)  
+      
+    def undo(self):  
+        # confidence値を元に戻す  
+        result = self.annotation_repository.update_confidence_by_track_id(self.track_id, self.old_confidence)  
+          
+        # is_manual状態も元に戻す  
+        for ann in self.affected_annotations:  
+            if ann.frame_id in self.old_is_manual_states:  
+                ann.is_manual = self.old_is_manual_states[ann.frame_id]  
+          
+        return result  
+      
+    def get_description(self) -> str:  
+        return f"Update track {self.track_id} bbox confidence from '{self.old_confidence:.2f}' to '{self.new_confidence:.2f}' (set as manual)"
+
 class MacroCommand(Command):  
     """複数のコマンドをまとめて実行するマクロコマンド"""  
       
