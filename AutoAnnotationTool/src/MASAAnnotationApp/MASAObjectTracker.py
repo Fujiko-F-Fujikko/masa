@@ -1,4 +1,4 @@
-# ObjectTracker.py  
+# MASAObjectTracker.py  
 from typing import List
 import os
 import sys
@@ -19,8 +19,8 @@ from masa.models.sam import SamPredictor, sam_model_registry
 from DataClass import MASAConfig, ObjectAnnotation, BoundingBox  
 from ErrorHandler import ErrorHandler  
 
-class ObjectTracker:  
-    """MASA を使用した物体追跡クラス（改善版）"""  
+class MASAObjectTracker:  
+    """MASA を使用した物体追跡クラス"""  
       
     def __init__(self, config: MASAConfig):  
         self.config = config  

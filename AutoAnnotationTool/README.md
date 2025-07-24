@@ -1,6 +1,6 @@
 # README of MASAAnnotationApp
 
-## 環境構築
+## 環境構築 for MASA
 
 ### python
 
@@ -9,14 +9,13 @@
 ### コマンド手順
 
 ```cmd
-python -m venv venv
+python -m venv venv-masa
 # In windows
-source venv/Scripts/activate 
+source venv-masa/Scripts/activate 
 # In Linux
-source venv/bin/activate 
+source venv-masa/bin/activate 
 
 python -m pip install --upgrade pip
-pip install numpy==1.26.4
 pip install torch==2.1.2+cu118 torchvision==0.16.2+cu118 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cu118
 
 # Skip this command in Linux
@@ -27,6 +26,9 @@ pip install wheel # https://github.com/open-mmlab/mmdetection/issues/10665#issue
 pip install -e .
 
 sh install_dependencies.sh
+
+# numpyをこのバージョンにする
+pip install numpy==1.26.4
 ```
 
 #### nltkダウンロード
@@ -41,8 +43,8 @@ sh install_dependencies.sh
 ```cmd
 python (仮想環境上で)
 >>> import nltk
->>> nltk.download('punkt_tab', download_dir='./venv/nltk_data')
->>> nltk.download('averaged_perceptron_tagger_eng', download_dir='./venv/nltk_data')
+>>> nltk.download('punkt_tab', download_dir='./venv-masa/nltk_data')
+>>> nltk.download('averaged_perceptron_tagger_eng', download_dir='./venv-masa/nltk_data')
 ```
 If you get `False` from the above command. try removing the `download_dir` option, run the command below instead.
 ```cmd
@@ -52,19 +54,18 @@ python (仮想環境上で)
 >>> nltk.download('averaged_perceptron_tagger_eng')
 ```
 
-### モデルファイルのダウンロード
+#### モデルファイルのダウンロード
 
 [README](../README.md#preparation)の手順でモデルファイルをダウンロード
 
-## 実行方法
+### 実行方法
 
 
 ### 1. 動画に対して自動検出実行
 
 ```cmd
 
-python -m venv venv # 環境構築した仮想環境に入る
-source venv/Scripts/activate
+source venv-masa/Scripts/activate # 環境構築した仮想環境に入る
 
 python demo/video_demo_with_text.py <動画ファイルのpath> --out <検出結果確認用の動画出力先のpath> --masa_config configs/masa-gdino/masa_gdino_swinb_inference.py --masa_checkpoint saved_models/masa_models/gdino_masa.pth --score-thr 0.2 --unified --show_fps --texts "camera rear casing . cotton swab . tweesers . bottle . rubber gloves . barcode label sticker" --json_out <検出結果のjsonファイル出力先のpath(GUIアプリで使用します)>
 ```
@@ -73,11 +74,36 @@ python demo/video_demo_with_text.py <動画ファイルのpath> --out <検出結
 * --texts: 検出したい物体を任意の自然言語で指定。 区切り文字は"." (例: --texts "camera rear casing . cotton swab . tweesers . bottle . rubber gloves . barcode label sticker")
 * ※詳しい説明はスクリプトを読んでください
 
-### 2. GUIアプリで自動検出結果を編集
+
+## 環境構築 for SAMURAI
+
+### コマンド手順
 
 ```cmd
-python -m venv venv # 環境構築した仮想環境に入る
-source venv/Scripts/activate
+python -m venv venv-samurai
+# In windows
+source venv-samurai/Scripts/activate 
+# In Linux
+source venv-samurai/bin/activate 
+
+python -m pip install --upgrade pip
+pip install torch==2.3.1+cu118 torchvision==0.18.1+cu118 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu118
+
+cd sam2
+pip install -e .
+
+pip install matplotlib==3.7 tikzplotlib jpeg4py opencv-python lmdb pandas scipy loguru
+
+pip install decord PyQt6
+pip install numpy==1.26.4
+```
+
+### 実行方法
+
+#### 2. GUIアプリで自動検出結果を編集
+
+```cmd
+source venv-samurai/Scripts/activate # 環境構築した仮想環境に入る
 python AutoAnnotationTool/src/MASAAnnotationApp/MASAAnnotationApp.py
 python AutoAnnotationTool/src/MASAAnnotationApp/MASAAnnotationApp.py --video AutoAnnotationTool/sample/H1125060570339_2025-06-05_10-52-51_2.mp4 --json AutoAnnotationTool/sample/H1125060570339_2025-06-05_10-52-51_2_outputs.json # 引数指定で起動時読み込み可
 ```

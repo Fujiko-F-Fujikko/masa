@@ -209,7 +209,7 @@ class BasicTabWidget(QWidget):
                     self.update_export_progress("Exporting COCO JSON...")  
                       
                     # スコア閾値でフィルタリングされたアノテーションを作成  
-                    filtered_annotations = self.main_widget._filter_annotations_by_score_threshold()  
+                    filtered_annotations = self.main_widget.filter_annotations_by_score_threshold()  
                       
                     # ワーカースレッドでエクスポート実行  
                     self.export_worker = COCOExportWorker(  

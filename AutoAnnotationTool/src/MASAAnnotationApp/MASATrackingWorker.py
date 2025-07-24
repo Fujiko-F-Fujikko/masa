@@ -1,4 +1,4 @@
-# TrackingWorker.py  
+# MASATrackingWorker.py  
 from typing import List, Tuple, Dict  
 
 from PyQt6.QtCore import QThread, pyqtSignal  
@@ -8,8 +8,8 @@ from ObjectTracker import ObjectTracker
 from AnnotationRepository import AnnotationRepository  
 from ErrorHandler import ErrorHandler  
   
-class TrackingWorker(QThread):  
-    """自動追跡処理用ワーカースレッド（改善版）"""  
+class MASATrackingWorker(QThread):  
+    """MASAを使用した自動追跡処理用ワーカースレッド"""  
       
     progress_updated = pyqtSignal(int, int)  # current_frame, total_frames  
     tracking_completed = pyqtSignal(dict)  # {frame_id: [ObjectAnnotation, ...]}  
@@ -44,7 +44,7 @@ class TrackingWorker(QThread):
             self.tracking_completed.emit(tracked_annotations_by_frame)  
         except Exception as e:  
             self.error_occurred.emit(str(e))  
-            ErrorHandler.log_error(e, "TrackingWorker.run")  
+            ErrorHandler.log_error(e, "MASATrackingWorker.run")  
       
     def process_tracking_with_progress(self) -> Dict[int, List[ObjectAnnotation]]:  
         """進捗報告付きの追跡処理（単一物体版）"""  
