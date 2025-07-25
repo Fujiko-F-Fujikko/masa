@@ -1,6 +1,6 @@
 # README of MASAAnnotationApp
 
-## Environment Setup
+## Environment Setup for MASA
 
 ### python
 
@@ -9,24 +9,26 @@
 ### Command Steps
 
 ```cmd
-python -m venv venv
+python -m venv venv-masa
 # In windows
-source venv/Scripts/activate 
+source venv-masa/Scripts/activate 
 # In Linux
-source venv/bin/activate 
+source venv-masa/bin/activate 
 
 python -m pip install --upgrade pip
-pip install numpy==1.26.4
 pip install torch==2.1.2+cu118 torchvision==0.16.2+cu118 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cu118
 
 # Skip this command in Linux
 pip install msvc-runtime # https://qiita.com/koshitan17/items/20144b79c8905fb19e88 
 
-cd ../mmdetection # Clone from here ⇒ https://github.com/open-mmlab/mmdetection/tree/v3.3.0
+cd ../mmdetection # clone from here⇒https://github.com/open-mmlab/mmdetection/tree/v3.3.0
 pip install wheel # https://github.com/open-mmlab/mmdetection/issues/10665#issuecomment-1757209752
 pip install -e .
 
 sh install_dependencies.sh
+
+# specify numpy version
+pip install numpy==1.26.4
 ```
 
 #### nltk Download
@@ -36,17 +38,17 @@ sh install_dependencies.sh
 #Please use the NLTK Downloader to obtain the resource:
 ```
 
-If you see the above message,
+follow next step if you encount above message.
 
 ```cmd
-python (in virtual environment)
+python (on venv)
 >>> import nltk
->>> nltk.download('punkt_tab', download_dir='./venv/nltk_data')
->>> nltk.download('averaged_perceptron_tagger_eng', download_dir='./venv/nltk_data')
+>>> nltk.download('punkt_tab', download_dir='./venv-masa/nltk_data')
+>>> nltk.download('averaged_perceptron_tagger_eng', download_dir='./venv-masa/nltk_data')
 ```
-If you get `False` from the above command, try removing the `download_dir` option and run the command below instead.
+If you get `False` from the above command. try removing the `download_dir` option, run the command below instead.
 ```cmd
-python (in virtual environment)
+python (仮想環境上で)
 >>> import nltk
 >>> nltk.download('punkt_tab')
 >>> nltk.download('averaged_perceptron_tagger_eng')
@@ -62,8 +64,7 @@ Download the model files by following the steps in [README](../README.md#prepara
 
 ```cmd
 
-python -m venv venv # Enter the created virtual environment
-source venv/Scripts/activate
+source venv-masa/Scripts/activate # Enter the created virtual environment
 
 python demo/video_demo_with_text.py <path to video file> --out <path to output video for checking detection results> --masa_config configs/masa-gdino/masa_gdino_swinb_inference.py --masa_checkpoint saved_models/masa_models/gdino_masa.pth --score-thr 0.2 --unified --show_fps --texts "camera rear casing . cotton swab . tweesers . bottle . rubber gloves . barcode label sticker" --json_out <path to output json file for detection results (used in GUI app)>
 ```
@@ -72,7 +73,33 @@ python demo/video_demo_with_text.py <path to video file> --out <path to output v
 * --texts: Specify the objects to detect in natural language. Use "." as the delimiter. (Example: --texts "camera rear casing . cotton swab . tweesers . bottle . rubber gloves . barcode label sticker")
 * For more details, please read the script.
 
-### 2. Edit Automatic Detection Results with GUI App
+## Embironment Setup for SAMURAI
+
+### Command Steps
+
+```cmd
+python -m venv venv-samurai
+# In windows
+source venv-samurai/Scripts/activate 
+# In Linux
+source venv-samurai/bin/activate 
+
+python -m pip install --upgrade pip
+pip install torch==2.3.1+cu118 torchvision==0.18.1+cu118 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu118
+
+cd sam2
+pip install -e .
+
+pip install matplotlib==3.7 tikzplotlib jpeg4py opencv-python lmdb pandas scipy loguru
+
+pip install decord PyQt6
+pip install numpy==1.26.4
+```
+
+### How to Run
+
+
+#### 2. Edit Automatic Detection Results with GUI App
 
 ```cmd
 python -m venv venv # Enter the created virtual environment
