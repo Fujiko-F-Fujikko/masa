@@ -43,8 +43,9 @@ class KeyboardShortcutHandler:
             Qt.Key.Key_E: self._handle_edit_mode_toggle,  
             Qt.Key.Key_T: self._handle_tracking_mode_toggle,  
             Qt.Key.Key_C: self._handle_copy_mode_toggle,  
+            Qt.Key.Key_D: self._handle_delete_mode_toggle,
             Qt.Key.Key_X: self._handle_delete_single_annotation,  
-            Qt.Key.Key_D: self._handle_delete_track,  
+            Qt.Key.Key_Delete: self._handle_delete_track,  
             Qt.Key.Key_P: self._handle_propagate_label,  
             Qt.Key.Key_R: self._handle_execute_tracking,  
             Qt.Key.Key_G: self._handle_jump_to_frame,  
@@ -255,6 +256,14 @@ class KeyboardShortcutHandler:
             self.menu_panel.annotation_tab.copy_annotations_btn.setChecked(not current_state)  
             self.menu_panel.annotation_tab._on_copy_annotations_clicked(not current_state)  
       
+    def _handle_delete_mode_toggle(self):  
+        """D: 削除モード切り替え"""  
+        if (hasattr(self.menu_panel, 'annotation_tab') and   
+            self.menu_panel.annotation_tab.delete_annotations_btn.isEnabled()):  
+            current_state = self.menu_panel.annotation_tab.delete_annotations_btn.isChecked()  
+            self.menu_panel.annotation_tab.delete_annotations_btn.setChecked(not current_state)  
+            self.menu_panel.annotation_tab._on_delete_annotations_clicked(not current_state)
+
     def _handle_delete_single_annotation(self):  
         """X: 選択アノテーションを削除"""  
         if (hasattr(self.menu_panel, 'annotation_tab') and  
@@ -263,7 +272,7 @@ class KeyboardShortcutHandler:
             self.menu_panel.annotation_tab._on_delete_single_annotation_clicked()  
       
     def _handle_delete_track(self):  
-        """D: トラック一括削除"""  
+        """Del: トラック一括削除"""  
         if (hasattr(self.menu_panel, 'annotation_tab') and  
             self.menu_panel.annotation_tab.current_selected_annotation and  
             self.menu_panel.annotation_tab.delete_track_btn.isEnabled()):  

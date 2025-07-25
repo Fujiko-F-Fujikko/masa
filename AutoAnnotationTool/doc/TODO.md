@@ -76,9 +76,18 @@
 - [x] TrackID単位でconfidenceを編集する機能。confidenceが低くても使いたい結果もあるので、confidenceを1.0に編集してフィルタにかからないようにしたい。
 - [x] エクスポート時にprefixをつける。 作業データ：xxx.full.json  cocoデータ:xxx.coco.json
 - [-] ★コピペができない
-- [ ] ★指定範囲でのTrackID一括削除が欲しい
+- [x] ★指定範囲でのTrackID一括削除が欲しい
 - [x] ★masa形式ファイルをロードしてアノテーション作業を再開したとき、TrackIDがまた1から振られてしまう（既存のIDと被る）
 - [ ] MASA形式でエクスポートしたときに、is_manualの値が消えている
 - [ ] 紛らわしいのでBoundingBoxクラスのconfidenceとObjectAnnotationクラスのtrack_confidenceを統一したい。（BoundingBoxの方のconfidenceをObjectAnnotationに移動したい）
 - [ ] ObjectAnnotationクラスのis_manual_added変数が要らない
+- [ ] AnnotationRepositoryクラスのframe_annotationsとmanual_annotationsを統合したい
 - [ ] "MASA" という名前を使ってしまっている変数や関数名をリネームする
+
+
+
+## 作業時間
+
+* H1125062070282_2025-06-20_12-39-19_0
+  - MASA使用
+  - 14:25-16:05 (100min)

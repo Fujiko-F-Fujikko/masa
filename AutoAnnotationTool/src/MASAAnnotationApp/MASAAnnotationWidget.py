@@ -24,9 +24,9 @@ from TrackingResultConfirmDialog import TrackingResultConfirmDialog
 from KeyboardShortcutHandler import KeyboardShortcutHandler
 from CommandPattern import CommandManager, DeleteAnnotationCommand, DeleteTrackCommand, \
                             UpdateLabelCommand, UpdateLabelByTrackCommand, AlignTrackIdsByLabelCommand, \
-                            AddAnnotationCommand, UpdateConfidenceByTrackCommand
-  
-    
+                            AddAnnotationCommand, UpdateConfidenceByTrackCommand, DeleteTrackInRangeCommand
+
+
 class ButtonKeyEventFilter(QObject):        
     def eventFilter(self, obj, event):        
         try:    
@@ -152,7 +152,8 @@ class MASAAnnotationWidget(QWidget):
         # トラッキングとコピー関連のシグナル接続を追加    
         self.menu_panel.tracking_requested.connect(self.start_tracking)    
         self.menu_panel.copy_annotations_requested.connect(self.start_copy_annotations)  
-  
+        self.menu_panel.delete_annotations_requested.connect(self.start_delete_annotations)  
+
     # 残存する主要メソッド（コンポーネント間調整役）    
     def set_edit_mode(self, enabled: bool):      
         """編集モードの設定とUIの更新"""      
@@ -643,6 +644,26 @@ class MASAAnnotationWidget(QWidget):
             self.video_preview.update_frame_display()    
                           
             ErrorHandler.show_info_dialog(f"Copied {frame_count} annotations with label '{assigned_label}'", "Copy Complete")  
+
+    def start_delete_annotations(self, track_id: int, start_frame: int, end_frame: int):  
+        """範囲削除要求時の処理"""  
+        command = DeleteTrackInRangeCommand(self.annotation_repository, track_id, start_frame, end_frame)  
+        deleted_count = self.command_manager.execute_command(command)  
+          
+        if deleted_count > 0:  
+            self.video_preview.bbox_editor.selected_annotation = None  
+            self.video_preview.bbox_editor.selection_changed.emit(None)  
+            ErrorHandler.show_info_dialog(  
+                f"Deleted {deleted_count} annotations for Track ID '{track_id}' in range {start_frame}-{end_frame}.",  
+                "Delete Complete"  
+            )  
+            self.update_annotation_count()  
+            self.video_preview.update_frame_display()  
+        else:  
+            ErrorHandler.show_warning_dialog(  
+                f"No annotations found for Track ID '{track_id}' in the specified range.",  
+                "Error"  
+            )  
   
     def reset_all_modes_to_initial_state(self):    
         """すべてのモードを初期状態に戻す"""    
@@ -650,11 +671,13 @@ class MASAAnnotationWidget(QWidget):
         self.menu_panel.annotation_tab.edit_mode_btn.setChecked(False)    
         self.menu_panel.annotation_tab.tracking_annotation_btn.setChecked(False)    
         self.menu_panel.annotation_tab.copy_annotations_btn.setChecked(False)    
+        self.menu_panel.annotation_tab.delete_annotations_btn.setChecked(False)  
           
         # すべてのモードボタンを有効化    
         self.menu_panel.annotation_tab.edit_mode_btn.setEnabled(True)    
         self.menu_panel.annotation_tab.tracking_annotation_btn.setEnabled(True)    
         self.menu_panel.annotation_tab.copy_annotations_btn.setEnabled(True)    
+        self.menu_panel.annotation_tab.delete_annotations_btn.setEnabled(True)    
           
         # execute_add_btnを無効化    
         self.menu_panel.annotation_tab.execute_add_btn.setEnabled(False)    

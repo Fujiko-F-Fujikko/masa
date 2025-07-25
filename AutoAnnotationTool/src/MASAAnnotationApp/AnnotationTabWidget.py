@@ -20,9 +20,11 @@ class AnnotationTabWidget(QWidget):
     edit_mode_requested = pyqtSignal(bool)  
     tracking_mode_requested = pyqtSignal(bool)  
     copy_mode_requested = pyqtSignal(bool)  
+    delete_mode_requested = pyqtSignal(bool)  
       
     tracking_requested = pyqtSignal(int, str)  
     copy_annotations_requested = pyqtSignal(int, str)  
+    delete_annotations_requested = pyqtSignal(int, int, int)  # track_id, start_frame, end_frame
       
     label_change_requested = pyqtSignal(object, str)  
     delete_single_annotation_requested = pyqtSignal(object)  
@@ -101,7 +103,7 @@ class AnnotationTabWidget(QWidget):
         self.delete_single_annotation_btn.clicked.connect(self._on_delete_single_annotation_clicked)  
         edit_layout.addWidget(self.delete_single_annotation_btn)  
           
-        self.delete_track_btn = QPushButton("Delete All (D)")  
+        self.delete_track_btn = QPushButton("Delete All (Del)")  
         self.delete_track_btn.setEnabled(False)  
         self.delete_track_btn.clicked.connect(self._on_delete_track_clicked)  
         edit_layout.addWidget(self.delete_track_btn)  
@@ -198,6 +200,27 @@ class AnnotationTabWidget(QWidget):
         self.copy_annotations_btn.setEnabled(False)  
         batch_layout.addWidget(self.copy_annotations_btn)  
           
+        # 削除ボタン用スタイル  
+        delete_button_style = """  
+            QPushButton {  
+                background-color: #f0f0f0;  
+                border: 2px solid #ccc;  
+                padding: 5px;  
+            }  
+            QPushButton:checked {  
+                background-color: #FFB6B6;  
+                border: 2px solid #FF6B6B;  
+                font-weight: bold;  
+            }  
+        """  
+          
+        self.delete_annotations_btn = QPushButton("Delete Mode (D)")  
+        self.delete_annotations_btn.setCheckable(True)  
+        self.delete_annotations_btn.setStyleSheet(delete_button_style)  
+        self.delete_annotations_btn.clicked.connect(self._on_delete_annotations_clicked)  
+        self.delete_annotations_btn.setEnabled(False)  
+        batch_layout.addWidget(self.delete_annotations_btn)
+
         # 範囲情報表示  
         self.range_info_label = QLabel("Range: Not selected")  
         batch_layout.addWidget(self.range_info_label)  
@@ -276,6 +299,38 @@ class AnnotationTabWidget(QWidget):
             ErrorHandler.show_info_dialog("Copy mode disabled.", "Mode Change")  
           
         self.main_widget.video_preview.update_frame_display()  
+
+    def set_delete_mode(self, enabled: bool):  
+        """削除モードの設定とUIの更新"""  
+        if enabled:  
+            if self.main_widget.menu_panel.edit_mode_btn.isChecked():  
+                self.main_widget.menu_panel.edit_mode_btn.setChecked(False)  
+                self.main_widget.set_edit_mode(False)  
+            if self.main_widget.menu_panel.tracking_annotation_btn.isChecked():  
+                self.main_widget.menu_panel.tracking_annotation_btn.setChecked(False)  
+                self.set_tracking_mode(False)  
+            if self.main_widget.menu_panel.copy_annotations_btn.isChecked():  
+                self.main_widget.menu_panel.copy_annotations_btn.setChecked(False)  
+                self.set_copy_mode(False)  
+                  
+            self.main_widget.video_preview.set_mode('edit')  
+            self.main_widget.video_control.range_slider.setVisible(True)  
+            self.main_widget.video_preview.bbox_editor.set_editing_mode(True)  
+              
+            ErrorHandler.show_info_dialog(  
+                "Delete mode enabled.\n"  
+                "1. Select an annotation to delete.\n"  
+                "2. Specify the frame range.\n"  
+                "3. Press the Run button.",  
+                "Mode Change"  
+            )  
+        else:  
+            self.main_widget.video_preview.set_mode('view')  
+            self.main_widget.video_control.range_slider.setVisible(False)  
+            self.main_widget.video_preview.bbox_editor.set_editing_mode(False)  
+            ErrorHandler.show_info_dialog("Delete mode disabled.", "Mode Change")  
+              
+        self.main_widget.video_preview.update_frame_display()
     
     # イベントハンドラー  
     def _on_edit_mode_clicked(self, checked: bool):  
@@ -284,6 +339,7 @@ class AnnotationTabWidget(QWidget):
             # Edit Modeがオンの時は他のモードボタンを無効化  
             self.tracking_annotation_btn.setEnabled(False)  
             self.copy_annotations_btn.setEnabled(False)  
+            self.delete_annotations_btn.setEnabled(False)
             
             # 他のモードがオンの場合はオフにする  
             if self.tracking_annotation_btn.isChecked():  
@@ -292,10 +348,14 @@ class AnnotationTabWidget(QWidget):
             if self.copy_annotations_btn.isChecked():  
                 self.copy_annotations_btn.setChecked(False)  
                 self.set_copy_mode(False)  
+            if self.delete_annotations_btn.isChecked():  
+                self.delete_annotations_btn.setChecked(False)  
+                self.set_delete_mode(False)
         else:  
             # Edit Modeがオフの時は他のモードボタンを有効化  
             self.tracking_annotation_btn.setEnabled(True)  
             self.copy_annotations_btn.setEnabled(True)  
+            self.delete_annotations_btn.setEnabled(True)
         
         self.edit_mode_requested.emit(checked)  
 
@@ -305,6 +365,7 @@ class AnnotationTabWidget(QWidget):
             # Tracking Modeがオンの時は他のモードボタンを無効化  
             self.edit_mode_btn.setEnabled(False)  
             self.copy_annotations_btn.setEnabled(False)  
+            self.delete_annotations_btn.setEnabled(False)
             
             # 他のモードがオンの場合はオフにする  
             if self.edit_mode_btn.isChecked():  
@@ -314,12 +375,17 @@ class AnnotationTabWidget(QWidget):
             if self.copy_annotations_btn.isChecked():  
                 self.copy_annotations_btn.setChecked(False)  
                 self.set_copy_mode(False)  
+            if self.delete_annotations_btn.isChecked():  
+                self.delete_annotations_btn.setChecked(False)  
+                self.set_copy_mode(False)  
+
             
             self.set_tracking_mode(True)  
         else:  
             # Tracking Modeがオフの時は他のモードボタンを有効化  
             self.edit_mode_btn.setEnabled(True)  
             self.copy_annotations_btn.setEnabled(True)  
+            self.delete_annotations_btn.setEnabled(True)
             self.set_tracking_mode(False)  
         
         self.tracking_mode_requested.emit(checked)
@@ -330,6 +396,7 @@ class AnnotationTabWidget(QWidget):
             # Copy Modeがオンの時は他のモードボタンを無効化  
             self.edit_mode_btn.setEnabled(False)  
             self.tracking_annotation_btn.setEnabled(False)  
+            self.delete_annotations_btn.setEnabled(False)
             
             # 他のモードがオンの場合はオフにする  
             if self.edit_mode_btn.isChecked():  
@@ -339,16 +406,50 @@ class AnnotationTabWidget(QWidget):
             if self.tracking_annotation_btn.isChecked():  
                 self.tracking_annotation_btn.setChecked(False)  
                 self.set_tracking_mode(False)  
+            if self.delete_annotations_btn.isChecked():  
+                self.delete_annotations_btn.setChecked(False)  
+                self.set_copy_mode(False)  
+
             
             self.set_copy_mode(True)  
         else:  
             # Copy Modeがオフの時は他のモードボタンを有効化  
             self.edit_mode_btn.setEnabled(True)  
             self.tracking_annotation_btn.setEnabled(True)  
+            self.delete_annotations_btn.setEnabled(True)
             self.set_copy_mode(False)  
         
         self.copy_mode_requested.emit(checked)
   
+    def _on_delete_annotations_clicked(self, checked: bool):  
+        """削除モードボタンクリック時の処理"""  
+        if checked:  
+            # Delete Modeがオンの時は他のモードボタンを無効化  
+            self.edit_mode_btn.setEnabled(False)  
+            self.tracking_annotation_btn.setEnabled(False)  
+            self.copy_annotations_btn.setEnabled(False)  
+              
+            # 他のモードがオンの場合はオフにする  
+            if self.edit_mode_btn.isChecked():  
+                self.edit_mode_btn.setChecked(False)  
+                self.edit_mode_requested.emit(False)  
+            if self.tracking_annotation_btn.isChecked():  
+                self.tracking_annotation_btn.setChecked(False)  
+                self.set_tracking_mode(False)  
+            if self.copy_annotations_btn.isChecked():  
+                self.copy_annotations_btn.setChecked(False)  
+                self.set_copy_mode(False)  
+              
+            self.set_delete_mode(True)  
+        else:  
+            # Delete Modeがオフの時は他のモードボタンを有効化  
+            self.edit_mode_btn.setEnabled(True)  
+            self.tracking_annotation_btn.setEnabled(True)  
+            self.copy_annotations_btn.setEnabled(True)  
+            self.set_delete_mode(False)  
+          
+        self.delete_mode_requested.emit(checked)
+
     def _on_label_changed(self, index: int):  
         """ラベル変更時の処理"""  
         if self.current_selected_annotation and index >= 0:  
@@ -506,6 +607,10 @@ class AnnotationTabWidget(QWidget):
         # コピーモードの場合  
         if self.copy_annotations_btn.isChecked():  
             return self._handle_copy_mode_execution()  
+
+        # 削除モードの場合  
+        if self.delete_annotations_btn.isChecked():  
+            return self._handle_delete_mode_execution()  
   
         # トラッキングモードの場合  
         if not self.main_widget.temp_bboxes_for_tracking:  
@@ -566,6 +671,33 @@ class AnnotationTabWidget(QWidget):
             self.copy_annotations_requested.emit(assigned_track_id, assigned_label)  
         else:  
             ErrorHandler.show_info_dialog("Label selection was cancelled.", "Info")  
+
+    def _handle_delete_mode_execution(self):  
+        """削除モード実行時の処理"""  
+        if not self.current_selected_annotation:  
+            ErrorHandler.show_warning_dialog("Please select an annotation to delete.", "Warning")  
+            return  
+      
+        start_frame, end_frame = self.main_widget.video_control.get_selected_range()  
+        if start_frame == -1 or end_frame == -1:  
+            ErrorHandler.show_warning_dialog("No frame range selected.", "Warning")  
+            return  
+      
+        track_id = self.current_selected_annotation.object_id  
+        frame_count = end_frame - start_frame + 1  
+          
+        reply = QMessageBox.question(  
+            self, "Confirm Range Delete",  
+            f"Delete all annotations with Track ID '{track_id}' from frame {start_frame} to {end_frame}?\n"  
+            f"Total frames to process: {frame_count}\n"  
+            "This action cannot be undone.",  
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+        )  
+          
+        if reply == QMessageBox.StandardButton.Yes:  
+            self.delete_annotations_requested.emit(track_id, start_frame, end_frame)  
+        else:  
+            ErrorHandler.show_info_dialog("Delete operation was cancelled.", "Info")
   
     # UI更新メソッド  
     def update_selected_annotation_info(self, annotation: Optional[ObjectAnnotation]):  
