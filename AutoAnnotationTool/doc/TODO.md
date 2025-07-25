@@ -75,12 +75,16 @@
 
 - [x] TrackID単位でconfidenceを編集する機能。confidenceが低くても使いたい結果もあるので、confidenceを1.0に編集してフィルタにかからないようにしたい。
 - [x] エクスポート時にprefixをつける。 作業データ：xxx.full.json  cocoデータ:xxx.coco.json
-- [ ] ★ペーストができない
+- [ ] ★ペーストができないときがある。Editモード以外のとき？
 - [x] ★指定範囲でのTrackID一括削除が欲しい
 - [x] ★masa形式ファイルをロードしてアノテーション作業を再開したとき、TrackIDがまた1から振られてしまう（既存のIDと被る）
 - [x] ★Copy Mode, Delete ModeのUndo/Redoの単位を一括にしたい
 - [x] ★Copy モードで選択した範囲の1フレーム目にダブってアノテーションがコピーされる。範囲の最初のフレームにはコピーしないようにするか、コピーした後もとのアノテーションは消したい。
 - [x] ★単削除時のダイアログを消す
+- [x] ★jsonファイルエクスポート時に動画名を付ける
+- [ ] ObjectList上で選択したときも、selected_annotation扱いにしたい
+- [ ] 整理してSARDに共有
+
 - [ ] MASA形式でエクスポートしたときに、is_manualの値が消えている
 - [ ] 紛らわしいのでBoundingBoxクラスのconfidenceとObjectAnnotationクラスのtrack_confidenceを統一したい。（BoundingBoxの方のconfidenceをObjectAnnotationに移動したい）
 - [ ] ObjectAnnotationクラスのis_manual_added変数が要らない
@@ -95,5 +99,8 @@
   * MASA使用
   * 14:25-16:05 (100min)
 * H1125062070282_2025-06-20_12-39-19_1
-  * MASA不使用, 機能改善
-  * 16:40-17:15 (初期付け)
+  * MASA不使用, 機能改善版
+  * 16:40-17:15 (初期付け) 35
+  * 18:05-18:50(誤検出消し&位置修正) 45
+  * 19:30-19:50(誤検出消し&位置修正) 20
+  * total: 100min

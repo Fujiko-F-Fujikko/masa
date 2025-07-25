@@ -185,9 +185,10 @@ class BasicTabWidget(QWidget):
                 ErrorHandler.show_warning_dialog("Video not loaded. Cannot export video-related metadata.", "Warning")  
                 return  
               
-            # タイムスタンプとフォーマットタイプ付きのデフォルトファイル名を生成  
+            # 動画名・タイムスタンプ・フォーマットタイプ付きのデフォルトファイル名を生成  
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  
-            default_filename = f"annotations_{timestamp}.{format_type}.json"
+            video_name = Path(self.main_widget.video_manager.video_path).stem  # 拡張子なしの動画名を取得
+            default_filename = f"{video_name}_annotations_{timestamp}.{format_type}.json"
 
             file_dialog_title = f"Save {format_type.upper()} Annotations"  
             file_path, _ = QFileDialog.getSaveFileName(  
