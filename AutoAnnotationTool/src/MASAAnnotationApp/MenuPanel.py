@@ -24,9 +24,11 @@ class MenuPanel(QWidget):
     edit_mode_requested = pyqtSignal(bool)  
     tracking_mode_requested = pyqtSignal(bool)  
     copy_mode_requested = pyqtSignal(bool)  
+    delete_mode_requested = pyqtSignal(bool)  
       
     tracking_requested = pyqtSignal(int, str)  
     copy_annotations_requested = pyqtSignal(int, str)  
+    delete_annotations_requested = pyqtSignal(int, int, int)  
       
     label_change_requested = pyqtSignal(object, str)  
     delete_single_annotation_requested = pyqtSignal(object)  
@@ -118,8 +120,10 @@ class MenuPanel(QWidget):
         self.annotation_tab.edit_mode_requested.connect(self.edit_mode_requested)  
         self.annotation_tab.tracking_mode_requested.connect(self.tracking_mode_requested)  
         self.annotation_tab.copy_mode_requested.connect(self.copy_mode_requested)  
+        self.annotation_tab.delete_mode_requested.connect(self.delete_mode_requested)
         self.annotation_tab.tracking_requested.connect(self.tracking_requested)  
         self.annotation_tab.copy_annotations_requested.connect(self.copy_annotations_requested)  
+        self.annotation_tab.delete_annotations_requested.connect(self.delete_annotations_requested)
         self.annotation_tab.label_change_requested.connect(self.label_change_requested)  
         self.annotation_tab.delete_single_annotation_requested.connect(self.delete_single_annotation_requested)  
         self.annotation_tab.delete_track_requested.connect(self.delete_track_requested)  
@@ -168,6 +172,10 @@ class MenuPanel(QWidget):
     @property  
     def copy_annotations_btn(self):  
         return self.annotation_tab.copy_annotations_btn  
+
+    @property  
+    def delete_annotations_btn(self):  
+        return self.annotation_tab.delete_annotations_btn
       
     @property  
     def execute_add_btn(self):  
@@ -195,6 +203,7 @@ class MenuPanel(QWidget):
         self.annotation_tab.edit_mode_btn.setEnabled(True)  
         self.annotation_tab.tracking_annotation_btn.setEnabled(True)  
         self.annotation_tab.copy_annotations_btn.setEnabled(True)
+        self.annotation_tab.delete_annotations_btn.setEnabled(True)
             
     def update_export_progress(self, message: str):  
         self.basic_tab.update_export_progress(message)  

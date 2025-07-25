@@ -80,7 +80,7 @@ class DeleteTrackCommand(Command):
       
     def get_description(self) -> str:  
         return f"Delete track {self.track_id} ({len(self.deleted_annotations)} annotations)"  
-  
+
 class UpdateLabelCommand(Command):  
     """ラベル更新コマンド"""  
       
