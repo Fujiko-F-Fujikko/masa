@@ -191,7 +191,7 @@ class MASAAnnotationWidget(QWidget):
         if self.command_manager.execute_command(command):      
             self.video_preview.bbox_editor.selected_annotation = None      
             self.video_preview.bbox_editor.selection_changed.emit(None)      
-            ErrorHandler.show_info_dialog("Annotation deleted.", "Delete Complete")    
+            #ErrorHandler.show_info_dialog("Annotation deleted.", "Delete Complete")    
             self.update_annotation_count()      
             self.video_preview.update_frame_display()    
                 

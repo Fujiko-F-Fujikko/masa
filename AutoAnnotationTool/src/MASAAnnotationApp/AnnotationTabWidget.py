@@ -462,14 +462,14 @@ class AnnotationTabWidget(QWidget):
         if not self.current_selected_annotation:  
             return  
             
-        reply = QMessageBox.question(  
-            self, "Confirm Delete Annotation",  
-            f"Do you want to delete the annotation for SELECTED frame {self.current_selected_annotation.frame_id} (ID: {self.current_selected_annotation.object_id}, label: '{self.current_selected_annotation.label}')?",  
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
-        )  
+        #reply = QMessageBox.question(  
+        #    self, "Confirm Delete Annotation",  
+        #    f"Do you want to delete the annotation for SELECTED frame {self.current_selected_annotation.frame_id} (ID: {self.#current_selected_annotation.object_id}, label: '{self.current_selected_annotation.label}')?",  
+        #    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+        #)  
         
-        if reply == QMessageBox.StandardButton.Yes:  
-            self.delete_single_annotation_requested.emit(self.current_selected_annotation)
+        #if reply == QMessageBox.StandardButton.Yes:  
+        self.delete_single_annotation_requested.emit(self.current_selected_annotation)
   
     def _on_delete_track_clicked(self):  
         """トラック削除ボタンクリック時の処理"""  
