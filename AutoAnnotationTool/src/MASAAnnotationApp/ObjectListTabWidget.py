@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QCheckBox, QLabel,  
     QDoubleSpinBox, QTableWidget, QTableWidgetItem, QHeaderView  
 )  
-from PyQt6.QtCore import pyqtSignal, Qt  
+from PyQt6.QtCore import pyqtSignal, Qt, QEvent
 from PyQt6.QtGui import QFont  
   
 from DataClass import ObjectAnnotation, FrameAnnotation  
@@ -148,6 +148,8 @@ class ObjectListTabWidget(QWidget):
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)    
         self.table.setAlternatingRowColors(True)    
         self.table.setSortingEnabled(True)    
+        # イベントフィルターを設定  
+        self.table.installEventFilter(self)
             
         # スタイル設定    
         self.table.setStyleSheet("""    
@@ -370,3 +372,22 @@ class ObjectListTabWidget(QWidget):
         self.config_manager.update_config("score_threshold", value, config_type="display")    
         self.config_changed.emit("score_threshold", value, "display")    
         self._apply_filters()    
+
+    def eventFilter(self, obj, event):  
+        """テーブルのキーイベントをフィルタリング"""  
+        if obj == self.table and event.type() == QEvent.Type.KeyPress:  
+            # 特定のキーは親に転送  
+            if event.key() in [  
+                Qt.Key.Key_X, Qt.Key.Key_P, Qt.Key.Key_F,  
+                Qt.Key.Key_E, Qt.Key.Key_T, Qt.Key.Key_C,  
+                Qt.Key.Key_D, Qt.Key.Key_R, Qt.Key.Key_G, Qt.Key.Key_A  
+            ]:  
+                # 親ウィジェット（最終的にMASAAnnotationWidget）にイベントを転送  
+                parent = self.parent()  
+                while parent:  
+                    if hasattr(parent, 'keyPressEvent'):  
+                        parent.keyPressEvent(event)  
+                        return True  
+                    parent = parent.parent()  
+          
+        return super().eventFilter(obj, event)

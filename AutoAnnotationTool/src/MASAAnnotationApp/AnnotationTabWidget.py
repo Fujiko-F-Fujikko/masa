@@ -452,6 +452,9 @@ class AnnotationTabWidget(QWidget):
 
     def _on_label_changed(self, index: int):  
         """ラベル変更時の処理"""  
+        if not self.current_selected_annotation:  
+            ErrorHandler.show_warning_dialog("No annotation selected.", "Warning")
+            return  
         if self.current_selected_annotation and index >= 0:  
             new_label = self.label_combo.currentText().strip()  
             if new_label and new_label != self.current_selected_annotation.label:  
@@ -460,6 +463,7 @@ class AnnotationTabWidget(QWidget):
     def _on_delete_single_annotation_clicked(self):  
         """単一アノテーション削除ボタンクリック時の処理"""  
         if not self.current_selected_annotation:  
+            ErrorHandler.show_warning_dialog("No annotation selected.", "Warning")
             return  
             
         #reply = QMessageBox.question(  
@@ -474,6 +478,7 @@ class AnnotationTabWidget(QWidget):
     def _on_delete_track_clicked(self):  
         """トラック削除ボタンクリック時の処理"""  
         if not self.current_selected_annotation:  
+            ErrorHandler.show_warning_dialog("No annotation selected.", "Warning")
             return  
             
         track_id_to_delete = self.current_selected_annotation.object_id  
@@ -490,6 +495,7 @@ class AnnotationTabWidget(QWidget):
     def _on_propagate_label_clicked(self):  
         """ラベル伝播ボタンクリック時の処理"""  
         if not self.current_selected_annotation:  
+            ErrorHandler.show_warning_dialog("No annotation selected.", "Warning")
             return  
             
         track_id_to_change = self.current_selected_annotation.object_id  
@@ -527,6 +533,7 @@ class AnnotationTabWidget(QWidget):
     def _on_propagate_confidence_clicked(self):  
         """confidence伝播ボタンクリック時の処理"""  
         if not self.current_selected_annotation:  
+            ErrorHandler.show_warning_dialog("No annotation selected.", "Warning")
             return  
               
         track_id_to_change = self.current_selected_annotation.object_id  
@@ -557,6 +564,7 @@ class AnnotationTabWidget(QWidget):
     def _on_align_track_ids_clicked(self):  
         """Track ID統一ボタンクリック時の処理"""  
         if not self.current_selected_annotation:  
+            ErrorHandler.show_warning_dialog("No annotation selected.", "Warning")
             return  
             
         target_label = self.current_selected_annotation.label  
