@@ -28,7 +28,11 @@ class AnnotationRepository:
         # オブジェクトIDが未設定の場合は新しいIDを生成  
         if annotation.object_id <= 0:  
             annotation.object_id = self.get_next_object_id()  
-          
+        else:  
+            # 既存のIDが設定されている場合、next_object_idを更新  
+            if annotation.object_id >= self.next_object_id:  
+                self.next_object_id = annotation.object_id + 1
+                
         # アノテーションを追加  
         self.frame_annotations[frame_id].objects.append(annotation)  
           
