@@ -24,7 +24,7 @@ from TrackingResultConfirmDialog import TrackingResultConfirmDialog
 from KeyboardShortcutHandler import KeyboardShortcutHandler
 from CommandPattern import CommandManager, DeleteAnnotationCommand, DeleteTrackCommand, \
                             UpdateLabelCommand, UpdateLabelByTrackCommand, AlignTrackIdsByLabelCommand, \
-                            AddAnnotationCommand, UpdateConfidenceByTrackCommand, DeleteTrackInRangeCommand
+                            AddAnnotationCommand, UpdateConfidenceByTrackCommand, MacroCommand
 
 
 class ButtonKeyEventFilter(QObject):        
@@ -616,7 +616,8 @@ class MASAAnnotationWidget(QWidget):
         )    
           
         if reply == QMessageBox.StandardButton.Yes:    
-            # 各フレームにアノテーションをコピー                  
+            # 各フレームにアノテーションをコピー
+            commands = []
             # 最初のフレームにはコピーしない（コピー元のアノテーションがあるから）
             for frame_id in range(start_frame + 1, end_frame + 1):    
                 new_annotation = ObjectAnnotation(    
@@ -635,33 +636,83 @@ class MASAAnnotationWidget(QWidget):
                     is_manual_added=True    
                 )    
                   
-                command = AddAnnotationCommand(self.annotation_repository, new_annotation)    
-                self.command_manager.execute_command(command)    
-              
+                commands.append(AddAnnotationCommand(self.annotation_repository, new_annotation))
+
+            # MacroCommand として一括実行  
+            macro_command = MacroCommand(  
+                commands,   
+                f"Copy {len(commands)} annotations with label '{assigned_label}' from frame {start_frame+1} to {end_frame}"  
+            )  
+            self.command_manager.execute_command(macro_command)  
+
             self.update_annotation_count()    
             self.video_preview.update_frame_display()    
                           
             ErrorHandler.show_info_dialog(f"Copied {frame_count} annotations with label '{assigned_label}'", "Copy Complete")  
 
     def start_delete_annotations(self, track_id: int, start_frame: int, end_frame: int):  
-        """範囲削除要求時の処理"""  
-        command = DeleteTrackInRangeCommand(self.annotation_repository, track_id, start_frame, end_frame)  
-        deleted_count = self.command_manager.execute_command(command)  
+        """選択されたTrack IDを指定範囲で一括削除"""  
+        if not self.video_manager:  
+            ErrorHandler.show_warning_dialog("Please load a video file first.", "Warning")  
+            return  
           
-        if deleted_count > 0:  
-            self.video_preview.bbox_editor.selected_annotation = None  
-            self.video_preview.bbox_editor.selection_changed.emit(None)  
-            ErrorHandler.show_info_dialog(  
-                f"Deleted {deleted_count} annotations for Track ID '{track_id}' in range {start_frame}-{end_frame}.",  
-                "Delete Complete"  
-            )  
-            self.update_annotation_count()  
-            self.video_preview.update_frame_display()  
-        else:  
+        # 削除対象のアノテーションを収集  
+        commands = []  
+        total_annotations = 0  
+          
+        for frame_id in range(start_frame, end_frame + 1):  
+            frame_annotation = self.annotation_repository.get_annotations(frame_id)  
+            if frame_annotation:  
+                to_delete = [ann for ann in frame_annotation.objects if ann.object_id == track_id]  
+                for annotation in to_delete:  
+                    commands.append(DeleteAnnotationCommand(self.annotation_repository, annotation))  
+                    total_annotations += 1  
+          
+        if not commands:  
             ErrorHandler.show_warning_dialog(  
                 f"No annotations found for Track ID '{track_id}' in the specified range.",  
-                "Error"  
+                "Warning"  
             )  
+            return  
+          
+        # 確認ダイアログ  
+        frame_count = end_frame - start_frame + 1  
+        reply = QMessageBox.question(  
+            self, "Confirm Range Delete",  
+            f"Delete all annotations with Track ID '{track_id}' from frame {start_frame} to {end_frame}?\n"  
+            f"Total annotations to delete: {total_annotations}\n"  
+            f"Total frames in range: {frame_count}\n"  
+            "This action can be undone.",  
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No  
+        )  
+          
+        if reply == QMessageBox.StandardButton.Yes:  
+            # MacroCommandとして一括実行  
+            macro_command = MacroCommand(  
+                commands,  
+                f"Delete track {track_id} from frame {start_frame} to {end_frame} ({total_annotations} annotations)"  
+            )  
+              
+            # コマンドを実行  
+            self.command_manager.execute_command(macro_command)  
+              
+            # UI更新  
+            self.video_preview.bbox_editor.selected_annotation = None  
+            self.video_preview.bbox_editor.selection_changed.emit(None)  
+            self.update_annotation_count()  
+            self.video_preview.update_frame_display()  
+              
+            # オブジェクト一覧を更新  
+            current_frame = self.video_control.current_frame  
+            frame_annotation = self.annotation_repository.get_annotations(current_frame)  
+            self.menu_panel.update_current_frame_objects(current_frame, frame_annotation)  
+              
+            ErrorHandler.show_info_dialog(  
+                f"Deleted {total_annotations} annotations for Track ID '{track_id}' in range {start_frame}-{end_frame}.",  
+                "Delete Complete"  
+            )  
+        else:  
+            ErrorHandler.show_info_dialog("Delete operation was cancelled.", "Info")
   
     def reset_all_modes_to_initial_state(self):    
         """すべてのモードを初期状態に戻す"""    

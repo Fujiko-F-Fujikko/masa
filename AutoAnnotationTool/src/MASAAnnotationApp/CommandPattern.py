@@ -81,46 +81,6 @@ class DeleteTrackCommand(Command):
     def get_description(self) -> str:  
         return f"Delete track {self.track_id} ({len(self.deleted_annotations)} annotations)"  
 
-class DeleteTrackInRangeCommand(Command):  
-    """指定範囲のTrack ID削除コマンド"""  
-      
-    def __init__(self, annotation_repository, track_id: int, start_frame: int, end_frame: int):  
-        self.annotation_repository = annotation_repository  
-        self.track_id = track_id  
-        self.start_frame = start_frame  
-        self.end_frame = end_frame  
-        self.deleted_annotations = []  
-      
-    def execute(self) -> int:  
-        """指定範囲のTrack IDを削除"""  
-        deleted_count = 0  
-        for frame_id in range(self.start_frame, self.end_frame + 1):  
-            frame_annotation = self.annotation_repository.get_annotations(frame_id)  
-            if frame_annotation:  
-                to_delete = [ann for ann in frame_annotation.objects if ann.object_id == self.track_id]  
-                for annotation in to_delete:  
-                    # 削除前にアノテーションを保存（undo用）  
-                    self.deleted_annotations.append((frame_id, annotation))  
-                    # AnnotationRepositoryのdelete_annotationメソッドを使用  
-                    if self.annotation_repository.delete_annotation(annotation.object_id, frame_id):  
-                        deleted_count += 1  
-          
-        return deleted_count  
-      
-    def undo(self):  
-        """削除を元に戻す"""  
-        restored_count = 0  
-        for frame_id, annotation in self.deleted_annotations:  
-            # add_annotationメソッドを使用して復元  
-            restored_annotation = self.annotation_repository.add_annotation(annotation)  
-            if restored_annotation:  
-                restored_count += 1  
-          
-        return restored_count  
-      
-    def get_description(self) -> str:  
-        return f"Delete track {self.track_id} from {self.start_frame} to {self.end_frame} ({len(self.deleted_annotations)} annotations)"
-  
 class UpdateLabelCommand(Command):  
     """ラベル更新コマンド"""  
       
