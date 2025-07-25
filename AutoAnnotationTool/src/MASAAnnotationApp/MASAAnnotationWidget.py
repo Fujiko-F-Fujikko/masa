@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QObject, QEvent
 from PyQt6.QtGui import QKeyEvent        
   
-from DataClass import BoundingBox, ObjectAnnotation        
+from DataClass import BoundingBox, ObjectAnnotation, FrameAnnotation        
 from MenuPanel import MenuPanel        
 from VideoControlPanel import VideoControlPanel        
 from VideoPreviewWidget import VideoPreviewWidget        
@@ -616,11 +616,9 @@ class MASAAnnotationWidget(QWidget):
         )    
           
         if reply == QMessageBox.StandardButton.Yes:    
-            # 各フレームにアノテーションをコピー    
-            from DataClass import ObjectAnnotation, BoundingBox    
-            from CommandPattern import AddAnnotationCommand    
-              
-            for frame_id in range(start_frame, end_frame + 1):    
+            # 各フレームにアノテーションをコピー                  
+            # 最初のフレームにはコピーしない（コピー元のアノテーションがあるから）
+            for frame_id in range(start_frame + 1, end_frame + 1):    
                 new_annotation = ObjectAnnotation(    
                     object_id=assigned_track_id,    
                     frame_id=frame_id,    
@@ -712,7 +710,6 @@ class MASAAnnotationWidget(QWidget):
                         filtered_objects.append(annotation)  
                   
                 if filtered_objects:  
-                    from DataClass import FrameAnnotation  
                     filtered_frame_annotation = FrameAnnotation(  
                         frame_id=frame_annotation.frame_id,  
                         frame_path=frame_annotation.frame_path,  

@@ -79,7 +79,7 @@
 - [x] ★指定範囲でのTrackID一括削除が欲しい
 - [x] ★masa形式ファイルをロードしてアノテーション作業を再開したとき、TrackIDがまた1から振られてしまう（既存のIDと被る）
 - [ ] ★Copy Mode, Delete ModeのUndo/Redoの単位を一括にしたい
-- [ ] ★Copy モードで選択した範囲の1フレーム目にダブってアノテーションがコピーされる。範囲の最初のフレームにはコピーしないようにするか、コピーした後もとのアノテーションは消したい。
+- [x] ★Copy モードで選択した範囲の1フレーム目にダブってアノテーションがコピーされる。範囲の最初のフレームにはコピーしないようにするか、コピーした後もとのアノテーションは消したい。
 - [x] ★単削除時のダイアログを消す
 - [ ] MASA形式でエクスポートしたときに、is_manualの値が消えている
 - [ ] 紛らわしいのでBoundingBoxクラスのconfidenceとObjectAnnotationクラスのtrack_confidenceを統一したい。（BoundingBoxの方のconfidenceをObjectAnnotationに移動したい）
