@@ -83,7 +83,7 @@
 - [x] ★単削除時のダイアログを消す
 - [x] ★jsonファイルエクスポート時に動画名を付ける
 - [x] ObjectList上で選択したときも、selected_annotation扱いにしたい
-- [ ] 整理してSARDに共有
+- [x] 整理してSARDに共有
 
 - [ ] MASA形式でエクスポートしたときに、is_manualの値が消えている
 - [ ] 紛らわしいのでBoundingBoxクラスのconfidenceとObjectAnnotationクラスのtrack_confidenceを統一したい。（BoundingBoxの方のconfidenceをObjectAnnotationに移動したい）
@@ -104,3 +104,11 @@
   * 18:05-18:50(誤検出消し&位置修正) 45
   * 19:30-19:50(誤検出消し&位置修正) 20
   * total: 100min
+ * H1125062070282_2025-06-20_12-39-19_2
+  * MASA不使用, 機能改善版
+  * 22:55-23:25 Pinset, Cotton Swab以外完了 (30min)
+  * 23:25-23:40 Pinset完了(Copy&Tracking&手動修正)(15min)
+  * 23:40-23:52 Cotton Swab Copy&Trackingまで完了(12min)
+  * 14:10-14:35 Cotton Swab1 手動修正完了(25min)
+  * 14:35-14:48 Cotton Swab2 手動修正完了(13min)
+  * total: 95min
