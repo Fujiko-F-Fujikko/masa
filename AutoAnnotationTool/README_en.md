@@ -85,15 +85,13 @@ source venv-samurai/Scripts/activate
 source venv-samurai/bin/activate 
 
 python -m pip install --upgrade pip
-pip install torch==2.3.1+cu118 torchvision==0.18.1+cu118 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu118
-
+pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu124
 cd sam2
 pip install -e .
-
+ 
 pip install matplotlib==3.7 tikzplotlib jpeg4py opencv-python lmdb pandas scipy loguru
-
+ 
 pip install decord PyQt6
-pip install numpy==1.26.4
 ```
 
 ### How to Run
