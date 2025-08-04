@@ -94,7 +94,6 @@ pip install -e .
 pip install matplotlib==3.7 tikzplotlib jpeg4py opencv-python lmdb pandas scipy loguru
  
 pip install decord PyQt6
-※numpyは1.26.4に落とさなくても動きました
 ```
 
 ### 実行方法
