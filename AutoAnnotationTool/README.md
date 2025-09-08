@@ -56,23 +56,8 @@ python (仮想環境上で)
 
 #### モデルファイルのダウンロード
 
-[README](../README.md#preparation)の手順でモデルファイルをダウンロード
+[README-MASA](../README-MASA.md#preparation)の手順でモデルファイルをダウンロード
 
-### 実行方法
-
-
-### 1. 動画に対して自動検出実行
-
-```cmd
-
-source venv-masa/Scripts/activate # 環境構築した仮想環境に入る
-
-python demo/video_demo_with_text.py <動画ファイルのpath> --out <検出結果確認用の動画出力先のpath> --masa_config configs/masa-gdino/masa_gdino_swinb_inference.py --masa_checkpoint saved_models/masa_models/gdino_masa.pth --score-thr 0.2 --unified --show_fps --texts "camera rear casing . cotton swab . tweesers . bottle . rubber gloves . barcode label sticker" --json_out <検出結果のjsonファイル出力先のpath(GUIアプリで使用します)>
-```
-
-* --score-thr: 動画で出力するアノテーションの信頼度の閾値(0.0~1.0)
-* --texts: 検出したい物体を任意の自然言語で指定。 区切り文字は"." (例: --texts "camera rear casing . cotton swab . tweesers . bottle . rubber gloves . barcode label sticker")
-* ※詳しい説明はスクリプトを読んでください
 
 
 ## 環境構築 for SAMURAI
@@ -91,17 +76,51 @@ pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https
 cd sam2
 pip install -e .
  
-pip install matplotlib==3.7 tikzplotlib jpeg4py opencv-python lmdb pandas scipy loguru
+pip install matplotlib tikzplotlib jpeg4py opencv-python lmdb pandas scipy loguru
  
 pip install decord PyQt6
 ```
+### Download Checkpoints
 
-### 実行方法
+[ここの手順](../sam2/README.md#getting-started)より、
 
-#### 2. GUIアプリで自動検出結果を編集
+First, we need to download a model checkpoint. All the model checkpoints can be downloaded by running:
+
+```bash
+cd checkpoints && \
+./download_ckpts.sh && \
+cd ..
+```
+
+## MASAを使った自動検出実行方法
+
+```cmd
+
+source venv-masa/Scripts/activate # 環境構築した仮想環境に入る
+
+python demo/video_demo_with_text.py <動画ファイルのpath> --out <検出結果確認用の動画出力先のpath> --masa_config configs/masa-gdino/masa_gdino_swinb_inference.py --masa_checkpoint saved_models/masa_models/gdino_masa.pth --score-thr 0.2 --unified --show_fps --texts "camera rear casing . cotton swab . tweesers . bottle . rubber gloves . barcode label sticker" --json_out <検出結果のjsonファイル出力先のpath(GUIアプリで使用します)>
+
+```
+
+* --score-thr: 動画で出力するアノテーションの信頼度の閾値(0.0~1.0)
+* --texts: 検出したい物体を任意の自然言語で指定。 区切り文字は"." (例: --texts "camera rear casing . cotton swab . tweesers . bottle . rubber gloves . barcode label sticker")
+* ※詳しい説明はスクリプトを読んでください
+
+## GUIツール実行方法
+
+#### 1. バッチファイルから起動
+
+```cmd
+run_object_annotation_app.bat
+```
+
+* もしくはbatファイルをダブルクリックでも起動可能。
+
+#### 2. pythonスクリプトから起動
 
 ```cmd
 source venv-samurai/Scripts/activate # 環境構築した仮想環境に入る
 python AutoAnnotationTool/src/MASAAnnotationApp/MASAAnnotationApp.py
-python AutoAnnotationTool/src/MASAAnnotationApp/MASAAnnotationApp.py --video AutoAnnotationTool/sample/H1125060570339_2025-06-05_10-52-51_2.mp4 --json AutoAnnotationTool/sample/H1125060570339_2025-06-05_10-52-51_2_outputs.json # 引数指定で起動時読み込み可
+python AutoAnnotationTool/src/MASAAnnotationApp/MASAAnnotationApp.py --video <path_to_video> # 動画ファイルを読み込んで起動
+python AutoAnnotationTool/src/MASAAnnotationApp/MASAAnnotationApp.py --video <path_to_video> --json <path_to_json_out> # MASAで自動検出した結果を読み込む
 ```
